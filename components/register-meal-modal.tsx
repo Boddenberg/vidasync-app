@@ -136,8 +136,14 @@ export function RegisterMealModal({
     onClose();
   }
 
-  // ── Ref do input de ingrediente ──
+  // ── Refs ──
   const ingNameRef = useRef<import('react-native').TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
+
+  /** Scroll para baixo quando campo recebe foco (evita teclado cobrir) */
+  function scrollToEnd() {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+  }
 
   // ── Ingredientes ──
   function handleAddIngredient() {
@@ -242,7 +248,7 @@ export function RegisterMealModal({
       onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={s.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
         {/* Spacer that pushes the sheet to the bottom + dismiss area */}
         <Pressable style={s.backdrop} onPress={handleClose} />
@@ -258,6 +264,7 @@ export function RegisterMealModal({
 
           {/* ── Scrollable content ── */}
           <ScrollView
+            ref={scrollRef}
             contentContainerStyle={s.bodyContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
@@ -284,53 +291,51 @@ export function RegisterMealModal({
                   </View>
                 )}
 
-                {/* Campos para adicionar ingrediente */}
-                {!calculated && (
-                  <>
-                    <AppInput
-                      ref={ingNameRef}
-                      placeholder={ingredients.length === 0 ? 'Ingrediente (ex: arroz branco)' : 'Ingrediente'}
-                      value={ingName}
-                      onChangeText={(t: string) => setIngName(t.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
-                      maxLength={50}
-                    />
+                {/* Campos para adicionar ingrediente — sempre visíveis */}
+                <AppInput
+                  ref={ingNameRef}
+                  placeholder={ingredients.length === 0 ? 'Ingrediente (ex: arroz branco)' : 'Adicionar ingrediente'}
+                  value={ingName}
+                  onChangeText={(t: string) => setIngName(t.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
+                  maxLength={50}
+                  onFocus={scrollToEnd}
+                />
 
-                    <View style={s.weightRow}>
-                      <View style={{ flex: 1 }}>
-                        <AppInput
-                          placeholder="Peso"
-                          value={ingWeight}
-                          onChangeText={(t: string) => setIngWeight(t.replace(/[^0-9.,]/g, ''))}
-                          keyboardType="numeric"
-                          maxLength={7}
-                        />
-                      </View>
-                      {/* Unidade selector */}
-                      <View style={s.unitRow}>
-                        {UNITS.map((u) => (
-                          <Pressable
-                            key={u}
-                            style={[s.unitBtn, ingUnit === u && s.unitBtnActive]}
-                            onPress={() => setIngUnit(u)}>
-                            <Text style={[s.unitText, ingUnit === u && s.unitTextActive]}>{u}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                      {/* Botão + */}
+                <View style={s.weightRow}>
+                  <View style={{ flex: 1 }}>
+                    <AppInput
+                      placeholder="Peso"
+                      value={ingWeight}
+                      onChangeText={(t: string) => setIngWeight(t.replace(/[^0-9.,]/g, ''))}
+                      keyboardType="numeric"
+                      maxLength={7}
+                      onFocus={scrollToEnd}
+                    />
+                  </View>
+                  {/* Unidade selector */}
+                  <View style={s.unitRow}>
+                    {UNITS.map((u) => (
                       <Pressable
-                        style={[s.addBtn, !canAddIngredient && s.addBtnDisabled]}
-                        onPress={handleAddIngredient}
-                        disabled={!canAddIngredient}>
-                        <Text style={s.addBtnText}>+</Text>
+                        key={u}
+                        style={[s.unitBtn, ingUnit === u && s.unitBtnActive]}
+                        onPress={() => setIngUnit(u)}>
+                        <Text style={[s.unitText, ingUnit === u && s.unitTextActive]}>{u}</Text>
                       </Pressable>
-                    </View>
-                  </>
-                )}
+                    ))}
+                  </View>
+                  {/* Botão + */}
+                  <Pressable
+                    style={[s.addBtn, !canAddIngredient && s.addBtnDisabled]}
+                    onPress={handleAddIngredient}
+                    disabled={!canAddIngredient}>
+                    <Text style={s.addBtnText}>+</Text>
+                  </Pressable>
+                </View>
 
                 {/* Botão calcular */}
-                {!calculated && hasIngredients && (
+                {hasIngredients && (
                   <AppButton
-                    title={`Calcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`}
+                    title={calculated ? `Recalcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})` : `Calcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`}
                     onPress={handleCalculate}
                     loading={nutrition.loading}
                   />
@@ -357,9 +362,7 @@ export function RegisterMealModal({
                       </View>
                     </View>
 
-                    <Pressable style={s.recalcBtn} onPress={() => nutrition.reset()}>
-                      <Text style={s.recalcText}>← Editar ingredientes</Text>
-                    </Pressable>
+
 
                     {/* ── Step 3: Detalhes ── */}
                     <View style={s.divider} />
@@ -381,6 +384,7 @@ export function RegisterMealModal({
                           placeholder="Nome do prato (opcional)"
                           value={dishName}
                           onChangeText={setDishName}
+                          onFocus={scrollToEnd}
                         />
                       </View>
                     </View>

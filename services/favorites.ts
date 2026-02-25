@@ -20,17 +20,23 @@ export async function getFavorites(): Promise<Favorite[]> {
   return data?.favorites ?? [];
 }
 
-/** Adiciona um novo favorito (com foto opcional em base64) */
+/** Adiciona um novo favorito (com foto opcional em base64 ou URL existente) */
 export async function createFavorite(params: {
   foods: string;
   nutrition: NutritionData;
   imageBase64?: string | null;
 }): Promise<Favorite> {
-  const data = await apiPost<FavoriteResponse>('/favorites', {
+  // Se a imagem já é uma URL (ex: ao editar sem trocar foto), envia como imageUrl
+  const body: Record<string, unknown> = {
     foods: params.foods,
     nutrition: params.nutrition,
-    image: params.imageBase64 ?? null,
-  });
+  };
+  if (params.imageBase64 && params.imageBase64.startsWith('http')) {
+    body.imageUrl = params.imageBase64;
+  } else {
+    body.image = params.imageBase64 ?? null;
+  }
+  const data = await apiPost<FavoriteResponse>('/favorites', body);
   return data.favorite;
 }
 

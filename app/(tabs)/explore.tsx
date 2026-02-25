@@ -12,6 +12,7 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -148,29 +149,14 @@ export default function MyDishesScreen() {
 
   // ── Editar favorito ──
   const [editingFav, setEditingFav] = useState<Favorite | null>(null);
+  const [actionSheetFav, setActionSheetFav] = useState<Favorite | null>(null);
 
   function handleFavoriteActions(fav: Favorite) {
-    Alert.alert(fav.foods, undefined, [
-      {
-        text: 'Usar como refeição',
-        onPress: () => handleUseAsMeal(fav),
-      },
-      {
-        text: 'Editar',
-        onPress: () => startEditing(fav),
-      },
-      {
-        text: 'Apagar',
-        style: 'destructive',
-        onPress: () => {
-          Alert.alert('Remover prato?', fav.foods, [
-            { text: 'Remover', style: 'destructive', onPress: () => remove(fav.id) },
-            { text: 'Cancelar', style: 'cancel' },
-          ]);
-        },
-      },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
+    setActionSheetFav(fav);
+  }
+
+  function closeActionSheet() {
+    setActionSheetFav(null);
   }
 
   function handleUseAsMeal(fav: Favorite) {
@@ -203,8 +189,10 @@ export default function MyDishesScreen() {
     if (!editingFav || !nutrition.data) return;
     const ingredientsStr = ingredients.map(formatIngredient).join(', ');
     const foodsStr = buildFoodsString(dishName, ingredientsStr);
+    // Se a foto não foi alterada, preserva a URL original passando null
+    const imageToSend = photoChanged ? photoUri : editingFav.imageUrl;
     await remove(editingFav.id);
-    await add(foodsStr, nutrition.data, photoUri);
+    await add(foodsStr, nutrition.data, imageToSend);
     setEditingFav(null);
     handleCancel();
   }
@@ -264,48 +252,44 @@ export default function MyDishesScreen() {
               </View>
             )}
 
-            {!calculated && (
-              <>
+            <AppInput
+              ref={ingNameRef}
+              placeholder={ingredients.length === 0 ? 'Ingrediente (ex: arroz branco)' : 'Adicionar ingrediente'}
+              value={ingName}
+              onChangeText={(t: string) => setIngName(t.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
+              maxLength={50}
+            />
+            <View style={s.weightRow}>
+              <View style={{ flex: 1 }}>
                 <AppInput
-                  ref={ingNameRef}
-                  placeholder={ingredients.length === 0 ? 'Ingrediente (ex: arroz branco)' : 'Ingrediente'}
-                  value={ingName}
-                  onChangeText={(t: string) => setIngName(t.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
-                  maxLength={50}
+                  placeholder="Peso"
+                  value={ingWeight}
+                  onChangeText={(t: string) => setIngWeight(t.replace(/[^0-9.,]/g, ''))}
+                  keyboardType="numeric"
+                  maxLength={7}
                 />
-                <View style={s.weightRow}>
-                  <View style={{ flex: 1 }}>
-                    <AppInput
-                      placeholder="Peso"
-                      value={ingWeight}
-                      onChangeText={(t: string) => setIngWeight(t.replace(/[^0-9.,]/g, ''))}
-                      keyboardType="numeric"
-                      maxLength={7}
-                    />
-                  </View>
-                  <View style={s.unitRow}>
-                    {UNITS.map((u) => (
-                      <Pressable
-                        key={u}
-                        style={[s.unitBtn, ingUnit === u && s.unitBtnActive]}
-                        onPress={() => setIngUnit(u)}>
-                        <Text style={[s.unitText, ingUnit === u && s.unitTextActive]}>{u}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
+              </View>
+              <View style={s.unitRow}>
+                {UNITS.map((u) => (
                   <Pressable
-                    style={[s.addIngBtn, !canAddIngredient && s.addIngBtnDisabled]}
-                    onPress={handleAddIngredient}
-                    disabled={!canAddIngredient}>
-                    <Text style={s.addIngBtnText}>+</Text>
+                    key={u}
+                    style={[s.unitBtn, ingUnit === u && s.unitBtnActive]}
+                    onPress={() => setIngUnit(u)}>
+                    <Text style={[s.unitText, ingUnit === u && s.unitTextActive]}>{u}</Text>
                   </Pressable>
-                </View>
-              </>
-            )}
+                ))}
+              </View>
+              <Pressable
+                style={[s.addIngBtn, !canAddIngredient && s.addIngBtnDisabled]}
+                onPress={handleAddIngredient}
+                disabled={!canAddIngredient}>
+                <Text style={s.addIngBtnText}>+</Text>
+              </Pressable>
+            </View>
 
-            {!calculated && hasIngredients && (
+            {hasIngredients && (
               <AppButton
-                title={`Calcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`}
+                title={calculated ? `Recalcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})` : `Calcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`}
                 onPress={handleCalculate}
                 loading={nutrition.loading}
               />
@@ -347,11 +331,7 @@ export default function MyDishesScreen() {
                   </View>
                 </View>
 
-                <Pressable
-                  style={s.recalcBtn}
-                  onPress={() => nutrition.reset()}>
-                  <Text style={s.recalcText}>← Editar ingredientes</Text>
-                </Pressable>
+
 
                 <View style={s.stepDivider} />
                 <Text style={s.stepLabel}>3. Nome do prato</Text>
@@ -447,6 +427,82 @@ export default function MyDishesScreen() {
         )}
       </ScrollView>
     </View>
+
+    {/* ── Action Sheet para favoritos ── */}
+    <Modal
+      visible={!!actionSheetFav}
+      transparent
+      animationType="fade"
+      onRequestClose={closeActionSheet}>
+      <Pressable style={s.asOverlay} onPress={closeActionSheet}>
+        <Pressable style={s.asSheet} onPress={(e) => e.stopPropagation()}>
+          {/* Handle */}
+          <View style={s.asHandleWrap}>
+            <View style={s.asHandle} />
+          </View>
+          {actionSheetFav && (
+            <Text style={s.asTitle} numberOfLines={2}>{actionSheetFav.foods}</Text>
+          )}
+
+          <View style={s.asActions}>
+            <Pressable
+              style={({ pressed }) => [s.asBtn, pressed && s.asBtnPressed]}
+              onPress={() => {
+                const fav = actionSheetFav!;
+                closeActionSheet();
+                setTimeout(() => handleUseAsMeal(fav), 200);
+              }}>
+              <View style={s.asIconWrap}>
+                <Text style={s.asIconText}>🍽</Text>
+              </View>
+              <Text style={s.asBtnLabel}>Usar como refeição</Text>
+            </Pressable>
+
+            <View style={s.asBtnBorder} />
+
+            <Pressable
+              style={({ pressed }) => [s.asBtn, pressed && s.asBtnPressed]}
+              onPress={() => {
+                const fav = actionSheetFav!;
+                closeActionSheet();
+                setTimeout(() => startEditing(fav), 200);
+              }}>
+              <View style={s.asIconWrap}>
+                <Text style={s.asIconText}>✏️</Text>
+              </View>
+              <Text style={s.asBtnLabel}>Editar</Text>
+            </Pressable>
+
+            <View style={s.asBtnBorder} />
+
+            <Pressable
+              style={({ pressed }) => [s.asBtn, pressed && s.asBtnPressed]}
+              onPress={() => {
+                const fav = actionSheetFav!;
+                closeActionSheet();
+                setTimeout(() => {
+                  Alert.alert('Remover prato?', fav.foods, [
+                    { text: 'Remover', style: 'destructive', onPress: () => remove(fav.id) },
+                    { text: 'Cancelar', style: 'cancel' },
+                  ]);
+                }, 200);
+              }}>
+              <View style={[s.asIconWrap, { backgroundColor: '#FFF0F0' }]}>
+                <Text style={[s.asIconText, { color: Brand.danger }]}>🗑</Text>
+              </View>
+              <Text style={[s.asBtnLabel, { color: Brand.danger }]}>Apagar</Text>
+            </Pressable>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [s.asCancelBtn, pressed && s.asBtnPressed]}
+            onPress={closeActionSheet}>
+            <Text style={s.asCancelText}>Cancelar</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+
     </KeyboardAvoidingView>
   );
 }
@@ -877,5 +933,85 @@ const s = StyleSheet.create({
   pillValue: {
     fontSize: 11,
     fontWeight: '600',
+  },
+
+  // Action Sheet
+  asOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  asSheet: {
+    backgroundColor: Brand.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 34,
+    paddingHorizontal: 20,
+  },
+  asHandleWrap: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 14,
+  },
+  asHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Brand.border,
+  },
+  asTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Brand.text,
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  asActions: {
+    backgroundColor: Brand.card,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  asBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  asBtnPressed: {
+    backgroundColor: Brand.bg,
+  },
+  asBtnBorder: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Brand.border,
+  },
+  asIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: Brand.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  asIconText: {
+    fontSize: 16,
+  },
+  asBtnLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Brand.text,
+  },
+  asCancelBtn: {
+    marginTop: 10,
+    backgroundColor: Brand.card,
+    borderRadius: 16,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  asCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Brand.textSecondary,
   },
 });

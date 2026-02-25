@@ -140,6 +140,7 @@ function ScrollPicker({ data, selected, onSelect }: {
       showsVerticalScrollIndicator={false}
       snapToInterval={ITEM_H}
       decelerationRate="fast"
+      nestedScrollEnabled
       style={s.flatList}
       contentContainerStyle={{ paddingVertical: ITEM_H }}
     >
@@ -182,6 +183,7 @@ function ScrollPickerMonth({ data, selected, onSelect }: {
       showsVerticalScrollIndicator={false}
       snapToInterval={ITEM_H}
       decelerationRate="fast"
+      nestedScrollEnabled
       style={s.flatListMonth}
       contentContainerStyle={{ paddingVertical: ITEM_H }}
     >
