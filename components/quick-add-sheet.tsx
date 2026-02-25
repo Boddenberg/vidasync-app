@@ -8,6 +8,7 @@
 import { Brand } from '@/constants/theme';
 import type { Favorite, MealType } from '@/types/nutrition';
 import { MEAL_TYPE_LABELS } from '@/types/nutrition';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import {
     Image,
@@ -26,12 +27,13 @@ type Props = {
   onClose: () => void;
 };
 
-const TYPES: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner'];
-const TYPE_ICONS: Record<MealType, string> = {
-  breakfast: '☀️',
-  lunch: '🍽',
-  snack: '🍎',
-  dinner: '🌙',
+const TYPES: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner', 'supper'];
+const TYPE_ICON_CONFIG: Record<MealType, { name: keyof typeof Ionicons.glyphMap; color: string; bg: string }> = {
+  breakfast: { name: 'sunny-outline', color: '#F57C00', bg: '#FFF3E0' },
+  lunch: { name: 'restaurant-outline', color: '#4CAF50', bg: '#E8F5E9' },
+  snack: { name: 'cafe-outline', color: '#F9A825', bg: '#FFF8E1' },
+  dinner: { name: 'moon-outline', color: '#7E57C2', bg: '#EDE7F6' },
+  supper: { name: 'bed-outline', color: '#5C6BC0', bg: '#E8EAF6' },
 };
 const THUMB = 44;
 
@@ -153,8 +155,8 @@ export function QuickAddSheet({ visible, favorites, onSelect, onClose }: Props) 
                   <Pressable
                     style={({ pressed }) => [s.typeBtn, pressed && s.typeBtnPressed]}
                     onPress={() => handleSelectType(type)}>
-                    <View style={s.typeIconWrap}>
-                      <Text style={s.typeIconText}>{TYPE_ICONS[type]}</Text>
+                    <View style={[s.typeIconWrap, { backgroundColor: TYPE_ICON_CONFIG[type].bg }]}>
+                      <Ionicons name={TYPE_ICON_CONFIG[type].name} size={18} color={TYPE_ICON_CONFIG[type].color} />
                     </View>
                     <Text style={s.typeBtnLabel}>{MEAL_TYPE_LABELS[type]}</Text>
                   </Pressable>

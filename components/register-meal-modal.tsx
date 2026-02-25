@@ -67,7 +67,7 @@ type Props = {
   onClose: () => void;
 };
 
-const TYPES: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner'];
+const TYPES: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner', 'supper'];
 const UNITS: WeightUnit[] = ['g', 'ml', 'un'];
 const THUMB = 44;
 

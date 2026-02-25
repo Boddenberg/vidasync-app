@@ -24,7 +24,7 @@ export type NutritionResponse = {
 // ─── Refeições ───────────────────────────────────────────
 
 /** Tipos de refeição possíveis */
-export type MealType = 'breakfast' | 'lunch' | 'snack' | 'dinner';
+export type MealType = 'breakfast' | 'lunch' | 'snack' | 'dinner' | 'supper';
 
 /** Labels amigáveis para cada tipo de refeição */
 export const MEAL_TYPE_LABELS: Record<MealType, string> = {
@@ -32,6 +32,7 @@ export const MEAL_TYPE_LABELS: Record<MealType, string> = {
   lunch: 'Almoço',
   snack: 'Lanche',
   dinner: 'Jantar',
+  supper: 'Ceia',
 };
 
 /** Uma refeição registrada */

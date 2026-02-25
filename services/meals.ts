@@ -38,14 +38,7 @@ export async function createMeal(params: {
   nutrition?: NutritionData;
   image?: string;
 }): Promise<Meal> {
-  // Se a imagem já é uma URL (ex: vindo de favorito), envia como imageUrl
-  // Se é base64, envia como image para o backend fazer upload
-  const body: Record<string, unknown> = { ...params };
-  if (params.image && params.image.startsWith('http')) {
-    body.imageUrl = params.image;
-    delete body.image;
-  }
-  const data = await apiPost<MealResponse>('/meals', body);
+  const data = await apiPost<MealResponse>('/meals', params);
   return data.meal;
 }
 
@@ -61,13 +54,7 @@ export async function updateMeal(
     image: string;
   }>,
 ): Promise<Meal> {
-  // Se a imagem já é uma URL, envia como imageUrl para preservar
-  const body: Record<string, unknown> = { ...params };
-  if (params.image && params.image.startsWith('http')) {
-    body.imageUrl = params.image;
-    delete body.image;
-  }
-  const data = await apiPut<MealResponse>(`/meals/${id}`, body);
+  const data = await apiPut<MealResponse>(`/meals/${id}`, params);
   return data.meal;
 }
 

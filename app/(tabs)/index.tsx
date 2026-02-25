@@ -130,7 +130,20 @@ export default function HomeScreen() {
 
   // ── Lançar prato salvo (Quick Add) ──
   async function handleQuickAdd(fav: Favorite, mealType: MealType) {
-    await add(fav.foods, mealType, fav.nutrition, undefined, undefined, fav.imageUrl);
+    // Baixa a imagem do favorito como base64 para enviar na criação da refeição
+    let imageBase64: string | undefined;
+    if (fav.imageUrl) {
+      try {
+        const resp = await fetch(fav.imageUrl);
+        const blob = await resp.blob();
+        imageBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.readAsDataURL(blob);
+        });
+      } catch { /* sem imagem, segue sem */ }
+    }
+    await add(fav.foods, mealType, fav.nutrition, undefined, undefined, imageBase64);
     setQuickAddVisible(false);
   }
 

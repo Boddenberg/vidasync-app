@@ -5,6 +5,7 @@
  * Salva SEM tipo de refeição — o tipo é escolhido na hora de registrar.
  */
 
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -168,7 +169,20 @@ export default function MyDishesScreen() {
     if (!mealTypeFav) return;
     const fav = mealTypeFav;
     setMealTypeFav(null);
-    await addMeal(fav.foods, type, fav.nutrition, undefined, undefined, fav.imageUrl);
+    // Baixa a imagem do favorito como base64 para enviar na criação da refeição
+    let imageBase64: string | undefined;
+    if (fav.imageUrl) {
+      try {
+        const resp = await fetch(fav.imageUrl);
+        const blob = await resp.blob();
+        imageBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.readAsDataURL(blob);
+        });
+      } catch { /* sem imagem, segue sem */ }
+    }
+    await addMeal(fav.foods, type, fav.nutrition, undefined, undefined, imageBase64);
     router.navigate('/(tabs)');
   }
 
@@ -406,7 +420,7 @@ export default function MyDishesScreen() {
                     <Image source={{ uri: fav.imageUrl }} style={s.cardThumb} />
                   ) : (
                     <View style={s.cardThumbPlaceholder}>
-                      <Text style={s.cardThumbLetter}>🍽️</Text>
+                      <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
                     </View>
                   )}
                   <View style={s.cardContent}>
@@ -441,25 +455,42 @@ export default function MyDishesScreen() {
           </View>
           <Text style={s.asTitle}>Adicionar em qual refeição?</Text>
           {mealTypeFav && (
-            <Text style={s.mealTypeSubtitle} numberOfLines={2}>{mealTypeFav.foods}</Text>
+            <View style={s.asHeaderRow}>
+              {mealTypeFav.imageUrl ? (
+                <Image source={{ uri: mealTypeFav.imageUrl }} style={s.asHeaderThumb} />
+              ) : (
+                <View style={s.asHeaderThumbPlaceholder}>
+                  <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
+                </View>
+              )}
+              <Text style={s.asHeaderFoodName} numberOfLines={2}>{mealTypeFav.foods}</Text>
+            </View>
           )}
 
           <View style={s.asActions}>
-            {(['breakfast', 'lunch', 'snack', 'dinner'] as MealType[]).map((type, idx) => (
+            {(['breakfast', 'lunch', 'snack', 'dinner', 'supper'] as MealType[]).map((type, idx) => {
+              const iconConfig: Record<MealType, { name: 'sunny-outline' | 'restaurant-outline' | 'cafe-outline' | 'moon-outline' | 'bed-outline'; color: string; bg: string }> = {
+                breakfast: { name: 'sunny-outline', color: '#F57C00', bg: '#FFF3E0' },
+                lunch: { name: 'restaurant-outline', color: Brand.greenDark, bg: '#E8F5E9' },
+                snack: { name: 'cafe-outline', color: '#F9A825', bg: '#FFF8E1' },
+                dinner: { name: 'moon-outline', color: '#7E57C2', bg: '#EDE7F6' },
+                supper: { name: 'bed-outline', color: '#5C6BC0', bg: '#E8EAF6' },
+              };
+              const cfg = iconConfig[type];
+              return (
               <View key={type}>
                 {idx > 0 && <View style={s.asBtnBorder} />}
                 <Pressable
                   style={({ pressed }) => [s.asBtn, pressed && s.asBtnPressed]}
                   onPress={() => confirmUseAsMeal(type)}>
-                  <View style={s.asIconWrap}>
-                    <Text style={s.asIconText}>
-                      {type === 'breakfast' ? '☀️' : type === 'lunch' ? '🍽' : type === 'snack' ? '🍎' : '🌙'}
-                    </Text>
+                  <View style={[s.asIconWrap, { backgroundColor: cfg.bg }]}>
+                    <Ionicons name={cfg.name} size={18} color={cfg.color} />
                   </View>
                   <Text style={s.asBtnLabel}>{MEAL_TYPE_LABELS[type]}</Text>
                 </Pressable>
               </View>
-            ))}
+              );
+            })}
           </View>
 
           <Pressable
@@ -484,7 +515,16 @@ export default function MyDishesScreen() {
             <View style={s.asHandle} />
           </View>
           {actionSheetFav && (
-            <Text style={s.asTitle} numberOfLines={2}>{actionSheetFav.foods}</Text>
+            <View style={s.asHeaderRow}>
+              {actionSheetFav.imageUrl ? (
+                <Image source={{ uri: actionSheetFav.imageUrl }} style={s.asHeaderThumb} />
+              ) : (
+                <View style={s.asHeaderThumbPlaceholder}>
+                  <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
+                </View>
+              )}
+              <Text style={s.asHeaderFoodName} numberOfLines={2}>{actionSheetFav.foods}</Text>
+            </View>
           )}
 
           <View style={s.asActions}>
@@ -495,8 +535,8 @@ export default function MyDishesScreen() {
                 closeActionSheet();
                 setTimeout(() => handleUseAsMeal(fav), 200);
               }}>
-              <View style={s.asIconWrap}>
-                <Text style={s.asIconText}>🍽</Text>
+              <View style={[s.asIconWrap, { backgroundColor: '#E8F5E9' }]}>
+                <Ionicons name="add-circle-outline" size={18} color={Brand.greenDark} />
               </View>
               <Text style={s.asBtnLabel}>Usar como refeição</Text>
             </Pressable>
@@ -510,8 +550,8 @@ export default function MyDishesScreen() {
                 closeActionSheet();
                 setTimeout(() => startEditing(fav), 200);
               }}>
-              <View style={s.asIconWrap}>
-                <Text style={s.asIconText}>✏️</Text>
+              <View style={[s.asIconWrap, { backgroundColor: '#E3F2FD' }]}>
+                <Ionicons name="create-outline" size={18} color="#1E88E5" />
               </View>
               <Text style={s.asBtnLabel}>Editar</Text>
             </Pressable>
@@ -531,7 +571,7 @@ export default function MyDishesScreen() {
                 }, 200);
               }}>
               <View style={[s.asIconWrap, { backgroundColor: '#FFF0F0' }]}>
-                <Text style={[s.asIconText, { color: Brand.danger }]}>🗑</Text>
+                <Ionicons name="trash-outline" size={18} color={Brand.danger} />
               </View>
               <Text style={[s.asBtnLabel, { color: Brand.danger }]}>Apagar</Text>
             </Pressable>
@@ -1057,12 +1097,31 @@ const s = StyleSheet.create({
     fontWeight: '600',
     color: Brand.textSecondary,
   },
-  mealTypeSubtitle: {
-    fontSize: 13,
-    color: Brand.textSecondary,
-    textAlign: 'center',
-    marginTop: -8,
+  asHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginBottom: 16,
-    lineHeight: 18,
+    paddingHorizontal: 4,
+  },
+  asHeaderThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+  },
+  asHeaderThumbPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: Brand.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  asHeaderFoodName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: Brand.text,
+    lineHeight: 19,
   },
 });

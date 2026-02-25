@@ -9,7 +9,7 @@ import type { MealType } from '@/types/nutrition';
 import { MEAL_TYPE_LABELS } from '@/types/nutrition';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
-const TYPES: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner'];
+const TYPES: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner', 'supper'];
 
 type Props = {
   selected: MealType | null;
