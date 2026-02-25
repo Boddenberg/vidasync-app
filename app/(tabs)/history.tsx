@@ -22,7 +22,6 @@ import { CalendarPickerModal } from '@/components/calendar-picker-modal';
 import { MealCard } from '@/components/meal-card';
 import { RegisterMealModal } from '@/components/register-meal-modal';
 import { Brand } from '@/constants/theme';
-import { injectCachedImages, removeCachedMealImage } from '@/services/meal-image-cache';
 import { deleteMeal, getDaySummary, getMealsByRange, updateMeal } from '@/services/meals';
 import type { Meal, MealType, NutritionData } from '@/types/nutrition';
 import { extractNum, monthRange, MONTHS, todayStr, WEEKDAYS } from '@/utils/helpers';
@@ -85,7 +84,6 @@ export default function HistoryScreen() {
     try {
       const summary = await getDaySummary(date);
       const mealsData = summary.meals ?? [];
-      await injectCachedImages(mealsData);
       setMeals(mealsData);
       setTotals(summary.totals ?? null);
       // atualiza dots do mês
@@ -138,12 +136,7 @@ export default function HistoryScreen() {
   }) {
     try {
       const { imageBase64, ...mealParams } = params;
-      await updateMeal(id, mealParams);
-      // Atualiza imagem no cache local
-      if (imageBase64) {
-        const { cacheMealImage } = await import('@/services/meal-image-cache');
-        await cacheMealImage(id, imageBase64);
-      }
+      await updateMeal(id, { ...mealParams, ...(imageBase64 ? { image: imageBase64 } : {}) });
       setEditingMeal(null);
       setEditVisible(false);
       await loadDay(selectedDate);
@@ -308,7 +301,6 @@ export default function HistoryScreen() {
                     onDelete={async () => {
                       try {
                         await deleteMeal(meal.id);
-                        await removeCachedMealImage(meal.id);
                         await loadDay(selectedDate);
                         const { startDate, endDate } = monthRange(viewYear, viewMonth);
                         getMealsByRange(startDate, endDate)

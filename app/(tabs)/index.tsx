@@ -25,13 +25,15 @@ import { AppInput } from '@/components/app-input';
 import { EditProfileModal } from '@/components/edit-profile-modal';
 import { MealCard } from '@/components/meal-card';
 import { NutritionIllustration } from '@/components/nutrition-illustration';
+import { QuickAddSheet } from '@/components/quick-add-sheet';
 import { RegisterMealModal } from '@/components/register-meal-modal';
 import { Brand } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
 import { useAuth } from '@/hooks/use-auth';
+import { useFavorites } from '@/hooks/use-favorites';
 import { useMeals } from '@/hooks/use-meals';
 import { getNutrition } from '@/services/nutrition';
-import type { Meal, MealType, NutritionData } from '@/types/nutrition';
+import type { Favorite, Meal, MealType, NutritionData } from '@/types/nutrition';
 import { buildFoodsString, DIAS_SEMANA, extractNum, MONTHS_SHORT } from '@/utils/helpers';
 
 // ─── helpers ─────────────────────────────────────────────
@@ -54,6 +56,7 @@ export default function HomeScreen() {
   const { user, logout } = useAuth();
   const [registerVisible, setRegisterVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
+  const [quickAddVisible, setQuickAddVisible] = useState(false);
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
 
   // Consultar calorias
@@ -64,12 +67,14 @@ export default function HomeScreen() {
   const UNITS: Array<'g' | 'ml' | 'un'> = ['g', 'ml', 'un'];
 
   const { meals, totals, add, edit, remove, duplicate, refresh } = useMeals();
+  const { favorites, refresh: refreshFavorites } = useFavorites();
 
-  // Recarrega refeições sempre que a aba ganha foco
+  // Recarrega refeições e favoritos sempre que a aba ganha foco
   useFocusEffect(
     useCallback(() => {
       refresh();
-    }, [refresh]),
+      refreshFavorites();
+    }, [refresh, refreshFavorites]),
   );
 
   function handleQuery() {
@@ -117,15 +122,16 @@ export default function HomeScreen() {
     imageBase64?: string | null;
   }) {
     const { imageBase64, ...mealParams } = params;
-    await edit(id, mealParams);
-    // Atualiza imagem no cache local (backend não aceita image no PUT)
-    if (imageBase64) {
-      const { cacheMealImage } = await import('@/services/meal-image-cache');
-      await cacheMealImage(id, imageBase64);
-    }
+    await edit(id, { ...mealParams, ...(imageBase64 ? { image: imageBase64 } : {}) });
     setEditingMeal(null);
     setRegisterVisible(false);
     refresh();
+  }
+
+  // ── Lançar prato salvo (Quick Add) ──
+  async function handleQuickAdd(fav: Favorite, mealType: MealType) {
+    await add(fav.foods, mealType, fav.nutrition, undefined, undefined, fav.imageUrl);
+    setQuickAddVisible(false);
   }
 
   // ── Totais do dia ──
@@ -261,13 +267,24 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Botão registrar */}
-          <Pressable
-            style={s.registerBtn}
-            onPress={() => setRegisterVisible(true)}>
-            <Text style={s.registerBtnIcon}>+</Text>
-            <Text style={s.registerBtnText}>Registrar refeição</Text>
-          </Pressable>
+          {/* Botões de ação */}
+          <View style={s.actionRow}>
+            <Pressable
+              style={[s.registerBtn, { flex: 1 }]}
+              onPress={() => setRegisterVisible(true)}>
+              <Text style={s.registerBtnIcon}>+</Text>
+              <Text style={s.registerBtnText}>Nova refeição</Text>
+            </Pressable>
+
+            {favorites.length > 0 && (
+              <Pressable
+                style={s.quickAddBtn}
+                onPress={() => setQuickAddVisible(true)}>
+                <Text style={s.quickAddBtnIcon}>★</Text>
+                <Text style={s.quickAddBtnText}>Meus Pratos</Text>
+              </Pressable>
+            )}
+          </View>
 
           {/* Lista de refeições */}
           {meals.length > 0 && (
@@ -293,7 +310,7 @@ export default function HomeScreen() {
 
           {meals.length === 0 && (
             <Text style={s.emptyHint}>
-              Nenhuma refeição registrada hoje.{'\n'}Toque em "+ Registrar refeição" para começar.
+              Nenhuma refeição registrada hoje.{'\n'}Toque em "+ Nova refeição" para começar.
             </Text>
           )}
         </View>
@@ -315,6 +332,14 @@ export default function HomeScreen() {
       <EditProfileModal
         visible={profileVisible}
         onClose={() => setProfileVisible(false)}
+      />
+
+      {/* ── Sheet de lançamento rápido (Meus Pratos) ── */}
+      <QuickAddSheet
+        visible={quickAddVisible}
+        favorites={favorites}
+        onSelect={handleQuickAdd}
+        onClose={() => setQuickAddVisible(false)}
       />
     </View>
   );
@@ -543,6 +568,12 @@ const s = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
+  // Action row
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+
   // Register button
   registerBtn: {
     flexDirection: 'row',
@@ -562,6 +593,29 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+
+  // Quick add button
+  quickAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: Brand.card,
+    borderWidth: 1.5,
+    borderColor: Brand.green,
+  },
+  quickAddBtnIcon: {
+    fontSize: 16,
+    color: Brand.greenDark,
+  },
+  quickAddBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Brand.greenDark,
   },
 
   // Meals list

@@ -150,8 +150,6 @@ export function RegisterMealModal({
     setIngUnit('g');
     // Ingredientes mudaram → macros ficam desatualizados
     if (nutrition.data) nutrition.reset();
-    // Voltar foco para o campo de ingrediente
-    setTimeout(() => ingNameRef.current?.focus(), 100);
   }
 
   function handleRemoveIngredient(index: number) {

@@ -2,16 +2,11 @@
  * Hook para gerenciar refeicoes do dia
  *
  * Usa o endpoint /meals/summary para ter refeicoes + totais do backend.
- * Injeta imagens do cache local (o backend nao retorna imageUrl no summary).
+ * Imagens sao armazenadas no Supabase Storage (backend cuida do upload).
  */
 
 import { useCallback, useEffect, useState } from 'react';
 
-import {
-    cacheMealImage,
-    injectCachedImages,
-    removeCachedMealImage,
-} from '@/services/meal-image-cache';
 import {
     createMeal,
     deleteMeal,
@@ -36,8 +31,6 @@ export function useMeals() {
     try {
       const summary = await getDaySummary(date);
       const mealsData = summary.meals ?? [];
-      // Backend nao retorna imageUrl no summary — injeta do cache local
-      await injectCachedImages(mealsData);
       setMeals(mealsData);
       setTotals(summary.totals ?? null);
     } catch (err: any) {
@@ -62,7 +55,7 @@ export function useMeals() {
       imageBase64?: string | null,
     ) => {
       try {
-        const meal = await createMeal({
+        await createMeal({
           foods,
           mealType,
           date: mealDate || date,
@@ -70,10 +63,6 @@ export function useMeals() {
           nutrition,
           image: imageBase64 || undefined,
         });
-        // Salva imagem no cache local (backend nao retorna imageUrl no summary)
-        if (imageBase64 && meal?.id) {
-          await cacheMealImage(meal.id, imageBase64);
-        }
         await refresh();
       } catch (err: any) {
         setError(err?.message ?? 'Erro ao salvar refeição');
@@ -82,7 +71,7 @@ export function useMeals() {
     [date, refresh],
   );
 
-  /** Edita uma refeição (campos parciais) */
+  /** Edita uma refeição (campos parciais, com imagem opcional) */
   const edit = useCallback(
     async (id: string, params: Partial<{
       foods: string;
@@ -90,6 +79,7 @@ export function useMeals() {
       date: string;
       time: string;
       nutrition: NutritionData;
+      image: string;
     }>) => {
       try {
         await updateMeal(id, params);
@@ -106,7 +96,6 @@ export function useMeals() {
     async (id: string) => {
       try {
         await deleteMeal(id);
-        await removeCachedMealImage(id);
         await refresh();
       } catch (err: any) {
         setError(err?.message ?? 'Erro ao apagar refeição');
@@ -115,11 +104,15 @@ export function useMeals() {
     [refresh],
   );
 
-  /** Duplica uma refeição */
+  /** Duplica uma refeição (backend copia image_url, só ajusta horário) */
   const duplicate = useCallback(
     async (id: string) => {
       try {
-        await duplicateMeal(id);
+        const newMeal = await duplicateMeal(id);
+        // Atualiza o horário para agora
+        if (newMeal?.id) {
+          await updateMeal(newMeal.id, { time: nowTimeStr() });
+        }
         await refresh();
       } catch (err: any) {
         setError(err?.message ?? 'Erro ao duplicar refeição');

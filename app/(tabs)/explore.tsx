@@ -5,7 +5,7 @@
  * Salva SEM tipo de refeição — o tipo é escolhido na hora de registrar.
  */
 
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import {
   Alert,
@@ -28,9 +28,11 @@ import { AppInput } from '@/components/app-input';
 import { Brand } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
 import { useFavorites } from '@/hooks/use-favorites';
+import { useMeals } from '@/hooks/use-meals';
 import { pickDishImage } from '@/services/dish-images';
 import { getNutrition } from '@/services/nutrition';
-import type { Favorite } from '@/types/nutrition';
+import type { Favorite, MealType } from '@/types/nutrition';
+import { MEAL_TYPE_LABELS } from '@/types/nutrition';
 import {
   buildFoodsString,
   formatIngredient,
@@ -57,6 +59,8 @@ export default function MyDishesScreen() {
 
   const nutrition = useAsync(getNutrition);
   const { favorites, loading, error, add, remove, refresh } = useFavorites();
+  const { add: addMeal } = useMeals();
+  const router = useRouter();
 
   // Recarrega favoritos sempre que a aba ganha foco
   useFocusEffect(
@@ -78,8 +82,6 @@ export default function MyDishesScreen() {
     setIngUnit('g');
     // Ingredientes mudaram → macros ficam desatualizados
     if (nutrition.data) nutrition.reset();
-    // Voltar foco para o campo de ingrediente
-    setTimeout(() => ingNameRef.current?.focus(), 100);
   }
 
   function handleRemoveIngredient(index: number) {
@@ -150,6 +152,10 @@ export default function MyDishesScreen() {
   function handleFavoriteActions(fav: Favorite) {
     Alert.alert(fav.foods, undefined, [
       {
+        text: 'Usar como refeição',
+        onPress: () => handleUseAsMeal(fav),
+      },
+      {
         text: 'Editar',
         onPress: () => startEditing(fav),
       },
@@ -165,6 +171,19 @@ export default function MyDishesScreen() {
       },
       { text: 'Cancelar', style: 'cancel' },
     ]);
+  }
+
+  function handleUseAsMeal(fav: Favorite) {
+    const types: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner'];
+    const buttons: Array<{ text: string; onPress?: () => void }> = types.map((type) => ({
+      text: MEAL_TYPE_LABELS[type],
+      onPress: async () => {
+        await addMeal(fav.foods, type, fav.nutrition, undefined, undefined, fav.imageUrl);
+        router.navigate('/(tabs)');
+      },
+    }));
+    buttons.push({ text: 'Cancelar' });
+    Alert.alert('Adicionar em qual refeição?', fav.foods, buttons);
   }
 
   function startEditing(fav: Favorite) {
@@ -211,7 +230,7 @@ export default function MyDishesScreen() {
         <Text style={s.title}>Meus Pratos</Text>
         <Text style={s.subtitle}>
           Cadastre o que você come com frequência.{'\n'}
-          Depois é só lançar rápido na Home.
+          Toque em um prato para usar como refeição.
         </Text>
 
         <View style={s.divider} />
@@ -407,7 +426,7 @@ export default function MyDishesScreen() {
                     <Image source={{ uri: fav.imageUrl }} style={s.cardThumb} />
                   ) : (
                     <View style={s.cardThumbPlaceholder}>
-                      <Text style={s.cardThumbLetter}>P</Text>
+                      <Text style={s.cardThumbLetter}>🍽️</Text>
                     </View>
                   )}
                   <View style={s.cardContent}>

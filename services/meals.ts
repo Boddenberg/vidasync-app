@@ -51,6 +51,7 @@ export async function updateMeal(
     date: string;
     time: string;
     nutrition: NutritionData;
+    image: string;
   }>,
 ): Promise<Meal> {
   const data = await apiPut<MealResponse>(`/meals/${id}`, params);
