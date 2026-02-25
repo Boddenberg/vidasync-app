@@ -150,6 +150,7 @@ export default function MyDishesScreen() {
   // ── Editar favorito ──
   const [editingFav, setEditingFav] = useState<Favorite | null>(null);
   const [actionSheetFav, setActionSheetFav] = useState<Favorite | null>(null);
+  const [mealTypeFav, setMealTypeFav] = useState<Favorite | null>(null);
 
   function handleFavoriteActions(fav: Favorite) {
     setActionSheetFav(fav);
@@ -160,16 +161,15 @@ export default function MyDishesScreen() {
   }
 
   function handleUseAsMeal(fav: Favorite) {
-    const types: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner'];
-    const buttons: Array<{ text: string; onPress?: () => void }> = types.map((type) => ({
-      text: MEAL_TYPE_LABELS[type],
-      onPress: async () => {
-        await addMeal(fav.foods, type, fav.nutrition, undefined, undefined, fav.imageUrl);
-        router.navigate('/(tabs)');
-      },
-    }));
-    buttons.push({ text: 'Cancelar' });
-    Alert.alert('Adicionar em qual refeição?', fav.foods, buttons);
+    setMealTypeFav(fav);
+  }
+
+  async function confirmUseAsMeal(type: MealType) {
+    if (!mealTypeFav) return;
+    const fav = mealTypeFav;
+    setMealTypeFav(null);
+    await addMeal(fav.foods, type, fav.nutrition, undefined, undefined, fav.imageUrl);
+    router.navigate('/(tabs)');
   }
 
   function startEditing(fav: Favorite) {
@@ -427,6 +427,49 @@ export default function MyDishesScreen() {
         )}
       </ScrollView>
     </View>
+
+    {/* ── Modal seletor de tipo de refeição ── */}
+    <Modal
+      visible={!!mealTypeFav}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setMealTypeFav(null)}>
+      <Pressable style={s.asOverlay} onPress={() => setMealTypeFav(null)}>
+        <Pressable style={s.asSheet} onPress={(e) => e.stopPropagation()}>
+          <View style={s.asHandleWrap}>
+            <View style={s.asHandle} />
+          </View>
+          <Text style={s.asTitle}>Adicionar em qual refeição?</Text>
+          {mealTypeFav && (
+            <Text style={s.mealTypeSubtitle} numberOfLines={2}>{mealTypeFav.foods}</Text>
+          )}
+
+          <View style={s.asActions}>
+            {(['breakfast', 'lunch', 'snack', 'dinner'] as MealType[]).map((type, idx) => (
+              <View key={type}>
+                {idx > 0 && <View style={s.asBtnBorder} />}
+                <Pressable
+                  style={({ pressed }) => [s.asBtn, pressed && s.asBtnPressed]}
+                  onPress={() => confirmUseAsMeal(type)}>
+                  <View style={s.asIconWrap}>
+                    <Text style={s.asIconText}>
+                      {type === 'breakfast' ? '☀️' : type === 'lunch' ? '🍽' : type === 'snack' ? '🍎' : '🌙'}
+                    </Text>
+                  </View>
+                  <Text style={s.asBtnLabel}>{MEAL_TYPE_LABELS[type]}</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [s.asCancelBtn, pressed && s.asBtnPressed]}
+            onPress={() => setMealTypeFav(null)}>
+            <Text style={s.asCancelText}>Cancelar</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
 
     {/* ── Action Sheet para favoritos ── */}
     <Modal
@@ -945,7 +988,7 @@ const s = StyleSheet.create({
     backgroundColor: Brand.bg,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: 34,
+    paddingBottom: 48,
     paddingHorizontal: 20,
   },
   asHandleWrap: {
@@ -1013,5 +1056,13 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Brand.textSecondary,
+  },
+  mealTypeSubtitle: {
+    fontSize: 13,
+    color: Brand.textSecondary,
+    textAlign: 'center',
+    marginTop: -8,
+    marginBottom: 16,
+    lineHeight: 18,
   },
 });

@@ -41,6 +41,7 @@ export function EditProfileModal({ visible, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [photoPickerVisible, setPhotoPickerVisible] = useState(false);
 
   function resetForm() {
     setUsername('');
@@ -50,6 +51,7 @@ export function EditProfileModal({ visible, onClose }: Props) {
     setPhotoChanged(false);
     setError(null);
     setSuccess(null);
+    setPhotoPickerVisible(false);
   }
 
   function handleOpen() {
@@ -62,37 +64,31 @@ export function EditProfileModal({ visible, onClose }: Props) {
   }
 
   function handlePickPhoto() {
-    Alert.alert('Foto de perfil', undefined, [
-      {
-        text: 'Camera',
-        onPress: async () => {
-          const uri = await pickDishImage(true);
-          if (uri) {
-            setPhotoUri(uri);
-            setPhotoChanged(true);
-          }
-        },
-      },
-      {
-        text: 'Galeria',
-        onPress: async () => {
-          const uri = await pickDishImage(false);
-          if (uri) {
-            setPhotoUri(uri);
-            setPhotoChanged(true);
-          }
-        },
-      },
-      {
-        text: 'Remover foto',
-        style: 'destructive',
-        onPress: () => {
-          setPhotoUri(null);
-          setPhotoChanged(true);
-        },
-      },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
+    setPhotoPickerVisible(true);
+  }
+
+  async function pickFromCamera() {
+    setPhotoPickerVisible(false);
+    const uri = await pickDishImage(true);
+    if (uri) {
+      setPhotoUri(uri);
+      setPhotoChanged(true);
+    }
+  }
+
+  async function pickFromGallery() {
+    setPhotoPickerVisible(false);
+    const uri = await pickDishImage(false);
+    if (uri) {
+      setPhotoUri(uri);
+      setPhotoChanged(true);
+    }
+  }
+
+  function removePhoto() {
+    setPhotoPickerVisible(false);
+    setPhotoUri(null);
+    setPhotoChanged(true);
   }
 
   async function handleSave() {
@@ -285,6 +281,64 @@ export function EditProfileModal({ visible, onClose }: Props) {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Photo picker modal ── */}
+      <Modal
+        visible={photoPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhotoPickerVisible(false)}>
+        <Pressable style={s.ppOverlay} onPress={() => setPhotoPickerVisible(false)}>
+          <Pressable style={s.ppSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={s.ppHandleWrap}>
+              <View style={s.ppHandle} />
+            </View>
+            <Text style={s.ppTitle}>Foto de perfil</Text>
+
+            <View style={s.ppActions}>
+              <Pressable
+                style={({ pressed }) => [s.ppBtn, pressed && s.ppBtnPressed]}
+                onPress={pickFromCamera}>
+                <View style={s.ppIconWrap}>
+                  <Text style={s.ppIconText}>📷</Text>
+                </View>
+                <Text style={s.ppBtnLabel}>Câmera</Text>
+              </Pressable>
+
+              <View style={s.ppBtnBorder} />
+
+              <Pressable
+                style={({ pressed }) => [s.ppBtn, pressed && s.ppBtnPressed]}
+                onPress={pickFromGallery}>
+                <View style={s.ppIconWrap}>
+                  <Text style={s.ppIconText}>🖼️</Text>
+                </View>
+                <Text style={s.ppBtnLabel}>Galeria</Text>
+              </Pressable>
+
+              {(photoUri || displayPhoto) && (
+                <>
+                  <View style={s.ppBtnBorder} />
+                  <Pressable
+                    style={({ pressed }) => [s.ppBtn, pressed && s.ppBtnPressed]}
+                    onPress={removePhoto}>
+                    <View style={[s.ppIconWrap, { backgroundColor: '#FFF0F0' }]}>
+                      <Text style={s.ppIconText}>🗑</Text>
+                    </View>
+                    <Text style={[s.ppBtnLabel, { color: Brand.danger }]}>Remover foto</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [s.ppCancelBtn, pressed && s.ppBtnPressed]}
+              onPress={() => setPhotoPickerVisible(false)}>
+              <Text style={s.ppCancelText}>Cancelar</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Modal>
   );
 }
@@ -437,5 +491,84 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: Brand.danger,
+  },
+
+  // Photo picker modal
+  ppOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  ppSheet: {
+    backgroundColor: Brand.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 48,
+    paddingHorizontal: 20,
+  },
+  ppHandleWrap: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 14,
+  },
+  ppHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Brand.border,
+  },
+  ppTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Brand.text,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  ppActions: {
+    backgroundColor: Brand.card,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  ppBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  ppBtnPressed: {
+    backgroundColor: Brand.bg,
+  },
+  ppBtnBorder: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Brand.border,
+  },
+  ppIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: Brand.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ppIconText: {
+    fontSize: 16,
+  },
+  ppBtnLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Brand.text,
+  },
+  ppCancelBtn: {
+    marginTop: 10,
+    backgroundColor: Brand.card,
+    borderRadius: 16,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  ppCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Brand.textSecondary,
   },
 });

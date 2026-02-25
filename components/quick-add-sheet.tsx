@@ -8,8 +8,8 @@
 import { Brand } from '@/constants/theme';
 import type { Favorite, MealType } from '@/types/nutrition';
 import { MEAL_TYPE_LABELS } from '@/types/nutrition';
+import { useState } from 'react';
 import {
-    Alert,
     Image,
     Modal,
     Pressable,
@@ -27,17 +27,31 @@ type Props = {
 };
 
 const TYPES: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner'];
+const TYPE_ICONS: Record<MealType, string> = {
+  breakfast: '☀️',
+  lunch: '🍽',
+  snack: '🍎',
+  dinner: '🌙',
+};
 const THUMB = 44;
 
 export function QuickAddSheet({ visible, favorites, onSelect, onClose }: Props) {
-  function handlePick(fav: Favorite) {
-    const buttons = TYPES.map((type) => ({
-      text: MEAL_TYPE_LABELS[type],
-      onPress: () => onSelect(fav, type),
-    }));
-    buttons.push({ text: 'Cancelar', onPress: () => {} });
+  const [selectedFav, setSelectedFav] = useState<Favorite | null>(null);
 
-    Alert.alert(`${fav.foods}`, 'Adicionar em qual refeição?', buttons);
+  function handlePick(fav: Favorite) {
+    setSelectedFav(fav);
+  }
+
+  function handleSelectType(type: MealType) {
+    if (!selectedFav) return;
+    const fav = selectedFav;
+    setSelectedFav(null);
+    onSelect(fav, type);
+  }
+
+  function handleClose() {
+    setSelectedFav(null);
+    onClose();
   }
 
   return (
@@ -45,8 +59,8 @@ export function QuickAddSheet({ visible, favorites, onSelect, onClose }: Props) 
       visible={visible}
       animationType="slide"
       transparent
-      onRequestClose={onClose}>
-      <Pressable style={s.backdrop} onPress={onClose}>
+      onRequestClose={handleClose}>
+      <Pressable style={s.backdrop} onPress={handleClose}>
         <View />
       </Pressable>
 
@@ -111,10 +125,51 @@ export function QuickAddSheet({ visible, favorites, onSelect, onClose }: Props) 
           ))}
         </ScrollView>
 
-        <Pressable style={s.closeBtn} onPress={onClose}>
+        <Pressable style={s.closeBtn} onPress={handleClose}>
           <Text style={s.closeBtnText}>Fechar</Text>
         </Pressable>
       </View>
+
+      {/* ── Modal de tipo de refeição ── */}
+      <Modal
+        visible={!!selectedFav}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedFav(null)}>
+        <Pressable style={s.typeOverlay} onPress={() => setSelectedFav(null)}>
+          <Pressable style={s.typeSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={s.handleWrap}>
+              <View style={s.handle} />
+            </View>
+            <Text style={s.typeTitle}>Adicionar em qual refeição?</Text>
+            {selectedFav && (
+              <Text style={s.typeSubtitle} numberOfLines={2}>{selectedFav.foods}</Text>
+            )}
+
+            <View style={s.typeActions}>
+              {TYPES.map((type, idx) => (
+                <View key={type}>
+                  {idx > 0 && <View style={s.typeBorder} />}
+                  <Pressable
+                    style={({ pressed }) => [s.typeBtn, pressed && s.typeBtnPressed]}
+                    onPress={() => handleSelectType(type)}>
+                    <View style={s.typeIconWrap}>
+                      <Text style={s.typeIconText}>{TYPE_ICONS[type]}</Text>
+                    </View>
+                    <Text style={s.typeBtnLabel}>{MEAL_TYPE_LABELS[type]}</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [s.typeCancelBtn, pressed && s.typeBtnPressed]}
+              onPress={() => setSelectedFav(null)}>
+              <Text style={s.typeCancelText}>Cancelar</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Modal>
   );
 }
@@ -265,6 +320,81 @@ const s = StyleSheet.create({
   },
   closeBtnText: {
     fontSize: 15,
+    fontWeight: '600',
+    color: Brand.textSecondary,
+  },
+
+  // Meal type selector modal
+  typeOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  typeSheet: {
+    backgroundColor: Brand.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 48,
+    paddingHorizontal: 20,
+  },
+  typeTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Brand.text,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  typeSubtitle: {
+    fontSize: 13,
+    color: Brand.textSecondary,
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  typeActions: {
+    backgroundColor: Brand.card,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  typeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  typeBtnPressed: {
+    backgroundColor: Brand.bg,
+  },
+  typeBorder: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Brand.border,
+  },
+  typeIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: Brand.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  typeIconText: {
+    fontSize: 16,
+  },
+  typeBtnLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Brand.text,
+  },
+  typeCancelBtn: {
+    marginTop: 10,
+    backgroundColor: Brand.card,
+    borderRadius: 16,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  typeCancelText: {
+    fontSize: 16,
     fontWeight: '600',
     color: Brand.textSecondary,
   },
