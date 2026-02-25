@@ -61,7 +61,15 @@ export async function apiPost<T = unknown>(path: string, body: unknown): Promise
   });
 
   const text = await res.text();
-  if (!res.ok) throw new Error(text || `Erro ${res.status}`);
+  if (!res.ok) {
+    try {
+      const json = JSON.parse(text);
+      throw new Error(json.error || json.message || text);
+    } catch (e) {
+      if (e instanceof Error && e.message !== text) throw e;
+      throw new Error(text || `Erro ${res.status}`);
+    }
+  }
 
   try {
     return JSON.parse(text) as T;
@@ -82,7 +90,15 @@ export async function apiPut<T = unknown>(path: string, body: unknown): Promise<
   });
 
   const text = await res.text();
-  if (!res.ok) throw new Error(text || `Erro ${res.status}`);
+  if (!res.ok) {
+    try {
+      const json = JSON.parse(text);
+      throw new Error(json.error || json.message || text);
+    } catch (e) {
+      if (e instanceof Error && e.message !== text) throw e;
+      throw new Error(text || `Erro ${res.status}`);
+    }
+  }
 
   try {
     return JSON.parse(text) as T;
@@ -102,7 +118,15 @@ export async function apiDelete<T = unknown>(path: string): Promise<T> {
   });
 
   const text = await res.text();
-  if (!res.ok) throw new Error(text || `Erro ${res.status}`);
+  if (!res.ok) {
+    try {
+      const json = JSON.parse(text);
+      throw new Error(json.error || json.message || text);
+    } catch (e) {
+      if (e instanceof Error && e.message !== text) throw e;
+      throw new Error(text || `Erro ${res.status}`);
+    }
+  }
 
   try {
     return JSON.parse(text) as T;

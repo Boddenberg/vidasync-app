@@ -144,3 +144,53 @@ export const MONTHS_SHORT = [
 ];
 
 export const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+// ─── Exemplos de alimentos (placeholder dinâmico) ────────
+
+const FOOD_EXAMPLES = [
+  'arroz branco',
+  'feijão preto',
+  'peito de frango',
+  'ovo cozido',
+  'banana',
+  'maçã',
+  'batata doce',
+  'pão francês',
+  'leite integral',
+  'queijo mussarela',
+  'alface',
+  'tomate',
+  'abacate',
+  'aveia',
+  'iogurte natural',
+  'carne moída',
+  'salmão',
+  'brócolis',
+  'mandioca',
+  'azeite de oliva',
+  'amendoim',
+  'granola',
+  'mamão',
+  'laranja',
+  'cenoura',
+  'milho verde',
+  'macarrão',
+  'tapioca',
+  'mel',
+  'açaí',
+  'whey protein',
+  'castanha de caju',
+  'frango desfiado',
+  'cuscuz',
+  'inhame',
+  'cottage',
+  'presunto',
+  'melancia',
+  'abóbora',
+  'espinafre',
+];
+
+/** Retorna um alimento aleatório da lista para usar como placeholder */
+export function randomFoodExample(): string {
+  return FOOD_EXAMPLES[Math.floor(Math.random() * FOOD_EXAMPLES.length)];
+}

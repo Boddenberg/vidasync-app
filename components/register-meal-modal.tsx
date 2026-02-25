@@ -27,6 +27,7 @@ import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { DatePicker } from '@/components/date-picker';
 import { MealTypeSelector } from '@/components/meal-type-selector';
+import { NutritionErrorModal } from '@/components/nutrition-error-modal';
 import { TimePicker } from '@/components/time-picker';
 import { Brand } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
@@ -38,6 +39,7 @@ import {
     formatIngredient,
     nowTimeStr,
     parseFoodsToIngredients,
+    randomFoodExample,
     splitFoodsAndDishName,
     type Ingredient,
     type WeightUnit,
@@ -81,6 +83,7 @@ export function RegisterMealModal({
   const isEditing = !!editMeal;
 
   // ── Estado do formulário ──
+  const [foodHint] = useState(() => `ex: ${randomFoodExample()}`);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [ingName, setIngName] = useState('');
   const [ingWeight, setIngWeight] = useState('');
@@ -294,7 +297,7 @@ export function RegisterMealModal({
                 {/* Campos para adicionar ingrediente — sempre visíveis */}
                 <AppInput
                   ref={ingNameRef}
-                  placeholder={ingredients.length === 0 ? 'Ingrediente (ex: arroz branco)' : 'Adicionar ingrediente'}
+                  placeholder={ingredients.length === 0 ? foodHint : 'Adicionar ingrediente'}
                   value={ingName}
                   onChangeText={(t: string) => setIngName(t.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
                   maxLength={50}
@@ -342,9 +345,11 @@ export function RegisterMealModal({
                 )}
 
                 {nutrition.error && (
-                  <View style={s.errorBox}>
-                    <Text style={s.errorText}>{nutrition.error}</Text>
-                  </View>
+                  <NutritionErrorModal
+                    visible={!!nutrition.error}
+                    message={nutrition.error}
+                    onClose={() => nutrition.reset()}
+                  />
                 )}
 
                 {/* ── Step 2: Resultado ── */}

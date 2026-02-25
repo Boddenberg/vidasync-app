@@ -24,6 +24,7 @@ import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { EditProfileModal } from '@/components/edit-profile-modal';
 import { MealCard } from '@/components/meal-card';
+import { NutritionErrorModal } from '@/components/nutrition-error-modal';
 import { NutritionIllustration } from '@/components/nutrition-illustration';
 import { QuickAddSheet } from '@/components/quick-add-sheet';
 import { RegisterMealModal } from '@/components/register-meal-modal';
@@ -34,7 +35,7 @@ import { useFavorites } from '@/hooks/use-favorites';
 import { useMeals } from '@/hooks/use-meals';
 import { getNutrition } from '@/services/nutrition';
 import type { Favorite, Meal, MealType, NutritionData } from '@/types/nutrition';
-import { buildFoodsString, DIAS_SEMANA, extractNum, MONTHS_SHORT } from '@/utils/helpers';
+import { buildFoodsString, DIAS_SEMANA, extractNum, MONTHS_SHORT, randomFoodExample } from '@/utils/helpers';
 
 // ─── helpers ─────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ export default function HomeScreen() {
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
 
   // Consultar calorias
+  const [foodHint] = useState(() => `ex: ${randomFoodExample()}`);
   const [query, setQuery] = useState('');
   const [queryWeight, setQueryWeight] = useState('');
   const [queryUnit, setQueryUnit] = useState<'g' | 'ml' | 'un'>('g');
@@ -199,7 +201,7 @@ export default function HomeScreen() {
           <Text style={s.cardHint}>Digite um alimento para saber os macros</Text>
 
           <AppInput
-            placeholder="Alimento (ex: arroz branco)"
+            placeholder={foodHint}
             value={query}
             onChangeText={(t: string) => setQuery(t.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
             maxLength={50}
@@ -250,9 +252,11 @@ export default function HomeScreen() {
           )}
 
           {nutrition.error && (
-            <View style={s.errorBox}>
-              <Text style={s.errorText}>{nutrition.error}</Text>
-            </View>
+            <NutritionErrorModal
+              visible={!!nutrition.error}
+              message={nutrition.error}
+              onClose={() => nutrition.reset()}
+            />
           )}
         </View>
 

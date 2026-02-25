@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
+import { NutritionErrorModal } from '@/components/nutrition-error-modal';
 import { Brand } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
 import { useFavorites } from '@/hooks/use-favorites';
@@ -39,6 +40,7 @@ import {
   buildFoodsString,
   formatIngredient,
   parseFoodsToIngredients,
+  randomFoodExample,
   splitFoodsAndDishName,
   type Ingredient,
   type WeightUnit,
@@ -51,6 +53,7 @@ export default function MyDishesScreen() {
   const [showForm, setShowForm] = useState(false);
 
   // Formulário estruturado
+  const [foodHint] = useState(() => `ex: ${randomFoodExample()}`);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [ingName, setIngName] = useState('');
   const [ingWeight, setIngWeight] = useState('');
@@ -268,7 +271,7 @@ export default function MyDishesScreen() {
 
             <AppInput
               ref={ingNameRef}
-              placeholder={ingredients.length === 0 ? 'Ingrediente (ex: arroz branco)' : 'Adicionar ingrediente'}
+              placeholder={ingredients.length === 0 ? foodHint : 'Adicionar ingrediente'}
               value={ingName}
               onChangeText={(t: string) => setIngName(t.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
               maxLength={50}
@@ -310,9 +313,11 @@ export default function MyDishesScreen() {
             )}
 
             {nutrition.error && (
-              <View style={s.errorBox}>
-                <Text style={s.errorText}>{nutrition.error}</Text>
-              </View>
+              <NutritionErrorModal
+                visible={!!nutrition.error}
+                message={nutrition.error}
+                onClose={() => nutrition.reset()}
+              />
             )}
 
             {/* Step 2: Resultado + detalhes */}

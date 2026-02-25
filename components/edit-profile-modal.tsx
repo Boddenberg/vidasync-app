@@ -19,6 +19,8 @@ import {
     View,
 } from 'react-native';
 
+import { Ionicons } from '@expo/vector-icons';
+
 import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { Brand } from '@/constants/theme';
@@ -203,7 +205,7 @@ export function EditProfileModal({ visible, onClose }: Props) {
               </View>
             )}
             <View style={s.avatarBadge}>
-              <Text style={s.avatarBadgeText}>E</Text>
+              <Ionicons name="camera" size={14} color="#FFFFFF" />
             </View>
           </Pressable>
           <Text style={s.avatarHint}>Toque para alterar a foto</Text>
@@ -299,8 +301,8 @@ export function EditProfileModal({ visible, onClose }: Props) {
               <Pressable
                 style={({ pressed }) => [s.ppBtn, pressed && s.ppBtnPressed]}
                 onPress={pickFromCamera}>
-                <View style={s.ppIconWrap}>
-                  <Text style={s.ppIconText}>📷</Text>
+                <View style={[s.ppIconWrap, { backgroundColor: '#E8F5E9' }]}>
+                  <Ionicons name="camera-outline" size={20} color={Brand.greenDark} />
                 </View>
                 <Text style={s.ppBtnLabel}>Câmera</Text>
               </Pressable>
@@ -310,8 +312,8 @@ export function EditProfileModal({ visible, onClose }: Props) {
               <Pressable
                 style={({ pressed }) => [s.ppBtn, pressed && s.ppBtnPressed]}
                 onPress={pickFromGallery}>
-                <View style={s.ppIconWrap}>
-                  <Text style={s.ppIconText}>🖼️</Text>
+                <View style={[s.ppIconWrap, { backgroundColor: '#E3F2FD' }]}>
+                  <Ionicons name="images-outline" size={20} color="#1976D2" />
                 </View>
                 <Text style={s.ppBtnLabel}>Galeria</Text>
               </Pressable>
@@ -323,7 +325,7 @@ export function EditProfileModal({ visible, onClose }: Props) {
                     style={({ pressed }) => [s.ppBtn, pressed && s.ppBtnPressed]}
                     onPress={removePhoto}>
                     <View style={[s.ppIconWrap, { backgroundColor: '#FFF0F0' }]}>
-                      <Text style={s.ppIconText}>🗑</Text>
+                      <Ionicons name="trash-outline" size={20} color={Brand.danger} />
                     </View>
                     <Text style={[s.ppBtnLabel, { color: Brand.danger }]}>Remover foto</Text>
                   </Pressable>
@@ -410,11 +412,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: Brand.bg,
-  },
-  avatarBadgeText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FFFFFF',
   },
   avatarHint: {
     fontSize: 12,
@@ -550,9 +547,6 @@ const s = StyleSheet.create({
     backgroundColor: Brand.bg,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  ppIconText: {
-    fontSize: 16,
   },
   ppBtnLabel: {
     fontSize: 16,
