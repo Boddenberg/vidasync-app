@@ -1,20 +1,34 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * VidaSync — Design System
+ * Identidade visual: saúde, leveza, alimentação natural, tecnologia amigável.
  */
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+export const Brand = {
+  green: '#7BC47F',
+  greenDark: '#4CAF50',
+  orange: '#F4A261',
+  yellow: '#F6D365',
+  bg: '#F9FAF7',
+  card: '#FFFFFF',
+  text: '#3A3A3A',
+  textSecondary: '#7A7A7A',
+  border: '#EDEEEB',
+  danger: '#E05656',
+  shadow: 'rgba(0,0,0,0.04)',
+};
+
+const tintColorLight = Brand.green;
+const tintColorDark = '#A8E6A3';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
+    text: Brand.text,
+    background: Brand.bg,
     tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
+    icon: Brand.textSecondary,
+    tabIconDefault: '#B0B0B0',
     tabIconSelected: tintColorLight,
   },
   dark: {
