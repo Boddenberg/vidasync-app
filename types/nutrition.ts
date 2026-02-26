@@ -92,12 +92,14 @@ export type FavoriteResponse = {
 
 // ─── Autenticação ────────────────────────────────────────
 
-/** Dados do usuário retornados por login/signup/profile */
+/** Dados do usuário exibidos no app (sem token) */
 export type AuthUser = {
   userId: string;
   username: string;
   profileImageUrl: string | null;
 };
 
-/** Resposta de signup e login */
-export type AuthResponse = AuthUser;
+/** Resposta de signup e login (inclui accessToken do Supabase) */
+export type AuthResponse = AuthUser & {
+  accessToken?: string;
+};

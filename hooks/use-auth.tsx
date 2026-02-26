@@ -8,12 +8,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-import { login as apiLogin, signup as apiSignup, updateProfile as apiUpdateProfile } from '@/services/auth';
-import type { AuthUser } from '@/types/nutrition';
+import { login as apiLogin, signup as apiSignup, updateProfile as apiUpdateProfile, SessionExpiredError } from '@/services/auth';
+import type { AuthResponse, AuthUser } from '@/types/nutrition';
 
 const STORAGE_KEY_USER_ID = '@vidasync:userId';
 const STORAGE_KEY_USERNAME = '@vidasync:username';
 const STORAGE_KEY_PROFILE_IMG = '@vidasync:profileImageUrl';
+const STORAGE_KEY_ACCESS_TOKEN = '@vidasync:accessToken';
 
 type AuthState = {
   /** Usuário logado (null = não autenticado) */
@@ -61,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  const persistUser = useCallback(async (u: AuthUser) => {
+  const persistUser = useCallback(async (u: AuthResponse) => {
     await AsyncStorage.setItem(STORAGE_KEY_USER_ID, u.userId);
     await AsyncStorage.setItem(STORAGE_KEY_USERNAME, u.username);
     if (u.profileImageUrl) {
@@ -69,7 +70,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       await AsyncStorage.removeItem(STORAGE_KEY_PROFILE_IMG);
     }
-    setUser(u);
+    // Salva accessToken quando presente (login/signup)
+    if (u.accessToken) {
+      await AsyncStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, u.accessToken);
+    }
+    setUser({ userId: u.userId, username: u.username, profileImageUrl: u.profileImageUrl });
   }, []);
 
   const loginFn = useCallback(async (username: string, password: string) => {
@@ -83,12 +88,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [persistUser]);
 
   const updateProfileFn = useCallback(async (params: { username?: string; password?: string; profileImage?: string | null }) => {
-    const data = await apiUpdateProfile(params);
-    await persistUser(data);
+    try {
+      const data = await apiUpdateProfile(params);
+      await persistUser(data);
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        // Limpa sessão local — o app vai redirecionar para login
+        await AsyncStorage.multiRemove([STORAGE_KEY_USER_ID, STORAGE_KEY_USERNAME, STORAGE_KEY_PROFILE_IMG, STORAGE_KEY_ACCESS_TOKEN]);
+        setUser(null);
+      }
+      throw err; // re-lança para o componente exibir a mensagem
+    }
   }, [persistUser]);
 
   const logoutFn = useCallback(async () => {
-    await AsyncStorage.multiRemove([STORAGE_KEY_USER_ID, STORAGE_KEY_USERNAME, STORAGE_KEY_PROFILE_IMG]);
+    await AsyncStorage.multiRemove([STORAGE_KEY_USER_ID, STORAGE_KEY_USERNAME, STORAGE_KEY_PROFILE_IMG, STORAGE_KEY_ACCESS_TOKEN]);
     setUser(null);
   }, []);
 
@@ -107,4 +121,9 @@ export function useAuth() {
 /** Retorna o userId atual (lê do AsyncStorage). Usado pelo api.ts */
 export async function getStoredUserId(): Promise<string | null> {
   return AsyncStorage.getItem(STORAGE_KEY_USER_ID);
+}
+
+/** Retorna o accessToken atual (lê do AsyncStorage). Usado pelo auth.ts */
+export async function getStoredAccessToken(): Promise<string | null> {
+  return AsyncStorage.getItem(STORAGE_KEY_ACCESS_TOKEN);
 }

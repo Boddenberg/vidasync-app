@@ -145,7 +145,13 @@ export function EditProfileModal({ visible, onClose }: Props) {
       setConfirmPassword('');
       setPhotoChanged(false);
     } catch (err: any) {
-      setError(err?.message ?? 'Erro ao atualizar perfil');
+      const msg = err?.message ?? 'Erro ao atualizar perfil';
+      // Sessão expirada → modal fecha, logout já redireciona para login
+      if (err?.name === 'SessionExpiredError') {
+        handleClose();
+        return;
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
