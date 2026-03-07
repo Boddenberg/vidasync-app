@@ -21,6 +21,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Android-34A853?style=flat-square&logo=android&logoColor=white" />
   <img src="https://img.shields.io/badge/platform-iOS-000000?style=flat-square&logo=apple&logoColor=white" />
+  <img src="https://img.shields.io/badge/platform-Web-4285F4?style=flat-square&logo=googlechrome&logoColor=white" />
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
 </p>
 
@@ -141,7 +142,7 @@ O VidaSync segue uma identidade visual que transmite **saúde, leveza e tecnolog
 
 - **Node.js** ≥ 18
 - **npm** ou **yarn**
-- **Expo Go** no celular — [Android](https://play.google.com/store/apps/details?id=host.exp.exponent) · [iOS](https://apps.apple.com/app/expo-go/id982107779)
+- **Expo Go** no celular (para Android/iOS) — [Android](https://play.google.com/store/apps/details?id=host.exp.exponent) · [iOS](https://apps.apple.com/app/expo-go/id982107779)
 
 ### Instalação
 
@@ -153,11 +154,15 @@ cd vidasync-app
 # Instale as dependências
 npm install
 
-# Inicie o servidor de desenvolvimento
+# Inicie o servidor de desenvolvimento (Android/iOS via Expo Go)
 npx expo start --tunnel
+
+# Ou rode diretamente no navegador
+npx expo start --web
 ```
 
-Escaneie o QR code com o **Expo Go** e pronto! 🎉
+Para **mobile**: escaneie o QR code com o **Expo Go** e pronto! 🎉  
+Para **web**: acesse `http://localhost:8081` no navegador.
 
 ---
 
