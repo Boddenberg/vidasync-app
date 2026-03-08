@@ -15,12 +15,6 @@ const STORAGE_KEY_USER_ID = '@vidasync:userId';
 const STORAGE_KEY_USERNAME = '@vidasync:username';
 const STORAGE_KEY_PROFILE_IMG = '@vidasync:profileImageUrl';
 const STORAGE_KEY_ACCESS_TOKEN = '@vidasync:accessToken';
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export function isValidUuid(value: string | null | undefined): value is string {
-  return !!value && UUID_REGEX.test(value.trim());
-}
 
 type AuthState = {
   /** Usuário logado (null = não autenticado) */
@@ -56,18 +50,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const userId = await AsyncStorage.getItem(STORAGE_KEY_USER_ID);
         const username = await AsyncStorage.getItem(STORAGE_KEY_USERNAME);
-        if (userId && username && isValidUuid(userId)) {
+        if (userId && username) {
           const profileImageUrl = await AsyncStorage.getItem(STORAGE_KEY_PROFILE_IMG);
           setUser({ userId, username, profileImageUrl });
-        } else if (userId || username) {
-          // Sessao antiga/corrompida: evita enviar X-User-Id invalido e quebrar endpoints.
-          await AsyncStorage.multiRemove([
-            STORAGE_KEY_USER_ID,
-            STORAGE_KEY_USERNAME,
-            STORAGE_KEY_PROFILE_IMG,
-            STORAGE_KEY_ACCESS_TOKEN,
-          ]);
-          setUser(null);
         }
       } catch {
         // ignora erro de leitura
@@ -78,10 +63,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persistUser = useCallback(async (u: AuthResponse) => {
-    if (!isValidUuid(u.userId)) {
-      throw new Error('Sessao invalida recebida do servidor. Faca login novamente.');
-    }
-
     await AsyncStorage.setItem(STORAGE_KEY_USER_ID, u.userId);
     await AsyncStorage.setItem(STORAGE_KEY_USERNAME, u.username);
     if (u.profileImageUrl) {

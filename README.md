@@ -153,9 +153,6 @@ cd vidasync-app
 # Instale as dependências
 npm install
 
-# Configure os endpoints (app + servicos opcionais de audio/pdf/revisao)
-cp .env.example .env
-
 # Inicie o servidor de desenvolvimento
 npx expo start --tunnel
 ```
@@ -272,81 +269,3 @@ Este projeto está sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) par
   <br />
   <sub>Cuide da sua alimentação. Cuide da sua vida.</sub>
 </p>
-
----
-## Experiencia de anexos (nova)
-
-O app agora possui um modulo reutilizavel de anexos com:
-
-- selecao de tipo (foto, audio, pdf)
-- preview (imagem para foto e resumo para audio/pdf)
-- estados por item (processing, error, success)
-- retry por item com fallback de erro claro
-- preparo de payload para envio ao BFF (sem chamada direta a agentes)
-
-Arquivos-chave:
-
-- `components/attachments/attachment-picker-field.tsx`
-- `components/attachments/domain-attachment-fields.tsx`
-- `services/attachments.ts`
-- `types/attachments.ts`
-- `utils/attachment-rules.ts`
-
-Fluxos ja integrados:
-
-- cadastro/edicao de refeicao (`register-meal-modal`)
-- cadastro/edicao de prato favorito (`app/(tabs)/explore.tsx`)
-- consulta de calorias por foto (`app/(tabs)/index.tsx`) com camera/galeria
-- consulta de calorias por voz (`app/(tabs)/index.tsx`) com gravacao e previa
-
-Fluxo foto -> BFF:
-
-- usuario seleciona foto (camera ou galeria) e visualiza preview
-- app envia foto para `POST /nutrition/calories` via BFF
-- app trata loading, erro e retry
-- app mostra warnings quando houver
-- se `precisa_revisao=true`, app navega para `app/nutrition/review.tsx`
-
-Fluxo audio -> BFF:
-
-- usuario inicia gravacao, pausa/continua e para quando desejar
-- app permite ouvir previa antes do envio
-- app envia audio para endpoint de voz no BFF (configuravel em `API_NUTRITION_AUDIO_PATH`)
-- app trata loading, erro e retry
-- app mostra warnings quando houver
-- se `precisa_revisao=true`, app navega para `app/nutrition/review.tsx`
-
-Fluxo PDF (plano alimentar) -> BFF:
-
-- usuario seleciona um PDF do dispositivo
-- app exibe preview com nome e tamanho do arquivo
-- usuario pode remover, trocar arquivo e reenviar
-- app envia PDF para o endpoint configurado em `constants/config.ts` (`API_PLAN_PDF_PATH`)
-- app trata loading, erro e retry
-- app mostra warnings retornados
-- se `precisa_revisao=true`, app navega para `app/review/assistida.tsx`
-
-Fluxo unificado de revisao assistida:
-
-- qualquer resposta com `precisa_revisao=true` (foto, audio ou PDF) abre `app/review/assistida.tsx`
-- usuario revisa warnings, edita itens/valores e confirma
-- usuario pode reenviar os ajustes para o BFF pelo endpoint configurado em `API_REVIEW_CONFIRM_PATH`
-- a tela foi desenhada para reaproveitar o mesmo estado em fluxos futuros de chat e plano
-
-Uso futuro (ja preparado):
-
-- `ChatAttachmentField` para fluxo de chat
-- `PlanAttachmentField` para analise de plano alimentar
-
-Regra arquitetural:
-
-- App chama apenas rotas de dominio do BFF.
-- Nenhum componente de front chama endpoint da camada de agentes.
-
-## Calculadora de IMC (nova)
-
-- Componente reutilizavel: `components/health/bmi-calculator-card.tsx`
-- Regra deterministica isolada em: `utils/bmi.ts`
-- Experiencia no app: card de IMC na Home (`app/(tabs)/index.tsx`)
-- Atalho preparado para chat: rota `app/tools/imc.tsx` + `components/chat/chat-quick-actions.tsx`
-- Calculo local (sem chamada de IA): peso(kg) / altura(m)^2 com faixa interpretativa e mensagem de apoio

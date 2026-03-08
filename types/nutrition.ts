@@ -21,38 +21,6 @@ export type NutritionResponse = {
   error: string | null;
 };
 
-/*
- * Estruturas de revisao da analise nutricional.
- *
- * O BFF pode sinalizar que o resultado precisa de confirmacao humana.
- * Essas estruturas isolam o contrato para a UI de revisao sem acoplar
- * a tela aos nomes crus vindos da API.
- */
-export type NutritionCorrection = {
-  original: string;
-  corrected: string;
-};
-
-export type NutritionIngredientAnalysis = {
-  name: string;
-  nutrition: NutritionData;
-  cached: boolean;
-  precisaRevisao: boolean;
-  warnings: string[];
-  traceId: string | null;
-};
-
-export type NutritionAnalysisResult = {
-  nutrition: NutritionData;
-  ingredients: NutritionIngredientAnalysis[];
-  corrections: NutritionCorrection[];
-  invalidItems: string[];
-  precisaRevisao: boolean;
-  warnings: string[];
-  traceId: string | null;
-  error: string | null;
-};
-
 // ─── Refeições ───────────────────────────────────────────
 
 /** Tipos de refeição possíveis */

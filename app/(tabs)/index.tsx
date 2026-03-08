@@ -1,12 +1,12 @@
 /**
- * Tela InÃ­cio (Home)
+ * Tela Início (Home)
  *
- * Dividida em duas Ã¡reas:
- *   1. Consultar Calorias â€” campo simples para calcular macros
- *   2. Meu Dia â€” panorama + refeiÃ§Ãµes + botÃ£o para registrar (abre modal)
+ * Dividida em duas áreas:
+ *   1. Consultar Calorias — campo simples para calcular macros
+ *   2. Meu Dia — panorama + refeições + botão para registrar (abre modal)
  */
 
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   Image,
@@ -23,11 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { EditProfileModal } from '@/components/edit-profile-modal';
-import { BmiCalculatorCard } from '@/components/health/bmi-calculator-card';
 import { MealCard } from '@/components/meal-card';
-import { AudioNutritionAnalyzer } from '@/components/nutrition/audio-nutrition-analyzer';
-import { PdfPlanAnalyzer } from '@/components/nutrition/pdf-plan-analyzer';
-import { PhotoNutritionAnalyzer } from '@/components/nutrition/photo-nutrition-analyzer';
 import { NutritionErrorModal } from '@/components/nutrition-error-modal';
 import { NutritionIllustration } from '@/components/nutrition-illustration';
 import { QuickAddSheet } from '@/components/quick-add-sheet';
@@ -37,14 +33,11 @@ import { useAsync } from '@/hooks/use-async';
 import { useAuth } from '@/hooks/use-auth';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useMeals } from '@/hooks/use-meals';
-import { setReviewSession } from '@/services/review-session';
 import { getNutrition } from '@/services/nutrition';
-import type { AttachmentItem } from '@/types/attachments';
-import type { Favorite, Meal, MealType, NutritionAnalysisResult, NutritionData } from '@/types/nutrition';
-import type { PlanPdfAnalysisResult } from '@/types/plan';
+import type { Favorite, Meal, MealType, NutritionData } from '@/types/nutrition';
 import { buildFoodsString, DIAS_SEMANA, extractNum, MONTHS_SHORT, randomFoodExample } from '@/utils/helpers';
 
-// â”€â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── helpers ─────────────────────────────────────────────
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -58,17 +51,14 @@ function todayLabel(): string {
   return `${DIAS_SEMANA[d.getDay()]}, ${d.getDate()} de ${MONTHS_SHORT[d.getMonth()]}`;
 }
 
-// â”€â”€â”€ componente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── componente ──────────────────────────────────────────
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const router = useRouter();
+  const { user, logout } = useAuth();
   const [registerVisible, setRegisterVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
   const [quickAddVisible, setQuickAddVisible] = useState(false);
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
-  const [photoAttachments, setPhotoAttachments] = useState<AttachmentItem[]>([]);
-  const [planPdfAttachments, setPlanPdfAttachments] = useState<AttachmentItem[]>([]);
 
   // Consultar calorias
   const [foodHint] = useState(() => `ex: ${randomFoodExample()}`);
@@ -76,12 +66,12 @@ export default function HomeScreen() {
   const [queryWeight, setQueryWeight] = useState('');
   const [queryUnit, setQueryUnit] = useState<'g' | 'ml' | 'un'>('g');
   const nutrition = useAsync(getNutrition);
-  const UNITS: ('g' | 'ml' | 'un')[] = ['g', 'ml', 'un'];
+  const UNITS: Array<'g' | 'ml' | 'un'> = ['g', 'ml', 'un'];
 
   const { meals, totals, add, edit, remove, duplicate, refresh } = useMeals();
   const { favorites, refresh: refreshFavorites } = useFavorites();
 
-  // Recarrega refeiÃ§Ãµes e favoritos sempre que a aba ganha foco
+  // Recarrega refeições e favoritos sempre que a aba ganha foco
   useFocusEffect(
     useCallback(() => {
       refresh();
@@ -105,38 +95,7 @@ export default function HomeScreen() {
     nutrition.reset();
   }
 
-  /*
-   * Encaminha o usuario para a tela de revisao quando o BFF
-   * indicar precisa_revisao=true no fluxo de foto.
-   */
-  function handleNutritionNeedsReview(
-    source: 'photo' | 'audio',
-    result: NutritionAnalysisResult,
-  ) {
-    setReviewSession({
-      kind: 'nutrition',
-      source,
-      createdAt: new Date().toISOString(),
-      result,
-    });
-    router.push('/review/assistida' as any);
-  }
-
-  function handlePlanPdfNeedsReview(result: PlanPdfAnalysisResult) {
-    setReviewSession({
-      kind: 'plan',
-      source: 'pdf',
-      createdAt: new Date().toISOString(),
-      result,
-    });
-    router.push('/review/assistida' as any);
-  }
-
-  function handleOpenBmiQuickAction() {
-    router.push('/tools/imc' as any);
-  }
-
-  // â”€â”€ Salvar via modal "Novo prato" â”€â”€
+  // ── Salvar via modal "Novo prato" ──
   async function handleSaveNew(params: {
     foods: string;
     mealType: MealType;
@@ -156,7 +115,7 @@ export default function HomeScreen() {
     setRegisterVisible(true);
   }
 
-  // â”€â”€ Salvar ediÃ§Ã£o via modal â”€â”€
+  // ── Salvar edição via modal ──
   async function handleEditSave(id: string, params: {
     foods: string;
     mealType: MealType;
@@ -171,9 +130,9 @@ export default function HomeScreen() {
     refresh();
   }
 
-  // â”€â”€ LanÃ§ar prato salvo (Quick Add) â”€â”€
+  // ── Lançar prato salvo (Quick Add) ──
   async function handleQuickAdd(fav: Favorite, mealType: MealType) {
-    // Baixa a imagem do favorito como base64 para enviar na criaÃ§Ã£o da refeiÃ§Ã£o
+    // Baixa a imagem do favorito como base64 para enviar na criação da refeição
     let imageBase64: string | undefined;
     if (fav.imageUrl) {
       try {
@@ -190,7 +149,7 @@ export default function HomeScreen() {
     setQuickAddVisible(false);
   }
 
-  // â”€â”€ Totais do dia â”€â”€
+  // ── Totais do dia ──
   const cal = totals ? Math.round(extractNum(totals.calories)) : 0;
   const prot = totals ? Math.round(extractNum(totals.protein)) : 0;
   const carb = totals ? Math.round(extractNum(totals.carbs)) : 0;
@@ -205,7 +164,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
 
-        {/* â”€â”€ Header â”€â”€ */}
+        {/* ── Header ── */}
         <View style={s.header}>
           <Pressable
             style={s.headerLeft}
@@ -229,9 +188,9 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-        {/* â”€â”€ 1. Consultar Calorias â”€â”€                     */}
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {/* ════════════════════════════════════════════════ */}
+        {/* ── 1. Consultar Calorias ──                     */}
+        {/* ════════════════════════════════════════════════ */}
         <View style={s.card}>
           <View style={s.cardTitleRow}>
             <View style={s.cardIcon}>
@@ -244,7 +203,7 @@ export default function HomeScreen() {
           <AppInput
             placeholder={foodHint}
             value={query}
-            onChangeText={(t: string) => setQuery(t.replace(/[^\p{L}\s]/gu, ''))}
+            onChangeText={(t: string) => setQuery(t.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
             maxLength={50}
           />
 
@@ -299,44 +258,11 @@ export default function HomeScreen() {
               onClose={() => nutrition.reset()}
             />
           )}
-
-          <View style={s.innerDivider} />
-
-          <PhotoNutritionAnalyzer
-            attachments={photoAttachments}
-            onChangeAttachments={setPhotoAttachments}
-            onRequiresReview={(result) => handleNutritionNeedsReview('photo', result)}
-          />
-
-          <View style={s.innerDivider} />
-
-          <AudioNutritionAnalyzer
-            onRequiresReview={(result) => handleNutritionNeedsReview('audio', result)}
-          />
-
-          <View style={s.innerDivider} />
-
-          <PdfPlanAnalyzer
-            attachments={planPdfAttachments}
-            onChangeAttachments={setPlanPdfAttachments}
-            onRequiresReview={handlePlanPdfNeedsReview}
-          />
-        </View>
-        <View style={s.card}>
-          <View style={s.cardTitleRow}>
-            <View style={s.cardIcon}>
-              <Text style={s.cardIconText}>I</Text>
-            </View>
-            <Text style={s.cardTitle}>Calculadora de IMC</Text>
-          </View>
-
-          <BmiCalculatorCard onOpenAsQuickAction={handleOpenBmiQuickAction} />
         </View>
 
-
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-        {/* â”€â”€ 2. Meu Dia â”€â”€                                */}
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {/* ════════════════════════════════════════════════ */}
+        {/* ── 2. Meu Dia ──                                */}
+        {/* ════════════════════════════════════════════════ */}
         <View style={s.card}>
           <View style={s.cardTitleRow}>
             <View style={s.cardIcon}>
@@ -352,36 +278,36 @@ export default function HomeScreen() {
               <Text style={s.calUnit}>kcal</Text>
             </View>
             <View style={s.macroBarRow}>
-              <MacroBar label="ProteÃ­na" value={prot} unit="g" color="#5DADE2" bg="#EBF5FB" />
+              <MacroBar label="Proteína" value={prot} unit="g" color="#5DADE2" bg="#EBF5FB" />
               <MacroBar label="Carbo" value={carb} unit="g" color={Brand.orange} bg="#FEF5E7" />
               <MacroBar label="Gordura" value={fat} unit="g" color="#E74C3C" bg="#FDEDEC" />
             </View>
           </View>
 
-          {/* BotÃµes de aÃ§Ã£o */}
+          {/* Botões de ação */}
           <View style={s.actionRow}>
             <Pressable
               style={[s.registerBtn, { flex: 1 }]}
               onPress={() => setRegisterVisible(true)}>
               <Text style={s.registerBtnIcon}>+</Text>
-              <Text style={s.registerBtnText}>Nova refeiÃ§Ã£o</Text>
+              <Text style={s.registerBtnText}>Nova refeição</Text>
             </Pressable>
 
             {favorites.length > 0 && (
               <Pressable
                 style={s.quickAddBtn}
                 onPress={() => setQuickAddVisible(true)}>
-                <Text style={s.quickAddBtnIcon}>â˜…</Text>
+                <Text style={s.quickAddBtnIcon}>★</Text>
                 <Text style={s.quickAddBtnText}>Meus Pratos</Text>
               </Pressable>
             )}
           </View>
 
-          {/* Lista de refeiÃ§Ãµes */}
+          {/* Lista de refeições */}
           {meals.length > 0 && (
             <View style={s.mealsList}>
               <Text style={s.mealsTitle}>
-                {meals.length} {meals.length === 1 ? 'refeiÃ§Ã£o' : 'refeiÃ§Ãµes'}
+                {meals.length} {meals.length === 1 ? 'refeição' : 'refeições'}
               </Text>
               {[...meals].sort((a, b) => {
                 const tA = a.time || '';
@@ -401,13 +327,13 @@ export default function HomeScreen() {
 
           {meals.length === 0 && (
             <Text style={s.emptyHint}>
-              Nenhuma refeiÃ§Ã£o registrada hoje.{'\n'}Toque em &quot;+ Nova refeiÃ§Ã£o&quot; para comeÃ§ar.
+              Nenhuma refeição registrada hoje.{'\n'}Toque em "+ Nova refeição" para começar.
             </Text>
           )}
         </View>
       </ScrollView>
 
-      {/* â”€â”€ Modal de registro / ediÃ§Ã£o â”€â”€ */}
+      {/* ── Modal de registro / edição ── */}
       <RegisterMealModal
         visible={registerVisible}
         editMeal={editingMeal}
@@ -419,13 +345,13 @@ export default function HomeScreen() {
         }}
       />
 
-      {/* â”€â”€ Modal de perfil â”€â”€ */}
+      {/* ── Modal de perfil ── */}
       <EditProfileModal
         visible={profileVisible}
         onClose={() => setProfileVisible(false)}
       />
 
-      {/* â”€â”€ Sheet de lanÃ§amento rÃ¡pido (Meus Pratos) â”€â”€ */}
+      {/* ── Sheet de lançamento rápido (Meus Pratos) ── */}
       <QuickAddSheet
         visible={quickAddVisible}
         favorites={favorites}
@@ -436,7 +362,7 @@ export default function HomeScreen() {
   );
 }
 
-// â”€â”€â”€ Sub-componentes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Sub-componentes ─────────────────────────────────────
 
 function MacroPill({ label, value, color, bg }: {
   label: string; value: string; color: string; bg: string;
@@ -460,7 +386,7 @@ function MacroBar({ label, value, unit, color, bg }: {
   );
 }
 
-// â”€â”€â”€ Estilos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Estilos ─────────────────────────────────────────────
 
 const s = StyleSheet.create({
   root: {
@@ -613,12 +539,6 @@ const s = StyleSheet.create({
     fontWeight: '600',
     color: Brand.textSecondary,
     marginTop: 4,
-  },
-  innerDivider: {
-    width: '100%',
-    height: 1,
-    backgroundColor: Brand.border,
-    marginVertical: 4,
   },
 
   // Panorama

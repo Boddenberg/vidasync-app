@@ -6,7 +6,7 @@
  */
 
 import { API_BASE_URL } from '@/constants/config';
-import { getStoredAccessToken, getStoredUserId, isValidUuid } from '@/hooks/use-auth';
+import { getStoredAccessToken, getStoredUserId } from '@/hooks/use-auth';
 import type { AuthResponse } from '@/types/nutrition';
 
 /** Erro especial para sessão expirada (token JWT inválido/expirado) */
@@ -92,7 +92,7 @@ export async function updateProfile(params: {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      ...(isValidUuid(userId) ? { 'X-User-Id': userId } : {}),
+      ...(userId ? { 'X-User-Id': userId } : {}),
       ...(accessToken ? { 'X-Access-Token': accessToken } : {}),
     },
     body: JSON.stringify(params),
