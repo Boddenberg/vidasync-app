@@ -1,0 +1,101 @@
+import type { NutritionAnalysisResult, NutritionData } from '@/types/nutrition';
+import type { PlanPdfAnalysisResult } from '@/types/plan';
+
+export type ReviewSource = 'photo' | 'audio' | 'pdf';
+
+export type ReviewSession =
+  | {
+      kind: 'nutrition';
+      source: 'photo' | 'audio';
+      createdAt: string;
+      result: NutritionAnalysisResult;
+    }
+  | {
+      kind: 'plan';
+      source: 'pdf';
+      createdAt: string;
+      result: PlanPdfAnalysisResult;
+    };
+
+export type NutritionReviewDraftItem = {
+  id: string;
+  name: string;
+  calories: string;
+  protein: string;
+  carbs: string;
+  fat: string;
+  precisaRevisao: boolean;
+  warnings: string[];
+};
+
+export type PlanReviewDraftSection = {
+  id: string;
+  title: string;
+  text: string;
+};
+
+export type NutritionReviewDraft = {
+  kind: 'nutrition';
+  source: 'photo' | 'audio';
+  warnings: string[];
+  observation: string;
+  summary: NutritionData;
+  items: NutritionReviewDraftItem[];
+};
+
+export type PlanReviewDraft = {
+  kind: 'plan';
+  source: 'pdf';
+  warnings: string[];
+  observation: string;
+  extractedText: string;
+  sections: PlanReviewDraftSection[];
+};
+
+export type ReviewDraft = NutritionReviewDraft | PlanReviewDraft;
+
+export type ReviewSubmitPayload =
+  | {
+      contexto: 'revisao_assistida';
+      kind: 'nutrition';
+      source: 'photo' | 'audio';
+      trace_id: string | null;
+      created_at: string;
+      confirmed_at: string;
+      warnings: string[];
+      observation: string | null;
+      adjustments: {
+        summary: NutritionData;
+        items: Array<{
+          name: string;
+          nutrition: NutritionData;
+          precisa_revisao: boolean;
+          warnings: string[];
+        }>;
+      };
+    }
+  | {
+      contexto: 'revisao_assistida';
+      kind: 'plan';
+      source: 'pdf';
+      trace_id: string | null;
+      created_at: string;
+      confirmed_at: string;
+      warnings: string[];
+      observation: string | null;
+      adjustments: {
+        extracted_text: string | null;
+        sections: Array<{
+          title: string;
+          text: string;
+        }>;
+      };
+    };
+
+export type ReviewSubmitResult = {
+  status: string;
+  warnings: string[];
+  traceId: string | null;
+  message: string | null;
+};
+

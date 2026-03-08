@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 import { VidaSyncLogo } from '@/components/vida-sync-logo';
 import { Brand } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
+import { installNetworkInspector } from '@/services/network-inspector';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -57,6 +58,10 @@ function AuthGuard() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    installNetworkInspector();
+  }, []);
+
   return (
     <AuthProvider>
       <ThemeProvider value={VidaSyncTheme}>
@@ -64,6 +69,10 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="review/assistida" options={{ title: 'Revisao assistida' }} />
+          <Stack.Screen name="tools/imc" options={{ title: 'Calculadora de IMC' }} />
+          <Stack.Screen name="nutrition/review" options={{ title: 'Revisao nutricional' }} />
+          <Stack.Screen name="plan/review" options={{ title: 'Revisao do plano' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="dark" />

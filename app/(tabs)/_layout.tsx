@@ -1,14 +1,14 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Brand } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const SHOW_DEVTOOLS_TAB = true;
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
 
   return (
@@ -36,7 +36,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Início',
+          title: 'Inicio',
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="house.fill" color={color} />,
         }}
       />
@@ -50,10 +50,21 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: 'Histórico',
+          title: 'Historico',
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="calendar" color={color} />,
         }}
       />
+      {SHOW_DEVTOOLS_TAB && (
+        <Tabs.Screen
+          name="devtools"
+          options={{
+            title: 'Devtools',
+            tabBarIcon: ({ color }) => (
+              <IconSymbol size={26} name="chevron.left.forwardslash.chevron.right" color={color} />
+            ),
+          }}
+        />
+      )}
     </Tabs>
   );
 }

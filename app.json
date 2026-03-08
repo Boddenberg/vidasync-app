@@ -51,6 +51,12 @@
         "projectId": "0e946eab-efb9-48d1-96b9-ec7d4069d704"
       }
     },
-    "owner": "boddenberg"
+    "owner": "boddenberg",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0e946eab-efb9-48d1-96b9-ec7d4069d704"
+    }
   }
 }
