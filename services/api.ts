@@ -9,14 +9,29 @@
  */
 
 import { API_BASE_URL } from '@/constants/config';
-import { getStoredUserId } from '@/hooks/use-auth';
+import { getStoredAccessToken, getStoredUserId, isValidUuid } from '@/hooks/use-auth';
+
+function normalizeBaseUrl(baseUrl: string): string {
+  return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+}
+
+function buildUrl(baseUrl: string, path: string): string {
+  const normalizedBase = normalizeBaseUrl(baseUrl);
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${normalizedBase}${normalizedPath}`;
+}
 
 /** Monta os headers padrão (com X-User-Id se logado) */
 async function authHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
   const headers: Record<string, string> = { ...extra };
   const userId = await getStoredUserId();
-  if (userId) {
+  const accessToken = await getStoredAccessToken();
+
+  if (isValidUuid(userId)) {
     headers['X-User-Id'] = userId;
+  }
+  if (accessToken) {
+    headers['X-Access-Token'] = accessToken;
   }
   return headers;
 }
@@ -26,7 +41,7 @@ async function authHeaders(extra?: Record<string, string>): Promise<Record<strin
  */
 export async function apiGet(path: string): Promise<string> {
   const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}${path}`, { headers });
+  const res = await fetch(buildUrl(API_BASE_URL, path), { headers });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new Error(body || `Erro ${res.status}`);
@@ -39,7 +54,7 @@ export async function apiGet(path: string): Promise<string> {
  */
 export async function apiGetJson<T = unknown>(path: string): Promise<T> {
   const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}${path}`, { headers });
+  const res = await fetch(buildUrl(API_BASE_URL, path), { headers });
   const text = await res.text();
   if (!res.ok) throw new Error(text || `Erro ${res.status}`);
   try {
@@ -54,7 +69,7 @@ export async function apiGetJson<T = unknown>(path: string): Promise<T> {
  */
 export async function apiPost<T = unknown>(path: string, body: unknown): Promise<T> {
   const headers = await authHeaders({ 'Content-Type': 'application/json' });
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(buildUrl(API_BASE_URL, path), {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
@@ -83,7 +98,7 @@ export async function apiPost<T = unknown>(path: string, body: unknown): Promise
  */
 export async function apiPut<T = unknown>(path: string, body: unknown): Promise<T> {
   const headers = await authHeaders({ 'Content-Type': 'application/json' });
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(buildUrl(API_BASE_URL, path), {
     method: 'PUT',
     headers,
     body: JSON.stringify(body),
@@ -112,9 +127,42 @@ export async function apiPut<T = unknown>(path: string, body: unknown): Promise<
  */
 export async function apiDelete<T = unknown>(path: string): Promise<T> {
   const headers = await authHeaders();
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(buildUrl(API_BASE_URL, path), {
     method: 'DELETE',
     headers,
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    try {
+      const json = JSON.parse(text);
+      throw new Error(json.error || json.message || text);
+    } catch (e) {
+      if (e instanceof Error && e.message !== text) throw e;
+      throw new Error(text || `Erro ${res.status}`);
+    }
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as T;
+  }
+}
+
+/**
+ * Faz um POST em uma base URL customizada (ex.: servicos separados).
+ */
+export async function apiPostWithBase<T = unknown>(
+  baseUrl: string,
+  path: string,
+  body: unknown,
+): Promise<T> {
+  const headers = await authHeaders({ 'Content-Type': 'application/json' });
+  const res = await fetch(buildUrl(baseUrl, path), {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
   });
 
   const text = await res.text();

@@ -10,8 +10,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    Image,
     Keyboard,
     KeyboardAvoidingView,
     Modal,
@@ -24,6 +22,7 @@ import {
 } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
+import { MealAttachmentField } from '@/components/attachments/domain-attachment-fields';
 import { AppInput } from '@/components/app-input';
 import { DatePicker } from '@/components/date-picker';
 import { MealTypeSelector } from '@/components/meal-type-selector';
@@ -31,9 +30,11 @@ import { NutritionErrorModal } from '@/components/nutrition-error-modal';
 import { TimePicker } from '@/components/time-picker';
 import { Brand } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
-import { pickDishImage } from '@/services/dish-images';
+import { createRemotePhotoAttachment } from '@/services/attachments';
 import { getNutrition } from '@/services/nutrition';
+import type { AttachmentItem } from '@/types/attachments';
 import type { Meal, MealType, NutritionData } from '@/types/nutrition';
+import { resolvePrimaryImagePayload } from '@/utils/attachment-rules';
 import {
     buildFoodsString,
     formatIngredient,
@@ -94,7 +95,7 @@ export function RegisterMealModal({
   const [time, setTime] = useState('');
   const [useNow, setUseNow] = useState(true);
   const [mealType, setMealType] = useState<MealType | null>(null);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [editInitialized, setEditInitialized] = useState(false);
   const nutrition = useAsync(getNutrition);
 
@@ -109,7 +110,9 @@ export function RegisterMealModal({
       setMealType(editMeal.mealType);
       setTime(editMeal.time || '');
       setUseNow(false);
-      setPhotoUri(editMeal.imageUrl ?? null);
+      setAttachments(
+        editMeal.imageUrl ? [createRemotePhotoAttachment('meal', editMeal.imageUrl, 'imagem-atual.jpg')] : [],
+      );
       // Pré-calcula a nutrição
       nutrition.setData(editMeal.nutrition);
       setEditInitialized(true);
@@ -130,7 +133,7 @@ export function RegisterMealModal({
     setTime('');
     setUseNow(true);
     setMealType(null);
-    setPhotoUri(null);
+    setAttachments([]);
     nutrition.reset();
   }
 
@@ -157,6 +160,8 @@ export function RegisterMealModal({
     setIngName('');
     setIngWeight('');
     setIngUnit('g');
+    // Foco volta pro campo de ingrediente
+    setTimeout(() => ingNameRef.current?.focus(), 100);
     // Ingredientes mudaram → macros ficam desatualizados
     if (nutrition.data) nutrition.reset();
   }
@@ -175,26 +180,6 @@ export function RegisterMealModal({
     nutrition.execute(foodsStr);
   }
 
-  // ── Foto ──
-  function handlePickPhoto() {
-    Alert.alert('Adicionar foto', undefined, [
-      {
-        text: 'Câmera',
-        onPress: async () => {
-          const uri = await pickDishImage(true);
-          if (uri) setPhotoUri(uri);
-        },
-      },
-      {
-        text: 'Galeria',
-        onPress: async () => {
-          const uri = await pickDishImage(false);
-          if (uri) setPhotoUri(uri);
-        },
-      },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  }
 
   // ── Resolver data e horário ──
   function resolveDate(): string | undefined {
@@ -218,7 +203,7 @@ export function RegisterMealModal({
       time: resolveTime(),
       nutrition: nutrition.data,
       dishName: dishName.trim() || undefined,
-      imageBase64: photoUri,
+      imageBase64: resolvePrimaryImagePayload(attachments),
     });
     reset();
   }
@@ -233,7 +218,7 @@ export function RegisterMealModal({
       mealType,
       time: resolveTime(),
       nutrition: nutrition.data,
-      imageBase64: photoUri,
+      imageBase64: resolvePrimaryImagePayload(attachments),
     });
     reset();
   }
@@ -373,26 +358,17 @@ export function RegisterMealModal({
                     <View style={s.divider} />
                     <Text style={s.stepLabel}>3. Detalhes</Text>
 
-                    {/* Nome + foto */}
-                    <View style={s.namePhotoRow}>
-                      <Pressable style={s.photoBtn} onPress={handlePickPhoto}>
-                        {photoUri ? (
-                          <Image source={{ uri: photoUri }} style={s.photoImg} />
-                        ) : (
-                          <View style={s.photoPlaceholder}>
-                            <Text style={s.photoHint}>FOTO</Text>
-                          </View>
-                        )}
-                      </Pressable>
-                      <View style={{ flex: 1 }}>
-                        <AppInput
-                          placeholder="Nome do prato (opcional)"
-                          value={dishName}
-                          onChangeText={setDishName}
-                          onFocus={scrollToEnd}
-                        />
-                      </View>
-                    </View>
+                    <MealAttachmentField
+                      value={attachments}
+                      onChange={setAttachments}
+                      maxItems={1}
+                    />
+                    <AppInput
+                      placeholder="Nome do prato (opcional)"
+                      value={dishName}
+                      onChangeText={setDishName}
+                      onFocus={scrollToEnd}
+                    />
 
                     {/* Data */}
                     {/* Data (oculta em edição — use "Mover" para trocar data) */}
@@ -673,41 +649,6 @@ const s = StyleSheet.create({
     color: Brand.textSecondary,
   },
 
-  // Name + photo row
-  namePhotoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  photoBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  photoImg: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
-  },
-  photoPlaceholder: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
-    backgroundColor: Brand.card,
-    borderWidth: 1.5,
-    borderColor: Brand.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoHint: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: Brand.textSecondary,
-    letterSpacing: 1,
-  },
-
   // Checkbox
   checkRow: {
     flexDirection: 'row',
@@ -874,3 +815,5 @@ const s = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+

@@ -26,16 +26,19 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
+import { MealAttachmentField } from '@/components/attachments/domain-attachment-fields';
 import { AppInput } from '@/components/app-input';
 import { NutritionErrorModal } from '@/components/nutrition-error-modal';
 import { Brand } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useMeals } from '@/hooks/use-meals';
-import { pickDishImage } from '@/services/dish-images';
+import { createRemotePhotoAttachment } from '@/services/attachments';
 import { getNutrition } from '@/services/nutrition';
+import type { AttachmentItem } from '@/types/attachments';
 import type { Favorite, MealType } from '@/types/nutrition';
 import { MEAL_TYPE_LABELS } from '@/types/nutrition';
+import { resolvePrimaryImagePayload } from '@/utils/attachment-rules';
 import {
   buildFoodsString,
   formatIngredient,
@@ -59,8 +62,7 @@ export default function MyDishesScreen() {
   const [ingWeight, setIngWeight] = useState('');
   const [ingUnit, setIngUnit] = useState<WeightUnit>('g');
   const [dishName, setDishName] = useState('');
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [photoChanged, setPhotoChanged] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
 
   const nutrition = useAsync(getNutrition);
   const { favorites, loading, error, add, remove, refresh } = useFavorites();
@@ -85,6 +87,8 @@ export default function MyDishesScreen() {
     setIngName('');
     setIngWeight('');
     setIngUnit('g');
+    // Foco volta pro campo de ingrediente
+    setTimeout(() => ingNameRef.current?.focus(), 100);
     // Ingredientes mudaram → macros ficam desatualizados
     if (nutrition.data) nutrition.reset();
   }
@@ -102,39 +106,11 @@ export default function MyDishesScreen() {
     nutrition.execute(foodsStr);
   }
 
-  async function handlePickPhoto() {
-    const options: any[] = [
-      {
-        text: 'Camera',
-        onPress: async () => {
-          const uri = await pickDishImage(true);
-          if (uri) { setPhotoUri(uri); setPhotoChanged(true); }
-        },
-      },
-      {
-        text: 'Galeria',
-        onPress: async () => {
-          const uri = await pickDishImage(false);
-          if (uri) { setPhotoUri(uri); setPhotoChanged(true); }
-        },
-      },
-    ];
-    if (photoUri) {
-      options.push({
-        text: 'Remover foto',
-        style: 'destructive',
-        onPress: () => { setPhotoUri(null); setPhotoChanged(true); },
-      });
-    }
-    options.push({ text: 'Cancelar', style: 'cancel' });
-    Alert.alert('Foto do prato', undefined, options);
-  }
-
   async function handleSave() {
     if (!nutrition.data) return;
     const ingredientsStr = ingredients.map(formatIngredient).join(', ');
     const foodsStr = buildFoodsString(dishName, ingredientsStr);
-    await add(foodsStr, nutrition.data, photoUri);
+    await add(foodsStr, nutrition.data, resolvePrimaryImagePayload(attachments));
     handleCancel();
   }
 
@@ -144,8 +120,7 @@ export default function MyDishesScreen() {
     setIngWeight('');
     setIngUnit('g');
     setDishName('');
-    setPhotoUri(null);
-    setPhotoChanged(false);
+    setAttachments([]);
     setEditingFav(null);
     nutrition.reset();
     setShowForm(false);
@@ -196,7 +171,9 @@ export default function MyDishesScreen() {
     const parsed = parseFoodsToIngredients(ingredientsRaw);
     setIngredients(parsed);
     setDishName(recoveredName);
-    setPhotoUri(fav.imageUrl ?? null);
+    setAttachments(
+      fav.imageUrl ? [createRemotePhotoAttachment('meal', fav.imageUrl, 'imagem-atual.jpg')] : [],
+    );
     // Pré-popula a nutrição para não precisar recalcular
     nutrition.setData(fav.nutrition);
     setShowForm(true);
@@ -207,7 +184,7 @@ export default function MyDishesScreen() {
     const ingredientsStr = ingredients.map(formatIngredient).join(', ');
     const foodsStr = buildFoodsString(dishName, ingredientsStr);
     // Se a foto não foi alterada, preserva a URL original passando null
-    const imageToSend = photoChanged ? photoUri : editingFav.imageUrl;
+    const imageToSend = resolvePrimaryImagePayload(attachments);
     await remove(editingFav.id);
     await add(foodsStr, nutrition.data, imageToSend);
     setEditingFav(null);
@@ -327,28 +304,21 @@ export default function MyDishesScreen() {
                 <Text style={s.stepLabel}>2. Resultado</Text>
 
                 <View style={s.previewCard}>
-                  <View style={s.previewHeader}>
-                    {/* Foto */}
-                    <Pressable style={s.photoBtn} onPress={handlePickPhoto}>
-                      {photoUri ? (
-                        <Image source={{ uri: photoUri }} style={s.photoImg} />
-                      ) : (
-                        <View style={s.photoPlaceholder}>
-                          <Text style={s.photoHint}>FOTO</Text>
-                        </View>
-                      )}
-                    </Pressable>
-                    {/* Calorias */}
-                    <View style={s.previewInfo}>
-                      <Text style={s.previewCal}>{nutrition.data!.calories}</Text>
-                      <View style={s.previewMacros}>
-                        <MacroPill label="prot" value={nutrition.data!.protein} color="#5DADE2" bg="#EBF5FB" />
-                        <MacroPill label="carb" value={nutrition.data!.carbs} color={Brand.orange} bg="#FEF5E7" />
-                        <MacroPill label="gord" value={nutrition.data!.fat} color="#E74C3C" bg="#FDEDEC" />
-                      </View>
+                  <View style={s.previewInfo}>
+                    <Text style={s.previewCal}>{nutrition.data!.calories}</Text>
+                    <View style={s.previewMacros}>
+                      <MacroPill label="prot" value={nutrition.data!.protein} color="#5DADE2" bg="#EBF5FB" />
+                      <MacroPill label="carb" value={nutrition.data!.carbs} color={Brand.orange} bg="#FEF5E7" />
+                      <MacroPill label="gord" value={nutrition.data!.fat} color="#E74C3C" bg="#FDEDEC" />
                     </View>
                   </View>
                 </View>
+
+                <MealAttachmentField
+                  value={attachments}
+                  onChange={setAttachments}
+                  maxItems={1}
+                />
 
 
 
@@ -396,7 +366,7 @@ export default function MyDishesScreen() {
             </View>
             <Text style={s.emptyTitle}>Nenhum prato cadastrado</Text>
             <Text style={s.hint}>
-              Toque em "+ Novo prato" para cadastrar algo que você come sempre.
+              Toque em + Novo prato para cadastrar algo que voce come sempre.
             </Text>
           </View>
         )}
@@ -786,88 +756,12 @@ const s = StyleSheet.create({
     gap: 10,
   },
 
-  // Photo button (in preview)
-  photoBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  photoImg: {
-    width: 72,
-    height: 72,
-    borderRadius: 14,
-  },
-  photoPlaceholder: {
-    width: 72,
-    height: 72,
-    borderRadius: 14,
-    backgroundColor: Brand.card,
-    borderWidth: 1.5,
-    borderColor: Brand.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoHint: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: Brand.textSecondary,
-    letterSpacing: 1,
-  },
-
-  // Edit photo row
-  editPhotoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 4,
-  },
-  editPhotoBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  editPhotoImg: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-  },
-  editPhotoPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: Brand.bg,
-    borderWidth: 1.5,
-    borderColor: Brand.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editPhotoText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: Brand.textSecondary,
-    letterSpacing: 1,
-  },
-  editPhotoLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Brand.green,
-  },
-
   // Preview card
   previewCard: {
     backgroundColor: Brand.card,
     borderRadius: 16,
     padding: 18,
     gap: 14,
-  },
-  previewHeader: {
-    flexDirection: 'row',
-    gap: 14,
-    alignItems: 'center',
   },
   previewInfo: {
     flex: 1,
@@ -1130,3 +1024,4 @@ const s = StyleSheet.create({
     lineHeight: 19,
   },
 });
+
