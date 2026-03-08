@@ -244,7 +244,7 @@ export default function HomeScreen() {
           <AppInput
             placeholder={foodHint}
             value={query}
-            onChangeText={(t: string) => setQuery(t.replace(/[^\p{L}\s]/gu, ''))}
+            onChangeText={(t: string) => setQuery(t.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
             maxLength={50}
           />
 
