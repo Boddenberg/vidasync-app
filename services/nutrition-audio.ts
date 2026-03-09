@@ -1,9 +1,6 @@
-import * as FileSystem from 'expo-file-system/legacy';
-
 import {
   API_AUDIO_BASE_URL,
   API_NUTRITION_AUDIO_PATH,
-  API_REQUIRE_REMOTE_FILE_URL,
 } from '@/constants/config';
 import type { AudioCaptureDraft } from '@/types/audio';
 import type { NutritionAnalysisResult } from '@/types/nutrition';
@@ -14,24 +11,26 @@ import { normalizeCalorieResponse } from './nutrition';
 
 export async function getNutritionFromAudio(draft: AudioCaptureDraft): Promise<NutritionAnalysisResult> {
   try {
-    const base64 = await FileSystem.readAsStringAsync(draft.uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    const audioDataUri = `data:${draft.mimeType};base64,${base64}`;
-    const remoteUrl = await resolveRemoteFileUrl({
+    const remoteFile = await resolveRemoteFileUrl({
       kind: 'audio',
       localUri: draft.uri,
-      dataUri: audioDataUri,
       mimeType: draft.mimeType,
       fileName: draft.fileName,
+      sizeBytes: draft.sizeBytes,
     });
 
+    if (!remoteFile.fileKey && !remoteFile.remoteUrl) {
+      throw new Error(
+        'Upload remoto do audio nao retornou file_key nem audio_url para envio ao dominio.',
+      );
+    }
+
     const payload = buildAudioNutritionPayload(
-      API_REQUIRE_REMOTE_FILE_URL ? null : audioDataUri,
+      null,
       draft.mimeType,
       draft.fileName,
-      remoteUrl,
+      remoteFile.remoteUrl,
+      remoteFile.fileKey,
     );
 
     const response = await apiPostWithBase<unknown>(

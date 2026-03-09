@@ -77,11 +77,18 @@ export const API_UPLOAD_PATH = normalizeOptionalPath(
 );
 
 /*
- * true: exige URL remota para audio/PDF e falha se nao conseguir upload.
- * false: usa URL quando possivel e cai para base64 como fallback.
+ * true: exige referencia remota (URL ou fileKey) e falha se nao conseguir upload.
+ * false: usa referencia remota quando possivel e cai para base64 como fallback.
+ *
+ * Padrao em branco/ausente: true (evita enviar base64 por engano quando
+ * o backend espera link).
  */
+const requireRemoteFileUrlRaw = process.env.EXPO_PUBLIC_API_REQUIRE_REMOTE_FILE_URL;
+const requireRemoteFileUrlNormalized = `${requireRemoteFileUrlRaw ?? ''}`.trim().toLowerCase();
 export const API_REQUIRE_REMOTE_FILE_URL =
-  process.env.EXPO_PUBLIC_API_REQUIRE_REMOTE_FILE_URL === 'true';
+  !requireRemoteFileUrlRaw || requireRemoteFileUrlNormalized.length === 0
+    ? true
+    : requireRemoteFileUrlNormalized === 'true';
 
 /* Nome do app. */
 export const APP_NAME = 'VidaSync';

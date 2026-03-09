@@ -2,17 +2,10 @@ import type { PlanDocumentSection, PlanPdfAnalysisResult } from '@/types/plan';
 
 export type PlanPdfRequestPayload = {
   pdf?: string;
-  pdf_base64?: string;
-  pdfBase64?: string;
   pdf_url?: string;
-  pdfUrl?: string;
-  file_url?: string;
-  fileUrl?: string;
-  url?: string;
+  file_key?: string;
   mime_type: string;
-  mimeType: string;
   file_name: string;
-  fileName: string;
 };
 
 function toStringList(value: unknown): string[] {
@@ -48,34 +41,31 @@ function toSectionList(value: unknown): PlanDocumentSection[] {
 }
 
 /*
- * Monta payload redundante para PDF visando compatibilidade de contrato
- * entre versoes do BFF.
+ * Monta payload canonico para PDF.
+ * O backend deve aceitar estes campos como contrato oficial.
  */
 export function buildPlanPdfPayload(
   pdfDataUri: string | null,
   mimeType: string,
   fileName: string,
   remoteUrl?: string | null,
+  fileKey?: string | null,
 ): PlanPdfRequestPayload {
   const payload: PlanPdfRequestPayload = {
     mime_type: mimeType,
-    mimeType,
     file_name: fileName,
-    fileName,
   };
 
   if (pdfDataUri) {
     payload.pdf = pdfDataUri;
-    payload.pdf_base64 = pdfDataUri;
-    payload.pdfBase64 = pdfDataUri;
   }
 
   if (remoteUrl) {
     payload.pdf_url = remoteUrl;
-    payload.pdfUrl = remoteUrl;
-    payload.file_url = remoteUrl;
-    payload.fileUrl = remoteUrl;
-    payload.url = remoteUrl;
+  }
+
+  if (fileKey) {
+    payload.file_key = fileKey;
   }
 
   return payload;

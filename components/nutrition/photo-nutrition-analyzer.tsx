@@ -33,12 +33,25 @@ export function PhotoNutritionAnalyzer({
   const analysis = useAsync(getNutritionFromPhoto);
   const reviewHandledRef = useRef(false);
 
+  const selectedPhoto = useMemo(
+    () =>
+      attachments.find(
+        (attachment) => attachment.kind === 'photo' && attachment.status === 'success',
+      ) ?? null,
+    [attachments],
+  );
   const selectedImagePayload = useMemo(() => resolvePrimaryImagePayload(attachments), [attachments]);
-  const canAnalyze = !!selectedImagePayload && !analysis.loading;
+  const canAnalyze = !!selectedImagePayload && !!selectedPhoto && !analysis.loading;
 
   async function handleAnalyze() {
-    if (!selectedImagePayload) return;
-    await analysis.execute(selectedImagePayload);
+    if (!selectedImagePayload || !selectedPhoto) return;
+    await analysis.execute({
+      dataUri: selectedImagePayload,
+      uri: selectedPhoto.uri,
+      mimeType: selectedPhoto.mimeType,
+      fileName: selectedPhoto.name,
+      sizeBytes: selectedPhoto.sizeBytes,
+    });
   }
 
   const result = analysis.data;

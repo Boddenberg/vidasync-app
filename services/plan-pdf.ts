@@ -1,9 +1,6 @@
-import * as FileSystem from 'expo-file-system/legacy';
-
 import {
   API_PLAN_BASE_URL,
   API_PLAN_PDF_PATH,
-  API_REQUIRE_REMOTE_FILE_URL,
 } from '@/constants/config';
 import type { AttachmentItem } from '@/types/attachments';
 import type { PlanPdfAnalysisResult } from '@/types/plan';
@@ -25,24 +22,26 @@ export async function analyzePlanPdfAttachment(
   attachment: AttachmentItem,
 ): Promise<PlanPdfAnalysisResult> {
   try {
-    const base64 = await FileSystem.readAsStringAsync(attachment.uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    const dataUri = `data:${attachment.mimeType};base64,${base64}`;
-    const remoteUrl = await resolveRemoteFileUrl({
+    const remoteFile = await resolveRemoteFileUrl({
       kind: 'pdf',
       localUri: attachment.uri,
-      dataUri,
       mimeType: attachment.mimeType,
       fileName: attachment.name,
+      sizeBytes: attachment.sizeBytes,
     });
 
+    if (!remoteFile.fileKey && !remoteFile.remoteUrl) {
+      throw new Error(
+        'Upload remoto do PDF nao retornou file_key nem pdf_url para envio ao dominio.',
+      );
+    }
+
     const payload = buildPlanPdfPayload(
-      API_REQUIRE_REMOTE_FILE_URL ? null : dataUri,
+      null,
       attachment.mimeType,
       attachment.name,
-      remoteUrl,
+      remoteFile.remoteUrl,
+      remoteFile.fileKey,
     );
 
     const response = await apiPostWithBase<unknown>(
