@@ -1,5 +1,14 @@
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/app-button';
@@ -8,6 +17,7 @@ import { Brand } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
 import { submitReviewAdjustments } from '@/services/review-feedback';
 import { clearReviewSession, getReviewSession } from '@/services/review-session';
+import type { NutritionCorrection } from '@/types/nutrition';
 import type { NutritionReviewDraft, PlanReviewDraft, ReviewDraft } from '@/types/review';
 import { buildReviewDraft, buildReviewSubmitPayload } from '@/utils/review';
 
@@ -21,14 +31,41 @@ function kindLabel(kind: 'nutrition' | 'plan'): string {
   return kind === 'nutrition' ? 'Analise nutricional' : 'Plano alimentar';
 }
 
+function resolveNutritionTitle(
+  source: 'photo' | 'audio',
+  items: NutritionReviewDraft['items'],
+  corrections: NutritionCorrection[],
+): string {
+  const corrected = corrections.find((entry) => entry.corrected.trim().length > 0)?.corrected?.trim();
+  if (corrected) return corrected;
+
+  const itemName = items.find((item) => item.name.trim().length > 0)?.name?.trim();
+  if (itemName) return itemName;
+
+  return source === 'photo' ? 'Item da foto' : 'Item do audio';
+}
+
+function buildRevealStyle(progress: Animated.Value) {
+  return {
+    opacity: progress,
+    transform: [
+      {
+        translateY: progress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [14, 0],
+        }),
+      },
+    ],
+  };
+}
+
 /*
- * Tela unificada de revisao assistida para todos os fluxos de IA.
+ * Tela unificada de revisao assistida para fluxos de IA.
  *
- * Responsabilidades:
- * - mostrar warnings e dados extraidos
- * - permitir ajuste manual dos campos
- * - confirmar revisao localmente
- * - reenviar ajustes para o BFF
+ * No fluxo nutricional:
+ * - prioriza leitura amigavel do resultado (titulo + macros)
+ * - renderiza secoes somente quando existem dados
+ * - permite edicao manual opcional para ajustes finos
  */
 export default function AssistedReviewScreen() {
   const router = useRouter();
@@ -41,7 +78,7 @@ export default function AssistedReviewScreen() {
 
   const traceId = useMemo(() => {
     if (!session) return null;
-    return session.kind === 'nutrition' ? session.result.traceId : session.result.traceId;
+    return session.result.traceId;
   }, [session]);
 
   function closeReview() {
@@ -171,7 +208,7 @@ export default function AssistedReviewScreen() {
     return (
       <View style={s.root}>
         <View style={s.emptyWrap}>
-          <Text style={s.title}>Revisao assistida</Text>
+          <Text style={s.title}>Conferencia inteligente</Text>
           <Text style={s.emptyText}>Nenhum dado disponivel para revisao.</Text>
           <AppButton title="Voltar" onPress={closeReview} />
         </View>
@@ -180,13 +217,27 @@ export default function AssistedReviewScreen() {
   }
 
   const warnings = draft.warnings;
+  const nutritionContext =
+    session.kind === 'nutrition' && draft.kind === 'nutrition'
+      ? (() => {
+          const corrections = session.result.corrections.filter(
+            (entry) =>
+              entry.original.trim().length > 0 && entry.corrected.trim().length > 0,
+          );
+          return {
+            corrections,
+            title: resolveNutritionTitle(session.source, draft.items, corrections),
+            source: session.source,
+          };
+        })()
+      : null;
 
   return (
     <View style={s.root}>
       <ScrollView contentContainerStyle={s.scroll}>
-        <Text style={s.title}>Revisao assistida</Text>
+        <Text style={s.title}>Conferencia inteligente</Text>
         <Text style={s.subtitle}>
-          Revise os dados extraidos pela IA, ajuste se necessario e confirme.
+          A IA concluiu a leitura. Confira os dados abaixo e confirme quando estiver tudo certo.
         </Text>
 
         <View style={s.metaCard}>
@@ -195,40 +246,49 @@ export default function AssistedReviewScreen() {
           {traceId ? <Text style={s.metaText}>trace_id: {traceId}</Text> : null}
         </View>
 
-        {warnings.length > 0 ? (
-          <View style={s.warningCard}>
-            <Text style={s.sectionTitle}>Warnings</Text>
-            {warnings.map((warning, index) => (
-              <Text key={`${warning}-${index}`} style={s.warningText}>
-                - {warning}
-              </Text>
-            ))}
-          </View>
-        ) : null}
-
-        {draft.kind === 'nutrition' ? (
+        {draft.kind === 'nutrition' && nutritionContext ? (
           <NutritionReviewEditor
             draft={draft}
+            source={nutritionContext.source}
+            traceId={traceId}
+            title={nutritionContext.title}
+            warnings={warnings}
+            corrections={nutritionContext.corrections}
             onChangeSummary={updateNutritionSummary}
             onChangeItem={updateNutritionItem}
             onAddItem={addNutritionItem}
             onRemoveItem={removeNutritionItem}
           />
         ) : (
-          <PlanReviewEditor
-            draft={draft}
-            onChangeSection={updatePlanSection}
-            onAddSection={addPlanSection}
-            onRemoveSection={removePlanSection}
-          />
+          <>
+            {warnings.length > 0 ? (
+              <View style={s.warningCard}>
+                <Text style={s.sectionTitle}>Pontos para revisar</Text>
+                {warnings.map((warning, index) => (
+                  <Text key={`${warning}-${index}`} style={s.warningText}>
+                    • {warning}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+
+            {draft.kind === 'plan' ? (
+              <PlanReviewEditor
+                draft={draft}
+                onChangeSection={updatePlanSection}
+                onAddSection={addPlanSection}
+                onRemoveSection={removePlanSection}
+              />
+            ) : null}
+          </>
         )}
 
         <View style={s.card}>
-          <Text style={s.sectionTitle}>Observacao do usuario</Text>
+          <Text style={s.sectionTitle}>Quer acrescentar algo?</Text>
           <TextInput
             value={draft.observation}
             onChangeText={updateObservation}
-            placeholder="Explique ajustes importantes para o backend..."
+            placeholder="Escreva observacoes opcionais para o backend..."
             placeholderTextColor={Brand.textSecondary}
             multiline
             style={s.multiInput}
@@ -246,7 +306,7 @@ export default function AssistedReviewScreen() {
 
         {resend.data ? (
           <View style={s.successCard}>
-            <Text style={s.successTitle}>Reenvio concluido</Text>
+            <Text style={s.successTitle}>Ajustes enviados</Text>
             <Text style={s.successText}>Status: {resend.data.status}</Text>
             {resend.data.traceId ? (
               <Text style={s.successText}>trace_id: {resend.data.traceId}</Text>
@@ -256,7 +316,7 @@ export default function AssistedReviewScreen() {
             ) : null}
             {resend.data.warnings.length > 0 ? (
               <Text style={s.successText}>
-                Warnings: {resend.data.warnings.join(' | ')}
+                Avisos: {resend.data.warnings.join(' | ')}
               </Text>
             ) : null}
           </View>
@@ -266,11 +326,11 @@ export default function AssistedReviewScreen() {
       <View style={s.footer}>
         <View style={s.footerRow}>
           <View style={s.footerButton}>
-            <AppButton title="Confirmar revisao" onPress={closeReview} />
+            <AppButton title="Tudo certo" onPress={closeReview} />
           </View>
           <View style={s.footerButton}>
             <AppButton
-              title="Reenviar ajustado"
+              title="Enviar ajustes"
               onPress={handleResend}
               loading={resend.loading}
             />
@@ -283,6 +343,11 @@ export default function AssistedReviewScreen() {
 
 type NutritionEditorProps = {
   draft: NutritionReviewDraft;
+  source: 'photo' | 'audio';
+  traceId: string | null;
+  title: string;
+  warnings: string[];
+  corrections: NutritionCorrection[];
   onChangeSummary: (
     field: 'calories' | 'protein' | 'carbs' | 'fat',
     value: string,
@@ -298,79 +363,183 @@ type NutritionEditorProps = {
 
 function NutritionReviewEditor({
   draft,
+  source,
+  traceId,
+  title,
+  warnings,
+  corrections,
   onChangeSummary,
   onChangeItem,
   onAddItem,
   onRemoveItem,
 }: NutritionEditorProps) {
+  const [showManualEditor, setShowManualEditor] = useState(false);
+
+  const heroAnim = useRef(new Animated.Value(0)).current;
+  const correctionAnim = useRef(new Animated.Value(0)).current;
+  const itemsAnim = useRef(new Animated.Value(0)).current;
+  const warningAnim = useRef(new Animated.Value(0)).current;
+  const editorAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const sequence = [heroAnim, correctionAnim, itemsAnim, warningAnim, editorAnim];
+    sequence.forEach((value) => value.setValue(0));
+
+    Animated.stagger(
+      100,
+      sequence.map((value) =>
+        Animated.timing(value, {
+          toValue: 1,
+          duration: 360,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ),
+    ).start();
+  }, [
+    correctionAnim,
+    draft.items.length,
+    draft.summary.calories,
+    draft.summary.carbs,
+    draft.summary.fat,
+    draft.summary.protein,
+    editorAnim,
+    heroAnim,
+    itemsAnim,
+    title,
+    warningAnim,
+  ]);
+
   return (
     <>
-      <View style={s.card}>
-        <Text style={s.sectionTitle}>Resumo final</Text>
-        <View style={s.gridRow}>
-          <View style={s.gridCell}>
-            <Text style={s.inputLabel}>Calorias</Text>
-            <AppInput
-              value={draft.summary.calories}
-              onChangeText={(value) => onChangeSummary('calories', value)}
-              placeholder="0 kcal"
-            />
-          </View>
-          <View style={s.gridCell}>
-            <Text style={s.inputLabel}>Proteina</Text>
-            <AppInput
-              value={draft.summary.protein}
-              onChangeText={(value) => onChangeSummary('protein', value)}
-              placeholder="0 g"
-            />
-          </View>
+      <Animated.View style={[s.heroCard, buildRevealStyle(heroAnim)]}>
+        <View style={s.heroGlowMain} />
+        <View style={s.heroGlowSecondary} />
+
+        <Text style={s.heroLabel}>Alimento reconhecido</Text>
+        <Text style={s.heroTitle}>{title}</Text>
+        <Text style={s.heroCalories}>{draft.summary.calories}</Text>
+        <Text style={s.heroSubtitle}>
+          Estimativa total da analise por {sourceLabel(source).toLowerCase()}.
+        </Text>
+
+        <View style={s.heroMacroRow}>
+          <MacroChip label="Proteina" value={draft.summary.protein} color="#2D89C6" bg="#E8F4FC" />
+          <MacroChip label="Carbo" value={draft.summary.carbs} color="#D98A32" bg="#FFF2E4" />
+          <MacroChip label="Gordura" value={draft.summary.fat} color="#D24E40" bg="#FEEDEA" />
         </View>
 
-        <View style={s.gridRow}>
-          <View style={s.gridCell}>
-            <Text style={s.inputLabel}>Carboidratos</Text>
-            <AppInput
-              value={draft.summary.carbs}
-              onChangeText={(value) => onChangeSummary('carbs', value)}
-              placeholder="0 g"
-            />
-          </View>
-          <View style={s.gridCell}>
-            <Text style={s.inputLabel}>Gorduras</Text>
-            <AppInput
-              value={draft.summary.fat}
-              onChangeText={(value) => onChangeSummary('fat', value)}
-              placeholder="0 g"
-            />
-          </View>
-        </View>
-      </View>
+        {traceId ? <Text style={s.heroTrace}>trace_id: {traceId}</Text> : null}
+      </Animated.View>
 
-      <View style={s.card}>
-        <Text style={s.sectionTitle}>Itens detectados</Text>
-        {draft.items.map((item) => (
-          <View key={item.id} style={s.itemCard}>
-            <Text style={s.inputLabel}>Nome do item</Text>
-            <AppInput
-              value={item.name}
-              onChangeText={(value) => onChangeItem(item.id, 'name', value)}
-              placeholder="Nome do alimento"
-            />
+      {corrections.length > 0 ? (
+        <Animated.View style={[s.card, buildRevealStyle(correctionAnim)]}>
+          <Text style={s.sectionTitle}>Ajustes automaticos</Text>
+          {corrections.map((entry, index) => (
+            <View key={`${entry.original}-${entry.corrected}-${index}`} style={s.correctionRow}>
+              <Text style={s.correctionFrom}>{entry.original}</Text>
+              <Text style={s.correctionArrow}>→</Text>
+              <Text style={s.correctionTo}>{entry.corrected}</Text>
+            </View>
+          ))}
+        </Animated.View>
+      ) : null}
 
+      <Animated.View style={[s.card, buildRevealStyle(itemsAnim)]}>
+        <Text style={s.sectionTitle}>Itens encontrados</Text>
+
+        {draft.items.length > 0 ? (
+          <View style={s.detectedList}>
+            {draft.items.map((item) => (
+              <View key={item.id} style={s.detectedItem}>
+                <View style={s.detectedItemHeader}>
+                  <Text style={s.detectedName}>{item.name || 'Item sem nome'}</Text>
+                  {item.precisaRevisao ? (
+                    <Text style={s.reviewBadge}>revisar</Text>
+                  ) : null}
+                </View>
+
+                <View style={s.detectedMacroRow}>
+                  <MacroChip
+                    label="kcal"
+                    value={item.calories}
+                    color={Brand.greenDark}
+                    bg="#ECF8ED"
+                    compact
+                  />
+                  <MacroChip
+                    label="prot"
+                    value={item.protein}
+                    color="#2D89C6"
+                    bg="#E8F4FC"
+                    compact
+                  />
+                  <MacroChip
+                    label="carb"
+                    value={item.carbs}
+                    color="#D98A32"
+                    bg="#FFF2E4"
+                    compact
+                  />
+                  <MacroChip
+                    label="gord"
+                    value={item.fat}
+                    color="#D24E40"
+                    bg="#FEEDEA"
+                    compact
+                  />
+                </View>
+
+                {item.warnings.length > 0 ? (
+                  <Text style={s.itemWarning}>{item.warnings.join(' | ')}</Text>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={s.emptyInlineText}>
+            Nesta leitura recebemos apenas o resumo geral, sem separacao por itens.
+          </Text>
+        )}
+      </Animated.View>
+
+      {warnings.length > 0 ? (
+        <Animated.View style={[s.warningCard, buildRevealStyle(warningAnim)]}>
+          <Text style={s.sectionTitle}>Pontos para revisar</Text>
+          {warnings.map((warning, index) => (
+            <Text key={`${warning}-${index}`} style={s.warningText}>
+              • {warning}
+            </Text>
+          ))}
+        </Animated.View>
+      ) : null}
+
+      <Animated.View style={[s.card, buildRevealStyle(editorAnim)]}>
+        <Pressable
+          style={s.manualToggleButton}
+          onPress={() => setShowManualEditor((prev) => !prev)}>
+          <Text style={s.manualToggleText}>
+            {showManualEditor ? 'Ocultar ajustes manuais' : 'Ajustar manualmente (opcional)'}
+          </Text>
+        </Pressable>
+
+        {showManualEditor ? (
+          <View style={s.manualEditorBody}>
+            <Text style={s.inputLabel}>Resumo de macros</Text>
             <View style={s.gridRow}>
               <View style={s.gridCell}>
                 <Text style={s.inputLabel}>Calorias</Text>
                 <AppInput
-                  value={item.calories}
-                  onChangeText={(value) => onChangeItem(item.id, 'calories', value)}
+                  value={draft.summary.calories}
+                  onChangeText={(value) => onChangeSummary('calories', value)}
                   placeholder="0 kcal"
                 />
               </View>
               <View style={s.gridCell}>
                 <Text style={s.inputLabel}>Proteina</Text>
                 <AppInput
-                  value={item.protein}
-                  onChangeText={(value) => onChangeItem(item.id, 'protein', value)}
+                  value={draft.summary.protein}
+                  onChangeText={(value) => onChangeSummary('protein', value)}
                   placeholder="0 g"
                 />
               </View>
@@ -380,35 +549,91 @@ function NutritionReviewEditor({
               <View style={s.gridCell}>
                 <Text style={s.inputLabel}>Carboidratos</Text>
                 <AppInput
-                  value={item.carbs}
-                  onChangeText={(value) => onChangeItem(item.id, 'carbs', value)}
+                  value={draft.summary.carbs}
+                  onChangeText={(value) => onChangeSummary('carbs', value)}
                   placeholder="0 g"
                 />
               </View>
               <View style={s.gridCell}>
                 <Text style={s.inputLabel}>Gorduras</Text>
                 <AppInput
-                  value={item.fat}
-                  onChangeText={(value) => onChangeItem(item.id, 'fat', value)}
+                  value={draft.summary.fat}
+                  onChangeText={(value) => onChangeSummary('fat', value)}
                   placeholder="0 g"
                 />
               </View>
             </View>
 
-            {item.warnings.length > 0 ? (
-              <Text style={s.itemWarning}>{item.warnings.join(' | ')}</Text>
+            <Text style={s.inputLabel}>Itens</Text>
+            {draft.items.length === 0 ? (
+              <Text style={s.emptyInlineText}>
+                Nenhum item separado. Voce pode adicionar manualmente.
+              </Text>
             ) : null}
 
-            <Pressable style={s.removeButton} onPress={() => onRemoveItem(item.id)}>
-              <Text style={s.removeButtonText}>Remover item</Text>
+            {draft.items.map((item) => (
+              <View key={item.id} style={s.itemCard}>
+                <Text style={s.inputLabel}>Nome do item</Text>
+                <AppInput
+                  value={item.name}
+                  onChangeText={(value) => onChangeItem(item.id, 'name', value)}
+                  placeholder="Nome do alimento"
+                />
+
+                <View style={s.gridRow}>
+                  <View style={s.gridCell}>
+                    <Text style={s.inputLabel}>Calorias</Text>
+                    <AppInput
+                      value={item.calories}
+                      onChangeText={(value) => onChangeItem(item.id, 'calories', value)}
+                      placeholder="0 kcal"
+                    />
+                  </View>
+                  <View style={s.gridCell}>
+                    <Text style={s.inputLabel}>Proteina</Text>
+                    <AppInput
+                      value={item.protein}
+                      onChangeText={(value) => onChangeItem(item.id, 'protein', value)}
+                      placeholder="0 g"
+                    />
+                  </View>
+                </View>
+
+                <View style={s.gridRow}>
+                  <View style={s.gridCell}>
+                    <Text style={s.inputLabel}>Carboidratos</Text>
+                    <AppInput
+                      value={item.carbs}
+                      onChangeText={(value) => onChangeItem(item.id, 'carbs', value)}
+                      placeholder="0 g"
+                    />
+                  </View>
+                  <View style={s.gridCell}>
+                    <Text style={s.inputLabel}>Gorduras</Text>
+                    <AppInput
+                      value={item.fat}
+                      onChangeText={(value) => onChangeItem(item.id, 'fat', value)}
+                      placeholder="0 g"
+                    />
+                  </View>
+                </View>
+
+                <Pressable style={s.removeButton} onPress={() => onRemoveItem(item.id)}>
+                  <Text style={s.removeButtonText}>Remover item</Text>
+                </Pressable>
+              </View>
+            ))}
+
+            <Pressable style={s.addButton} onPress={onAddItem}>
+              <Text style={s.addButtonText}>+ Adicionar item</Text>
             </Pressable>
           </View>
-        ))}
-
-        <Pressable style={s.addButton} onPress={onAddItem}>
-          <Text style={s.addButtonText}>+ Adicionar item</Text>
-        </Pressable>
-      </View>
+        ) : (
+          <Text style={s.manualHint}>
+            Use esta opcao apenas se quiser corrigir nomes ou macros antes do reenvio.
+          </Text>
+        )}
+      </Animated.View>
     </>
   );
 }
@@ -474,6 +699,23 @@ function PlanReviewEditor({
   );
 }
 
+type MacroChipProps = {
+  label: string;
+  value: string;
+  color: string;
+  bg: string;
+  compact?: boolean;
+};
+
+function MacroChip({ label, value, color, bg, compact = false }: MacroChipProps) {
+  return (
+    <View style={[s.macroChip, compact && s.macroChipCompact, { backgroundColor: bg }]}>
+      <Text style={[s.macroChipLabel, { color }]}>{label}</Text>
+      <Text style={[s.macroChipValue, { color }]}>{value}</Text>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   root: {
     flex: 1,
@@ -505,23 +747,111 @@ const s = StyleSheet.create({
     color: Brand.greenDark,
     fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   metaText: {
     fontSize: 12,
     color: Brand.textSecondary,
+  },
+  heroCard: {
+    backgroundColor: '#F2FAF3',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#DCECDC',
+    padding: 16,
+    gap: 10,
+    overflow: 'hidden',
+  },
+  heroGlowMain: {
+    position: 'absolute',
+    top: -92,
+    right: -78,
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    backgroundColor: 'rgba(123,196,127,0.24)',
+  },
+  heroGlowSecondary: {
+    position: 'absolute',
+    bottom: -54,
+    left: -36,
+    width: 122,
+    height: 122,
+    borderRadius: 61,
+    backgroundColor: 'rgba(93,173,226,0.14)',
+  },
+  heroLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Brand.greenDark,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Brand.text,
+    letterSpacing: -0.4,
+  },
+  heroCalories: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: Brand.greenDark,
+    letterSpacing: -0.5,
+  },
+  heroSubtitle: {
+    fontSize: 12,
+    color: Brand.textSecondary,
+  },
+  heroMacroRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  heroTrace: {
+    fontSize: 11,
+    color: Brand.textSecondary,
+  },
+  correctionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    backgroundColor: Brand.bg,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  correctionFrom: {
+    flex: 1,
+    fontSize: 12,
+    color: Brand.textSecondary,
+  },
+  correctionArrow: {
+    fontSize: 14,
+    color: Brand.greenDark,
+    fontWeight: '700',
+  },
+  correctionTo: {
+    flex: 1,
+    fontSize: 12,
+    color: Brand.text,
+    fontWeight: '600',
+    textAlign: 'right',
   },
   warningCard: {
     backgroundColor: '#FFF7E6',
     borderRadius: 14,
     padding: 14,
     gap: 6,
+    borderWidth: 1,
+    borderColor: '#F3DFC3',
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: Brand.text,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
   },
   warningText: {
     fontSize: 12,
@@ -532,6 +862,67 @@ const s = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     gap: 10,
+  },
+  detectedList: {
+    gap: 10,
+  },
+  detectedItem: {
+    borderWidth: 1,
+    borderColor: Brand.border,
+    borderRadius: 12,
+    padding: 10,
+    gap: 8,
+    backgroundColor: Brand.bg,
+  },
+  detectedItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  detectedName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: Brand.text,
+  },
+  reviewBadge: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8A6D3B',
+    backgroundColor: '#FFF0CC',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  detectedMacroRow: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  macroChip: {
+    borderRadius: 9,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    gap: 2,
+    minWidth: 70,
+  },
+  macroChipCompact: {
+    minWidth: 0,
+    paddingVertical: 4,
+    paddingHorizontal: 7,
+  },
+  macroChipLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.35,
+  },
+  macroChipValue: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   gridRow: {
     flexDirection: 'row',
@@ -556,6 +947,32 @@ const s = StyleSheet.create({
   itemWarning: {
     fontSize: 11,
     color: Brand.danger,
+  },
+  emptyInlineText: {
+    fontSize: 12,
+    color: Brand.textSecondary,
+    lineHeight: 18,
+  },
+  manualToggleButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CDE6CF',
+    backgroundColor: '#F5FCF6',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  manualToggleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Brand.greenDark,
+  },
+  manualHint: {
+    fontSize: 12,
+    color: Brand.textSecondary,
+    lineHeight: 18,
+  },
+  manualEditorBody: {
+    gap: 10,
   },
   multiInput: {
     borderWidth: 1.5,
@@ -657,4 +1074,3 @@ const s = StyleSheet.create({
     color: Brand.textSecondary,
   },
 });
-

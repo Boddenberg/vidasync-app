@@ -190,6 +190,14 @@ export default function HomeScreen() {
     setQuickAddVisible(false);
   }
 
+  function handleOpenMyDishes() {
+    if (favorites.length > 0) {
+      setQuickAddVisible(true);
+      return;
+    }
+    router.push('/(tabs)/explore' as any);
+  }
+
   // â”€â”€ Totais do dia â”€â”€
   const cal = totals ? Math.round(extractNum(totals.calories)) : 0;
   const prot = totals ? Math.round(extractNum(totals.protein)) : 0;
@@ -361,20 +369,42 @@ export default function HomeScreen() {
           {/* BotÃµes de aÃ§Ã£o */}
           <View style={s.actionRow}>
             <Pressable
-              style={[s.registerBtn, { flex: 1 }]}
+              style={({ pressed }) => [
+                s.actionButton,
+                s.actionButtonPrimary,
+                pressed && s.actionButtonPressed,
+              ]}
               onPress={() => setRegisterVisible(true)}>
-              <Text style={s.registerBtnIcon}>+</Text>
-              <Text style={s.registerBtnText}>Nova refeiÃ§Ã£o</Text>
+              <View style={s.actionIconBubble}>
+                <Text style={s.actionIcon}>+</Text>
+              </View>
+              <View style={s.actionCopy}>
+                <Text style={s.actionTitlePrimary}>Nova refeicao</Text>
+                <Text style={s.actionSubtitlePrimary}>Registrar agora</Text>
+              </View>
             </Pressable>
 
-            {favorites.length > 0 && (
-              <Pressable
-                style={s.quickAddBtn}
-                onPress={() => setQuickAddVisible(true)}>
-                <Text style={s.quickAddBtnIcon}>â˜…</Text>
-                <Text style={s.quickAddBtnText}>Meus Pratos</Text>
-              </Pressable>
-            )}
+            <Pressable
+              style={({ pressed }) => [
+                s.actionButton,
+                s.actionButtonSecondary,
+                pressed && s.actionButtonPressed,
+              ]}
+              onPress={handleOpenMyDishes}>
+              <View style={[s.actionIconBubble, s.actionIconBubbleSecondary]}>
+                <Text style={[s.actionIcon, s.actionIconSecondary]}>
+                  {favorites.length > 0 ? 'P' : '>'}
+                </Text>
+              </View>
+              <View style={s.actionCopy}>
+                <Text style={s.actionTitleSecondary}>
+                  {favorites.length > 0 ? 'Meus pratos' : 'Criar pratos'}
+                </Text>
+                <Text style={s.actionSubtitleSecondary}>
+                  {favorites.length > 0 ? `${favorites.length} salvos` : 'Salvar favoritos'}
+                </Text>
+              </View>
+            </Pressable>
           </View>
 
           {/* Lista de refeiÃ§Ãµes */}
@@ -669,50 +699,73 @@ const s = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     gap: 10,
+    alignItems: 'stretch',
   },
 
-  // Register button
-  registerBtn: {
+  actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 14,
+  },
+  actionButtonPrimary: {
     backgroundColor: Brand.green,
   },
-  registerBtnIcon: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  registerBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-
-  // Quick add button
-  quickAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 14,
+  actionButtonSecondary: {
     backgroundColor: Brand.card,
     borderWidth: 1.5,
     borderColor: Brand.green,
   },
-  quickAddBtnIcon: {
-    fontSize: 16,
+  actionButtonPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.99 }],
+  },
+  actionIconBubble: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.28)',
+  },
+  actionIconBubbleSecondary: {
+    backgroundColor: '#EAF7EB',
+  },
+  actionIcon: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  actionIconSecondary: {
     color: Brand.greenDark,
   },
-  quickAddBtnText: {
+  actionCopy: {
+    flex: 1,
+    gap: 1,
+  },
+  actionTitlePrimary: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  actionSubtitlePrimary: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  actionTitleSecondary: {
     fontSize: 14,
     fontWeight: '600',
     color: Brand.greenDark,
+  },
+  actionSubtitleSecondary: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Brand.greenDark,
+    opacity: 0.82,
   },
 
   // Meals list

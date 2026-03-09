@@ -1,7 +1,6 @@
 import type { NutritionData } from '@/types/nutrition';
 import type {
   NutritionReviewDraft,
-  NutritionReviewDraftItem,
   PlanReviewDraft,
   PlanReviewDraftSection,
   ReviewDraft,
@@ -23,35 +22,19 @@ function nutritionClone(data: NutritionData): NutritionData {
   };
 }
 
-function buildNutritionFallbackItem(summary: NutritionData): NutritionReviewDraftItem {
-  return {
-    id: 'nutrition-item-0',
-    name: 'Item principal',
-    calories: summary.calories,
-    protein: summary.protein,
-    carbs: summary.carbs,
-    fat: summary.fat,
-    precisaRevisao: true,
-    warnings: ['Item adicionado automaticamente para revisao manual.'],
-  };
-}
-
 function buildNutritionDraft(session: Extract<ReviewSession, { kind: 'nutrition' }>): NutritionReviewDraft {
   const summary = nutritionClone(session.result.nutrition);
 
-  const items =
-    session.result.ingredients.length > 0
-      ? session.result.ingredients.map((item, index) => ({
-          id: `nutrition-item-${index}`,
-          name: item.name,
-          calories: item.nutrition.calories,
-          protein: item.nutrition.protein,
-          carbs: item.nutrition.carbs,
-          fat: item.nutrition.fat,
-          precisaRevisao: item.precisaRevisao,
-          warnings: item.warnings,
-        }))
-      : [buildNutritionFallbackItem(summary)];
+  const items = session.result.ingredients.map((item, index) => ({
+    id: `nutrition-item-${index}`,
+    name: item.name,
+    calories: item.nutrition.calories,
+    protein: item.nutrition.protein,
+    carbs: item.nutrition.carbs,
+    fat: item.nutrition.fat,
+    precisaRevisao: item.precisaRevisao,
+    warnings: item.warnings,
+  }));
 
   return {
     kind: 'nutrition',
@@ -113,6 +96,22 @@ export function buildReviewSubmitPayload(
   draft: ReviewDraft,
 ): ReviewSubmitPayload {
   if (session.kind === 'nutrition' && draft.kind === 'nutrition') {
+    const itemsForSubmit =
+      draft.items.length > 0
+        ? draft.items
+        : [
+            {
+              id: 'nutrition-item-fallback',
+              name: 'Item principal',
+              calories: draft.summary.calories,
+              protein: draft.summary.protein,
+              carbs: draft.summary.carbs,
+              fat: draft.summary.fat,
+              precisaRevisao: true,
+              warnings: ['Item sintetico gerado a partir do resumo da analise.'],
+            },
+          ];
+
     return {
       contexto: 'revisao_assistida',
       kind: 'nutrition',
@@ -124,7 +123,7 @@ export function buildReviewSubmitPayload(
       observation: draft.observation.trim() || null,
       adjustments: {
         summary: nutritionClone(draft.summary),
-        items: draft.items.map((item) => ({
+        items: itemsForSubmit.map((item) => ({
           name: trimOrFallback(item.name, 'Item sem nome'),
           nutrition: {
             calories: trimOrFallback(item.calories, '0 kcal'),
@@ -171,10 +170,6 @@ export function mapReviewSubmitErrorMessage(rawMessage: string): string {
 
   if (message.includes('404') || message.includes('"status":404')) {
     return 'Endpoint de revisao nao encontrado no BFF atual. Confirme o contrato de revisao assistida.';
-  }
-
-  if (message.includes('timeout')) {
-    return 'Tempo limite ao reenviar revisao. Tente novamente.';
   }
 
   return rawMessage;
