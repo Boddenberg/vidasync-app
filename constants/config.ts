@@ -20,7 +20,7 @@ function normalizeOptionalPath(path?: string | null): string {
   return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
 }
 
-const defaultBaseUrl = normalizeBaseUrl('https://vidasync-bff-production.up.railway.app');
+const defaultBaseUrl = normalizeBaseUrl('http://localhost:8080');
 
 /* URL base padrao do BFF (backend). */
 export const API_BASE_URL = normalizeBaseUrl(

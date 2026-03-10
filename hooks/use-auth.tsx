@@ -15,11 +15,16 @@ const STORAGE_KEY_USER_ID = '@vidasync:userId';
 const STORAGE_KEY_USERNAME = '@vidasync:username';
 const STORAGE_KEY_PROFILE_IMG = '@vidasync:profileImageUrl';
 const STORAGE_KEY_ACCESS_TOKEN = '@vidasync:accessToken';
+const FALLBACK_USERNAME = 'usuario';
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function isValidUuid(value: string | null | undefined): value is string {
   return !!value && UUID_REGEX.test(value.trim());
+}
+
+function asTrimmedString(value: unknown): string {
+  return `${value ?? ''}`.trim();
 }
 
 type AuthState = {
@@ -54,12 +59,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const userId = await AsyncStorage.getItem(STORAGE_KEY_USER_ID);
-        const username = await AsyncStorage.getItem(STORAGE_KEY_USERNAME);
-        if (userId && username && isValidUuid(userId)) {
-          const profileImageUrl = await AsyncStorage.getItem(STORAGE_KEY_PROFILE_IMG);
-          setUser({ userId, username, profileImageUrl });
-        } else if (userId || username) {
+        const rows = await AsyncStorage.multiGet([
+          STORAGE_KEY_USER_ID,
+          STORAGE_KEY_USERNAME,
+          STORAGE_KEY_PROFILE_IMG,
+          STORAGE_KEY_ACCESS_TOKEN,
+        ]);
+
+        const storedUserId = asTrimmedString(rows[0]?.[1]);
+        const storedUsername = asTrimmedString(rows[1]?.[1]);
+        const storedProfileImageUrl = asTrimmedString(rows[2]?.[1]) || null;
+        const storedAccessToken = asTrimmedString(rows[3]?.[1]);
+
+        if (isValidUuid(storedUserId)) {
+          const usernameToUse = storedUsername || FALLBACK_USERNAME;
+          // Evita derrubar sessao por username ausente em storage legado.
+          if (!storedUsername) {
+            await AsyncStorage.setItem(STORAGE_KEY_USERNAME, usernameToUse);
+          }
+          setUser({ userId: storedUserId, username: usernameToUse, profileImageUrl: storedProfileImageUrl });
+        } else if (storedUserId || storedUsername || storedProfileImageUrl || storedAccessToken) {
           // Sessao antiga/corrompida: evita enviar X-User-Id invalido e quebrar endpoints.
           await AsyncStorage.multiRemove([
             STORAGE_KEY_USER_ID,
@@ -78,22 +97,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const persistUser = useCallback(async (u: AuthResponse) => {
-    if (!isValidUuid(u.userId)) {
+    const row = u as AuthResponse & Record<string, unknown>;
+    const userId = asTrimmedString(row.userId) || asTrimmedString(row.user_id);
+    const username =
+      asTrimmedString(row.username) ||
+      asTrimmedString(row.user_name) ||
+      FALLBACK_USERNAME;
+    const profileImageUrl =
+      asTrimmedString(row.profileImageUrl) ||
+      asTrimmedString(row.profile_image_url) ||
+      null;
+    const accessToken =
+      asTrimmedString(row.accessToken) ||
+      asTrimmedString(row.access_token) ||
+      '';
+
+    if (!isValidUuid(userId)) {
       throw new Error('Sessao invalida recebida do servidor. Faca login novamente.');
     }
 
-    await AsyncStorage.setItem(STORAGE_KEY_USER_ID, u.userId);
-    await AsyncStorage.setItem(STORAGE_KEY_USERNAME, u.username);
-    if (u.profileImageUrl) {
-      await AsyncStorage.setItem(STORAGE_KEY_PROFILE_IMG, u.profileImageUrl);
+    await AsyncStorage.setItem(STORAGE_KEY_USER_ID, userId);
+    await AsyncStorage.setItem(STORAGE_KEY_USERNAME, username);
+    if (profileImageUrl) {
+      await AsyncStorage.setItem(STORAGE_KEY_PROFILE_IMG, profileImageUrl);
     } else {
       await AsyncStorage.removeItem(STORAGE_KEY_PROFILE_IMG);
     }
     // Salva accessToken quando presente (login/signup)
-    if (u.accessToken) {
-      await AsyncStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, u.accessToken);
+    if (accessToken) {
+      await AsyncStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, accessToken);
     }
-    setUser({ userId: u.userId, username: u.username, profileImageUrl: u.profileImageUrl });
+    setUser({ userId, username, profileImageUrl });
   }, []);
 
   const loginFn = useCallback(async (username: string, password: string) => {

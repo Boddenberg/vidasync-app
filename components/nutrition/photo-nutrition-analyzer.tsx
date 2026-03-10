@@ -13,7 +13,10 @@ import { resolvePrimaryImagePayload } from '@/utils/attachment-rules';
 type Props = {
   attachments: AttachmentItem[];
   onChangeAttachments: Dispatch<SetStateAction<AttachmentItem[]>>;
-  onRequiresReview: (result: NutritionAnalysisResult) => void;
+  onRequiresReview: (
+    result: NutritionAnalysisResult,
+    payload?: { photoPreviewUri?: string | null; photoPayload?: string | null },
+  ) => void;
 };
 
 /*
@@ -59,9 +62,12 @@ export function PhotoNutritionAnalyzer({
   useEffect(() => {
     if (!result?.precisaRevisao || reviewHandledRef.current) return;
     reviewHandledRef.current = true;
-    onRequiresReview(result);
+    onRequiresReview(result, {
+      photoPreviewUri: selectedPhoto?.uri ?? null,
+      photoPayload: selectedImagePayload ?? null,
+    });
     analysis.reset();
-  }, [analysis, onRequiresReview, result]);
+  }, [analysis, onRequiresReview, result, selectedImagePayload, selectedPhoto]);
 
   useEffect(() => {
     if (!result) {
@@ -72,7 +78,7 @@ export function PhotoNutritionAnalyzer({
   return (
     <View style={s.wrapper}>
       <Text style={s.title}>Consultar calorias por foto</Text>
-      <Text style={s.subtitle}>Tire uma foto ou escolha da galeria antes de enviar ao BFF.</Text>
+      <Text style={s.subtitle}>Tire uma foto ou escolha da galeria para analisar sua refeicao.</Text>
 
       <AttachmentPickerField
         context="meal"
@@ -80,8 +86,7 @@ export function PhotoNutritionAnalyzer({
         maxItems={1}
         value={attachments}
         onChange={onChangeAttachments}
-        title="Foto do prato"
-        subtitle="Preview disponivel antes do envio."
+        title="Adicionar foto"
       />
 
       <AppButton
@@ -109,6 +114,7 @@ export function PhotoNutritionAnalyzer({
 
       {result && !result.precisaRevisao ? (
         <View style={s.resultBox}>
+          <Text style={s.resultDishName}>{result.detectedDishName}</Text>
           <Text style={s.resultCal}>{result.nutrition.calories}</Text>
           <View style={s.macroRow}>
             <Text style={s.macro}>Prot: {result.nutrition.protein}</Text>
@@ -184,6 +190,11 @@ const s = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: Brand.greenDark,
+  },
+  resultDishName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Brand.text,
   },
   macroRow: {
     flexDirection: 'row',

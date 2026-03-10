@@ -17,6 +17,9 @@ import { resolveRemoteFileUrl } from './file-url';
 
 type CalorieResponseWire = {
   nutrition?: NutritionData | null;
+  nome_prato_detectado?: string | null;
+  nomePratoDetectado?: string | null;
+  detectedDishName?: string | null;
   ingredients?: Array<{
     name?: string | null;
     nutrition?: NutritionData | null;
@@ -123,10 +126,14 @@ export function normalizeCalorieResponse(response: CalorieResponseWire): Nutriti
       warnings: asWarnings(item.warnings),
       traceId: item.trace_id ?? item.traceId ?? null,
     }));
+  const detectedDishName =
+    `${response.nome_prato_detectado ?? response.nomePratoDetectado ?? response.detectedDishName ?? ''}`.trim() ||
+    'meu prato';
 
   return {
     nutrition: response.nutrition,
     ingredients,
+    detectedDishName,
     corrections,
     invalidItems: response.invalidItems ?? [],
     error: response.error ?? null,

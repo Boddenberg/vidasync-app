@@ -1,0 +1,148 @@
+Starting project at C:\Users\Admin\Desktop\projetos\vida-sync-app
+React Compiler enabled
+Starting Metro Bundler
+Tunnel connected.
+Tunnel ready.
+Waiting on http://localhost:8110
+Logs for your project will appear below.
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓░░░░░░░░░░░░ 25.0% ( 9/20)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓░░░░░░░░░░░ 36.0% (262/445)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓░░░░░░░░░░░ 32.3% (226/414)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 69.6% (610/782)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 52.3% (415/586)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 71.0% (785/942)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 65.7% (694/856)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 87.9% (1008/1075)
+λ Bundled 17454ms node_modules\expo-router\node\render.js (1289 modules)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1282/1282)
+"shadow*" style props are deprecated. Use "boxShadow".
+Require cycle: hooks/use-auth.tsx -> services/auth.ts -> hooks/use-auth.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+  console.warn (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\expo\node_modules\@expo\cli\src\start\server\serverLogLikeMetro.ts:161:21)
+  warnOnce (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\modules\warnOnce\index.js:24:13)
+  createDOMProps (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\modules\createDOMProps\index.js:805:13)
+  createElement (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\exports\createElement\index.js:23:32)
+  Component (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\exports\View\index.js:111:23)
+  Object.callComponentInDEV [as react-stack-bottom-frame] (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:8970:18)
+  renderWithHooks (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:4699:19)
+  run (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5539:39)
+  retryNode (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5899:31)
+  renderNodeDestructive (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5849:11)
+λ Bundled 42ms node_modules\expo-router\node\render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Require cycle: hooks/use-auth.tsx -> services/auth.ts -> hooks/use-auth.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+  console.warn (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\expo\node_modules\@expo\cli\src\start\server\serverLogLikeMetro.ts:161:21)
+  warnOnce (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\modules\warnOnce\index.js:24:13)
+  createDOMProps (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\modules\createDOMProps\index.js:805:13)
+  createElement (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\exports\createElement\index.js:23:32)
+  Component (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\exports\View\index.js:111:23)
+  Object.callComponentInDEV [as react-stack-bottom-frame] (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:8970:18)
+  renderWithHooks (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:4699:19)
+  run (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5539:39)
+  retryNode (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5899:31)
+  renderNodeDestructive (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5849:11)
+Web Bundled 20524ms node_modules\expo-router\entry.js (1282 modules)
+Error: Cannot pipe to a closed or destroyed stream
+    at pipelineImpl (node:internal/streams/pipeline:264:15)
+    at node:stream/promises:31:5
+    at new Promise (<anonymous>)
+    at pipeline (node:stream/promises:20:10)
+    at respond (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\expo-server\src\vendor\http.ts:138:19)
+    at C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\expo-server\src\vendor\http.ts:68:13
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+Web Bundled 479ms node_modules\expo-router\entry.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 65ms node_modules\expo-router\node\render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Require cycle: hooks/use-auth.tsx -> services/auth.ts -> hooks/use-auth.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality.
+Web Bundled 499ms node_modules\expo-router\entry.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 45ms node_modules\expo-router\node\render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Require cycle: hooks/use-auth.tsx -> services/auth.ts -> hooks/use-auth.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+  console.warn (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\expo\node_modules\@expo\cli\src\start\server\serverLogLikeMetro.ts:161:21)
+  warnOnce (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\modules\warnOnce\index.js:24:13)
+  createDOMProps (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\modules\createDOMProps\index.js:805:13)
+  createElement (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\exports\createElement\index.js:23:32)
+  Component (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\exports\View\index.js:111:23)
+  Object.callComponentInDEV [as react-stack-bottom-frame] (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:8970:18)
+  renderWithHooks (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:4699:19)
+  run (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5539:39)
+  retryNode (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5899:31)
+  renderNodeDestructive (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5849:11)
+Web Bundled 458ms node_modules\expo-router\entry.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 33ms node_modules\expo-router\node\render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Require cycle: hooks/use-auth.tsx -> services/auth.ts -> hooks/use-auth.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+  console.warn (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\expo\node_modules\@expo\cli\src\start\server\serverLogLikeMetro.ts:161:21)
+  warnOnce (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\modules\warnOnce\index.js:24:13)
+  createDOMProps (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\modules\createDOMProps\index.js:805:13)
+  createElement (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\exports\createElement\index.js:23:32)
+  Component (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\exports\View\index.js:111:23)
+  Object.callComponentInDEV [as react-stack-bottom-frame] (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:8970:18)
+  renderWithHooks (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:4699:19)
+  run (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5539:39)
+  retryNode (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5899:31)
+  renderNodeDestructive (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5849:11)
+Web Bundled 433ms node_modules\expo-router\entry.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 29ms node_modules\expo-router\node\render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Require cycle: hooks/use-auth.tsx -> services/auth.ts -> hooks/use-auth.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality.
+λ Bundled 27ms node_modules\expo-router\node\render.js (1 module)
+λ Bundled 32ms node_modules\expo-router\node\render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Require cycle: hooks/use-auth.tsx -> services/auth.ts -> hooks/use-auth.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality.
+"shadow*" style props are deprecated. Use "boxShadow".
+Require cycle: hooks/use-auth.tsx -> services/auth.ts -> hooks/use-auth.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality.
+Web Bundled 1053ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 862ms node_modules\expo-router\entry.js (1 module)
+Web Bundled 620ms node_modules\expo-router\entry.js (1 module)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 37ms node_modules\expo-router\node\render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Require cycle: hooks/use-auth.tsx -> services/auth.ts -> hooks/use-auth.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+[expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality.
+λ  WARN  props.pointerEvents is deprecated. Use style.pointerEvents 
+  console.warn (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\expo\node_modules\@expo\cli\src\start\server\serverLogLikeMetro.ts:161:21)
+  warnOnce (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\modules\warnOnce\index.js:24:13)
+  createDOMProps (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\modules\createDOMProps\index.js:805:13)
+  createElement (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\exports\createElement\index.js:23:32)
+  Component (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-native-web\dist\exports\View\index.js:111:23)
+  Object.callComponentInDEV [as react-stack-bottom-frame] (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:8970:18)
+  renderWithHooks (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:4699:19)
+  run (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5539:39)
+  retryNode (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5899:31)
+  renderNodeDestructive (C:\Users\Admin\Desktop\projetos\vida-sync-app\node_modules\react-dom\cjs\react-dom-server-legacy.node.development.js:5849:11)
+Web Bundled 378ms node_modules\expo-router\entry.js (1 module)

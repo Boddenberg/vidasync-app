@@ -9,6 +9,8 @@ export type ReviewSession =
       source: 'photo' | 'audio';
       createdAt: string;
       result: NutritionAnalysisResult;
+      photoPreviewUri?: string | null;
+      photoPayload?: string | null;
     }
   | {
       kind: 'plan';

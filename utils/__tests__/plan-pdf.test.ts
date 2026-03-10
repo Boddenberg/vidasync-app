@@ -7,7 +7,7 @@ import {
 } from '@/utils/plan-pdf';
 
 describe('plan pdf utils', () => {
-  it('builds payload aliases for pdf fields', () => {
+  it('builds canonical payload for pdf fields', () => {
     const payload = buildPlanPdfPayload(
       'data:application/pdf;base64,AAA',
       'application/pdf',
@@ -15,13 +15,11 @@ describe('plan pdf utils', () => {
     );
 
     expect(payload.pdf).toBe('data:application/pdf;base64,AAA');
-    expect(payload.pdf_base64).toBe(payload.pdf);
-    expect(payload.pdfBase64).toBe(payload.pdf);
     expect(payload.mime_type).toBe('application/pdf');
     expect(payload.file_name).toBe('plano.pdf');
   });
 
-  it('includes URL aliases when remote link is available', () => {
+  it('includes canonical URL field when remote link is available', () => {
     const payload = buildPlanPdfPayload(
       null,
       'application/pdf',
@@ -31,9 +29,19 @@ describe('plan pdf utils', () => {
 
     expect(payload.pdf).toBeUndefined();
     expect(payload.pdf_url).toBe('https://cdn.example.com/plano.pdf');
-    expect(payload.pdfUrl).toBe('https://cdn.example.com/plano.pdf');
-    expect(payload.file_url).toBe('https://cdn.example.com/plano.pdf');
-    expect(payload.url).toBe('https://cdn.example.com/plano.pdf');
+  });
+
+  it('prioritizes file_key over remote URL when both are available', () => {
+    const payload = buildPlanPdfPayload(
+      null,
+      'application/pdf',
+      'plano.pdf',
+      'https://cdn.example.com/plano.pdf',
+      'pdf/abc/plano.pdf',
+    );
+
+    expect(payload.file_key).toBe('pdf/abc/plano.pdf');
+    expect(payload.pdf_url).toBeUndefined();
   });
 
   it('normalizes sections, warnings and review flags', () => {

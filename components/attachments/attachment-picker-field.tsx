@@ -182,24 +182,25 @@ export function AttachmentPickerField({
       ) : null}
 
       {selectedKind === 'photo' ? (
-        <View style={s.photoAddRow}>
-          <Pressable
-            style={[s.addButton, s.photoAddButton, !hasRoom && s.addButtonDisabled]}
-            onPress={() => handlePick('camera')}
-            disabled={!hasRoom}>
-            <Text style={s.addButtonText}>
-              {hasRoom ? '+ Tirar foto' : 'Limite atingido'}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[s.addButton, s.photoAddButton, !hasRoom && s.addButtonDisabled]}
-            onPress={() => handlePick('library')}
-            disabled={!hasRoom}>
-            <Text style={s.addButtonText}>
-              {hasRoom ? '+ Galeria' : 'Limite atingido'}
-            </Text>
-          </Pressable>
-        </View>
+        <>
+          <View style={s.photoAddRow}>
+            <Pressable
+              style={[s.addButton, s.photoAddButton, !hasRoom && s.addButtonDisabled]}
+              onPress={() => handlePick('camera')}
+              disabled={!hasRoom}>
+              <Text style={s.addButtonText}>+ Tirar foto</Text>
+            </Pressable>
+            <Pressable
+              style={[s.addButton, s.photoAddButton, !hasRoom && s.addButtonDisabled]}
+              onPress={() => handlePick('library')}
+              disabled={!hasRoom}>
+              <Text style={s.addButtonText}>+ Galeria</Text>
+            </Pressable>
+          </View>
+          {!hasRoom ? (
+            <Text style={s.limitHint}>Voce ja adicionou uma foto. Remova a atual para trocar.</Text>
+          ) : null}
+        </>
       ) : (
         <Pressable
           style={[s.addButton, !hasRoom && s.addButtonDisabled]}
@@ -238,7 +239,7 @@ export function AttachmentPickerField({
               ) : null}
 
               {item.status === 'success' ? (
-                <Text style={[s.statusText, s.successText]}>Pronto para envio ao BFF</Text>
+                <Text style={[s.statusText, s.successText]}>Arquivo pronto para uso</Text>
               ) : null}
 
               {item.status === 'error' ? (
@@ -326,6 +327,10 @@ const s = StyleSheet.create({
   },
   photoAddButton: {
     flex: 1,
+  },
+  limitHint: {
+    fontSize: 12,
+    color: Brand.textSecondary,
   },
   list: {
     gap: 10,

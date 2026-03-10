@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,15 +11,18 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { Brand } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
+import { createFavorite } from '@/services/favorites';
 import { submitReviewAdjustments } from '@/services/review-feedback';
 import { clearReviewSession, getReviewSession } from '@/services/review-session';
 import type { NutritionCorrection } from '@/types/nutrition';
 import type { NutritionReviewDraft, PlanReviewDraft, ReviewDraft } from '@/types/review';
+import { buildFoodsString } from '@/utils/helpers';
 import { buildReviewDraft, buildReviewSubmitPayload } from '@/utils/review';
 
 function sourceLabel(source: 'photo' | 'audio' | 'pdf'): string {
@@ -27,22 +31,75 @@ function sourceLabel(source: 'photo' | 'audio' | 'pdf'): string {
   return 'PDF';
 }
 
-function kindLabel(kind: 'nutrition' | 'plan'): string {
-  return kind === 'nutrition' ? 'Analise nutricional' : 'Plano alimentar';
+function screenCopy(kind: 'nutrition' | 'plan') {
+  if (kind === 'nutrition') {
+    return {
+      title: 'Resumo da refeição',
+      subtitle: 'Confira os alimentos identificados e ajuste os macros se quiser.',
+    };
+  }
+
+  return {
+    title: 'Revisão do plano',
+    subtitle: 'Organizamos o conteúdo extraído para voce revisar e ajustar se quiser.',
+  };
+}
+
+function guessMimeTypeFromUri(uri: string): string {
+  const lower = uri.toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.heic') || lower.endsWith('.heif')) return 'image/heic';
+  return 'image/jpeg';
+}
+
+async function resolveFavoriteImagePayload(
+  sessionPayload: string | null,
+  previewUri: string | null,
+): Promise<string | null> {
+  const payload = `${sessionPayload ?? ''}`.trim();
+  if (payload.length > 0) {
+    return payload;
+  }
+
+  const uri = `${previewUri ?? ''}`.trim();
+  if (uri.length === 0) {
+    return null;
+  }
+
+  if (uri.startsWith('data:')) {
+    return uri;
+  }
+
+  if (/^https?:\/\//i.test(uri)) {
+    return uri;
+  }
+
+  const base64 = await FileSystem.readAsStringAsync(uri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  if (!base64) {
+    return null;
+  }
+
+  return `data:${guessMimeTypeFromUri(uri)};base64,${base64}`;
 }
 
 function resolveNutritionTitle(
-  source: 'photo' | 'audio',
+  dishName: string | null | undefined,
   items: NutritionReviewDraft['items'],
   corrections: NutritionCorrection[],
 ): string {
+  const explicitDishName = `${dishName ?? ''}`.trim();
+  if (explicitDishName.length > 0) return explicitDishName;
+
   const corrected = corrections.find((entry) => entry.corrected.trim().length > 0)?.corrected?.trim();
   if (corrected) return corrected;
 
   const itemName = items.find((item) => item.name.trim().length > 0)?.name?.trim();
   if (itemName) return itemName;
 
-  return source === 'photo' ? 'Item da foto' : 'Item do audio';
+  return 'meu prato';
 }
 
 function buildRevealStyle(progress: Animated.Value) {
@@ -75,11 +132,7 @@ export default function AssistedReviewScreen() {
     session ? buildReviewDraft(session) : null,
   );
   const resend = useAsync(submitReviewAdjustments);
-
-  const traceId = useMemo(() => {
-    if (!session) return null;
-    return session.result.traceId;
-  }, [session]);
+  const saveFavorite = useAsync(createFavorite);
 
   function closeReview() {
     clearReviewSession();
@@ -208,7 +261,7 @@ export default function AssistedReviewScreen() {
     return (
       <View style={s.root}>
         <View style={s.emptyWrap}>
-          <Text style={s.title}>Conferencia inteligente</Text>
+          <Text style={s.title}>Revisão assistida</Text>
           <Text style={s.emptyText}>Nenhum dado disponivel para revisao.</Text>
           <AppButton title="Voltar" onPress={closeReview} />
         </View>
@@ -216,7 +269,15 @@ export default function AssistedReviewScreen() {
     );
   }
 
-  const warnings = draft.warnings;
+  const copy = screenCopy(session.kind);
+  const nutritionPhotoPreviewUri =
+    session.kind === 'nutrition' && session.source === 'photo'
+      ? session.photoPreviewUri ?? session.photoPayload ?? null
+      : null;
+  const nutritionPhotoPayload =
+    session.kind === 'nutrition' && session.source === 'photo'
+      ? session.photoPayload ?? null
+      : null;
   const nutritionContext =
     session.kind === 'nutrition' && draft.kind === 'nutrition'
       ? (() => {
@@ -226,69 +287,73 @@ export default function AssistedReviewScreen() {
           );
           return {
             corrections,
-            title: resolveNutritionTitle(session.source, draft.items, corrections),
+            title: resolveNutritionTitle(session.result.detectedDishName, draft.items, corrections),
             source: session.source,
           };
         })()
       : null;
 
+  async function handleSaveToFavorites() {
+    if (!session || !draft || session.kind !== 'nutrition' || draft.kind !== 'nutrition') return;
+
+    const dishName =
+      nutritionContext?.title?.trim() ||
+      resolveNutritionTitle(session.result.detectedDishName, draft.items, []);
+    const itemsLabel = draft.items
+      .map((item) => item.name.trim())
+      .filter((item) => item.length > 0)
+      .join(', ');
+    const foods = itemsLabel.length > 0 ? buildFoodsString(dishName, itemsLabel) : dishName;
+    const favoriteImagePayload = await resolveFavoriteImagePayload(
+      nutritionPhotoPayload,
+      nutritionPhotoPreviewUri,
+    );
+
+    await saveFavorite.execute({
+      foods,
+      nutrition: {
+        calories: `${draft.summary.calories}`.trim(),
+        protein: `${draft.summary.protein}`.trim(),
+        carbs: `${draft.summary.carbs}`.trim(),
+        fat: `${draft.summary.fat}`.trim(),
+      },
+      imageBase64: favoriteImagePayload,
+    });
+  }
+
   return (
     <View style={s.root}>
       <ScrollView contentContainerStyle={s.scroll}>
-        <Text style={s.title}>Conferencia inteligente</Text>
-        <Text style={s.subtitle}>
-          A IA concluiu a leitura. Confira os dados abaixo e confirme quando estiver tudo certo.
-        </Text>
-
-        <View style={s.metaCard}>
-          <Text style={s.metaLabel}>{kindLabel(session.kind)}</Text>
-          <Text style={s.metaText}>Fonte: {sourceLabel(session.source)}</Text>
-          {traceId ? <Text style={s.metaText}>trace_id: {traceId}</Text> : null}
-        </View>
+        <Text style={s.title}>{copy.title}</Text>
+        <Text style={s.subtitle}>{copy.subtitle}</Text>
 
         {draft.kind === 'nutrition' && nutritionContext ? (
           <NutritionReviewEditor
             draft={draft}
             source={nutritionContext.source}
-            traceId={traceId}
             title={nutritionContext.title}
-            warnings={warnings}
+            photoUri={nutritionPhotoPreviewUri}
             corrections={nutritionContext.corrections}
             onChangeSummary={updateNutritionSummary}
             onChangeItem={updateNutritionItem}
             onAddItem={addNutritionItem}
             onRemoveItem={removeNutritionItem}
           />
-        ) : (
-          <>
-            {warnings.length > 0 ? (
-              <View style={s.warningCard}>
-                <Text style={s.sectionTitle}>Pontos para revisar</Text>
-                {warnings.map((warning, index) => (
-                  <Text key={`${warning}-${index}`} style={s.warningText}>
-                    • {warning}
-                  </Text>
-                ))}
-              </View>
-            ) : null}
-
-            {draft.kind === 'plan' ? (
-              <PlanReviewEditor
-                draft={draft}
-                onChangeSection={updatePlanSection}
-                onAddSection={addPlanSection}
-                onRemoveSection={removePlanSection}
-              />
-            ) : null}
-          </>
-        )}
+        ) : draft.kind === 'plan' ? (
+          <PlanReviewEditor
+            draft={draft}
+            onChangeSection={updatePlanSection}
+            onAddSection={addPlanSection}
+            onRemoveSection={removePlanSection}
+          />
+        ) : null}
 
         <View style={s.card}>
           <Text style={s.sectionTitle}>Quer acrescentar algo?</Text>
           <TextInput
             value={draft.observation}
             onChangeText={updateObservation}
-            placeholder="Escreva observacoes opcionais para o backend..."
+            placeholder="Escreva observacoes opcionais sobre esta analise..."
             placeholderTextColor={Brand.textSecondary}
             multiline
             style={s.multiInput}
@@ -307,17 +372,23 @@ export default function AssistedReviewScreen() {
         {resend.data ? (
           <View style={s.successCard}>
             <Text style={s.successTitle}>Ajustes enviados</Text>
-            <Text style={s.successText}>Status: {resend.data.status}</Text>
-            {resend.data.traceId ? (
-              <Text style={s.successText}>trace_id: {resend.data.traceId}</Text>
-            ) : null}
-            {resend.data.message ? (
-              <Text style={s.successText}>{resend.data.message}</Text>
-            ) : null}
-            {resend.data.warnings.length > 0 ? (
-              <Text style={s.successText}>
-                Avisos: {resend.data.warnings.join(' | ')}
-              </Text>
+            <Text style={s.successText}>
+              Recebemos suas observacoes. Obrigado por ajudar a melhorar seus registros.
+            </Text>
+          </View>
+        ) : null}
+
+        {draft.kind === 'nutrition' ? (
+          <View style={s.card}>
+            <Text style={s.sectionTitle}>Quer guardar essa refeicao?</Text>
+            <AppButton
+              title="Salvar em Meus pratos"
+              onPress={handleSaveToFavorites}
+              loading={saveFavorite.loading}
+            />
+            {saveFavorite.error ? <Text style={s.errorText}>{saveFavorite.error}</Text> : null}
+            {saveFavorite.data ? (
+              <Text style={s.successText}>Pronto! Essa refeicao foi salva em Meus pratos.</Text>
             ) : null}
           </View>
         ) : null}
@@ -344,9 +415,8 @@ export default function AssistedReviewScreen() {
 type NutritionEditorProps = {
   draft: NutritionReviewDraft;
   source: 'photo' | 'audio';
-  traceId: string | null;
   title: string;
-  warnings: string[];
+  photoUri: string | null;
   corrections: NutritionCorrection[];
   onChangeSummary: (
     field: 'calories' | 'protein' | 'carbs' | 'fat',
@@ -364,9 +434,8 @@ type NutritionEditorProps = {
 function NutritionReviewEditor({
   draft,
   source,
-  traceId,
   title,
-  warnings,
+  photoUri,
   corrections,
   onChangeSummary,
   onChangeItem,
@@ -378,11 +447,10 @@ function NutritionReviewEditor({
   const heroAnim = useRef(new Animated.Value(0)).current;
   const correctionAnim = useRef(new Animated.Value(0)).current;
   const itemsAnim = useRef(new Animated.Value(0)).current;
-  const warningAnim = useRef(new Animated.Value(0)).current;
   const editorAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const sequence = [heroAnim, correctionAnim, itemsAnim, warningAnim, editorAnim];
+    const sequence = [heroAnim, correctionAnim, itemsAnim, editorAnim];
     sequence.forEach((value) => value.setValue(0));
 
     Animated.stagger(
@@ -407,7 +475,6 @@ function NutritionReviewEditor({
     heroAnim,
     itemsAnim,
     title,
-    warningAnim,
   ]);
 
   return (
@@ -417,6 +484,7 @@ function NutritionReviewEditor({
         <View style={s.heroGlowSecondary} />
 
         <Text style={s.heroLabel}>Alimento reconhecido</Text>
+        {photoUri ? <Image source={{ uri: photoUri }} style={s.heroPhoto} /> : null}
         <Text style={s.heroTitle}>{title}</Text>
         <Text style={s.heroCalories}>{draft.summary.calories}</Text>
         <Text style={s.heroSubtitle}>
@@ -428,8 +496,6 @@ function NutritionReviewEditor({
           <MacroChip label="Carbo" value={draft.summary.carbs} color="#D98A32" bg="#FFF2E4" />
           <MacroChip label="Gordura" value={draft.summary.fat} color="#D24E40" bg="#FEEDEA" />
         </View>
-
-        {traceId ? <Text style={s.heroTrace}>trace_id: {traceId}</Text> : null}
       </Animated.View>
 
       {corrections.length > 0 ? (
@@ -454,9 +520,6 @@ function NutritionReviewEditor({
               <View key={item.id} style={s.detectedItem}>
                 <View style={s.detectedItemHeader}>
                   <Text style={s.detectedName}>{item.name || 'Item sem nome'}</Text>
-                  {item.precisaRevisao ? (
-                    <Text style={s.reviewBadge}>revisar</Text>
-                  ) : null}
                 </View>
 
                 <View style={s.detectedMacroRow}>
@@ -490,9 +553,6 @@ function NutritionReviewEditor({
                   />
                 </View>
 
-                {item.warnings.length > 0 ? (
-                  <Text style={s.itemWarning}>{item.warnings.join(' | ')}</Text>
-                ) : null}
               </View>
             ))}
           </View>
@@ -502,17 +562,6 @@ function NutritionReviewEditor({
           </Text>
         )}
       </Animated.View>
-
-      {warnings.length > 0 ? (
-        <Animated.View style={[s.warningCard, buildRevealStyle(warningAnim)]}>
-          <Text style={s.sectionTitle}>Pontos para revisar</Text>
-          {warnings.map((warning, index) => (
-            <Text key={`${warning}-${index}`} style={s.warningText}>
-              • {warning}
-            </Text>
-          ))}
-        </Animated.View>
-      ) : null}
 
       <Animated.View style={[s.card, buildRevealStyle(editorAnim)]}>
         <Pressable
@@ -736,23 +785,6 @@ const s = StyleSheet.create({
     color: Brand.textSecondary,
     lineHeight: 19,
   },
-  metaCard: {
-    backgroundColor: Brand.card,
-    borderRadius: 14,
-    padding: 14,
-    gap: 6,
-  },
-  metaLabel: {
-    fontSize: 12,
-    color: Brand.greenDark,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  metaText: {
-    fontSize: 12,
-    color: Brand.textSecondary,
-  },
   heroCard: {
     backgroundColor: '#F2FAF3',
     borderRadius: 18,
@@ -787,6 +819,14 @@ const s = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
+  heroPhoto: {
+    width: '100%',
+    height: 170,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#DCECDC',
+    backgroundColor: Brand.bg,
+  },
   heroTitle: {
     fontSize: 22,
     fontWeight: '700',
@@ -807,10 +847,6 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     flexWrap: 'wrap',
-  },
-  heroTrace: {
-    fontSize: 11,
-    color: Brand.textSecondary,
   },
   correctionRow: {
     flexDirection: 'row',
@@ -840,22 +876,10 @@ const s = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'right',
   },
-  warningCard: {
-    backgroundColor: '#FFF7E6',
-    borderRadius: 14,
-    padding: 14,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#F3DFC3',
-  },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: Brand.text,
-  },
-  warningText: {
-    fontSize: 12,
-    color: '#8A6D3B',
   },
   card: {
     backgroundColor: Brand.card,
@@ -877,25 +901,12 @@ const s = StyleSheet.create({
   detectedItemHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
   },
   detectedName: {
     flex: 1,
     fontSize: 14,
     fontWeight: '700',
     color: Brand.text,
-  },
-  reviewBadge: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#8A6D3B',
-    backgroundColor: '#FFF0CC',
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
   },
   detectedMacroRow: {
     flexDirection: 'row',
@@ -943,10 +954,6 @@ const s = StyleSheet.create({
     borderRadius: 12,
     padding: 10,
     gap: 8,
-  },
-  itemWarning: {
-    fontSize: 11,
-    color: Brand.danger,
   },
   emptyInlineText: {
     fontSize: 12,

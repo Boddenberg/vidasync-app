@@ -24,7 +24,7 @@ export function MealAttachmentField({ value, onChange, maxItems = 1 }: DomainFie
       onChange={onChange}
       maxItems={maxItems}
       title="Anexo da refeicao"
-      subtitle="Use foto do prato para salvar junto com a refeicao."
+      subtitle="Use uma foto para salvar junto com a refeicao."
     />
   );
 }
@@ -38,7 +38,7 @@ export function ChatAttachmentField({ value, onChange, maxItems = 3 }: DomainFie
       onChange={onChange}
       maxItems={maxItems}
       title="Anexos do chat"
-      subtitle="Pronto para rotas de chat no BFF."
+      subtitle="Adicione arquivos para conversar com o assistente."
     />
   );
 }
@@ -52,7 +52,8 @@ export function PlanAttachmentField({ value, onChange, maxItems = 5 }: DomainFie
       onChange={onChange}
       maxItems={maxItems}
       title="Arquivos do plano"
-      subtitle="Use imagem/PDF/audio para analise de plano alimentar via BFF."
+      subtitle="Adicione imagem, PDF ou audio para analisar seu plano alimentar."
     />
   );
 }
+

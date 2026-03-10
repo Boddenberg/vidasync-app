@@ -63,7 +63,7 @@ export function PdfPlanAnalyzer({
     <View style={s.wrapper}>
       <Text style={s.title}>Analisar plano (PDF)</Text>
       <Text style={s.subtitle}>
-        Selecione um PDF do dispositivo e envie para analise via BFF.
+        Selecione um PDF do dispositivo para analisar seu plano alimentar.
       </Text>
 
       <AttachmentPickerField
@@ -194,3 +194,4 @@ const s = StyleSheet.create({
     color: '#8A6D3B',
   },
 });
+

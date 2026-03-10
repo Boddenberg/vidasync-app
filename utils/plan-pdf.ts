@@ -60,12 +60,10 @@ export function buildPlanPdfPayload(
     payload.pdf = pdfDataUri;
   }
 
-  if (remoteUrl) {
-    payload.pdf_url = remoteUrl;
-  }
-
   if (fileKey) {
     payload.file_key = fileKey;
+  } else if (remoteUrl) {
+    payload.pdf_url = remoteUrl;
   }
 
   return payload;

@@ -37,11 +37,32 @@ function firstHttp(candidates: unknown[]): string | null {
   return null;
 }
 
-function firstNonEmpty(candidates: unknown[]): string | null {
+function normalizeFileKey(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (!isHttpUrl(trimmed)) {
+    const normalized = trimmed.replace(/^\/+/, '');
+    return normalized || null;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const normalized = decodeURIComponent(parsed.pathname).replace(/^\/+/, '').trim();
+    return normalized || null;
+  } catch {
+    return null;
+  }
+}
+
+function firstFileKey(candidates: unknown[]): string | null {
   for (const candidate of candidates) {
     const text = toText(candidate);
-    if (text) return text;
+    if (!text) continue;
+    const normalized = normalizeFileKey(text);
+    if (normalized) return normalized;
   }
+
   return null;
 }
 
@@ -170,7 +191,7 @@ function extractPresignInfo(response: unknown): {
     fileRow?.download_url,
   ]);
 
-  const fileKey = firstNonEmpty([
+  let fileKey = firstFileKey([
     row.fileKey,
     row.file_key,
     row.key,
@@ -186,6 +207,10 @@ function extractPresignInfo(response: unknown): {
     fileRow?.storageKey,
     fileRow?.storage_key,
   ]);
+
+  if (!fileKey && remoteUrl) {
+    fileKey = normalizeFileKey(remoteUrl);
+  }
 
   // Alguns backends devolvem base publica separada de key.
   if (!remoteUrl && fileKey) {
@@ -267,9 +292,10 @@ export async function resolveRemoteFileUrl(
   params: ResolveRemoteFileUrlParams,
 ): Promise<ResolvedRemoteFileRef> {
   if (isHttpUrl(params.localUri)) {
+    const remoteUrl = params.localUri.trim();
     return {
-      remoteUrl: params.localUri.trim(),
-      fileKey: null,
+      remoteUrl,
+      fileKey: normalizeFileKey(remoteUrl),
     };
   }
 

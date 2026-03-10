@@ -41,6 +41,7 @@ export default function NutritionReviewScreen() {
         ) : (
           <>
             <View style={s.summaryCard}>
+              <Text style={s.summaryDishName}>{session.result.detectedDishName}</Text>
               <Text style={s.summaryCalories}>{session.result.nutrition.calories}</Text>
               <Text style={s.summaryMacro}>Proteina: {session.result.nutrition.protein}</Text>
               <Text style={s.summaryMacro}>Carboidratos: {session.result.nutrition.carbs}</Text>
@@ -128,6 +129,11 @@ const s = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: Brand.greenDark,
+  },
+  summaryDishName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Brand.text,
   },
   summaryMacro: {
     fontSize: 13,

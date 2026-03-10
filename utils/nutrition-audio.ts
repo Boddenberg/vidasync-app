@@ -26,12 +26,10 @@ export function buildAudioNutritionPayload(
     payload.audio = audioDataUri;
   }
 
-  if (remoteUrl) {
-    payload.audio_url = remoteUrl;
-  }
-
   if (fileKey) {
     payload.file_key = fileKey;
+  } else if (remoteUrl) {
+    payload.audio_url = remoteUrl;
   }
 
   return payload;

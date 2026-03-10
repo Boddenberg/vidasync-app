@@ -45,6 +45,7 @@ export type NutritionIngredientAnalysis = {
 export type NutritionAnalysisResult = {
   nutrition: NutritionData;
   ingredients: NutritionIngredientAnalysis[];
+  detectedDishName: string;
   corrections: NutritionCorrection[];
   invalidItems: string[];
   precisaRevisao: boolean;

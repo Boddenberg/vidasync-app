@@ -112,12 +112,15 @@ export default function HomeScreen() {
   function handleNutritionNeedsReview(
     source: 'photo' | 'audio',
     result: NutritionAnalysisResult,
+    payload?: { photoPreviewUri?: string | null; photoPayload?: string | null },
   ) {
     setReviewSession({
       kind: 'nutrition',
       source,
       createdAt: new Date().toISOString(),
       result,
+      photoPreviewUri: payload?.photoPreviewUri ?? null,
+      photoPayload: payload?.photoPayload ?? null,
     });
     router.push('/review/assistida' as any);
   }
@@ -313,7 +316,9 @@ export default function HomeScreen() {
           <PhotoNutritionAnalyzer
             attachments={photoAttachments}
             onChangeAttachments={setPhotoAttachments}
-            onRequiresReview={(result) => handleNutritionNeedsReview('photo', result)}
+            onRequiresReview={(result, payload) =>
+              handleNutritionNeedsReview('photo', result, payload)
+            }
           />
 
           <View style={s.innerDivider} />

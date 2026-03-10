@@ -74,7 +74,7 @@ export function AudioNutritionAnalyzer({ onRequiresReview }: Props) {
   return (
     <View style={s.wrapper}>
       <Text style={s.title}>Consultar calorias por voz</Text>
-      <Text style={s.subtitle}>Grave, ouca a previa e envie para analise no BFF.</Text>
+      <Text style={s.subtitle}>Grave, ouca a previa e envie para analisar sua refeicao.</Text>
 
       <View style={s.stateRow}>
         <Text style={s.stateText}>{recordingLabel}</Text>
@@ -161,6 +161,7 @@ export function AudioNutritionAnalyzer({ onRequiresReview }: Props) {
 
       {result && !result.precisaRevisao ? (
         <View style={s.resultBox}>
+          <Text style={s.resultDishName}>{result.detectedDishName}</Text>
           <Text style={s.resultCal}>{result.nutrition.calories}</Text>
           <View style={s.macroRow}>
             <Text style={s.macro}>Prot: {result.nutrition.protein}</Text>
@@ -304,6 +305,11 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: Brand.greenDark,
   },
+  resultDishName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Brand.text,
+  },
   macroRow: {
     flexDirection: 'row',
     gap: 10,
@@ -323,3 +329,4 @@ const s = StyleSheet.create({
     color: '#8A6D3B',
   },
 });
+
