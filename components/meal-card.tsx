@@ -1,15 +1,11 @@
-/**
- * Card de refeição — minimalista
- *
- * Uma linha elegante por refeição: tipo, alimento, calorias.
- * Long-press ou tap abre um bottom sheet estilizado com as ações disponíveis.
- */
-
-import { Brand } from '@/constants/theme';
-import type { Meal } from '@/types/nutrition';
-import { MEAL_TYPE_LABELS } from '@/types/nutrition';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { Brand, Radii, Typography } from '@/constants/theme';
+import type { Meal } from '@/types/nutrition';
+import { MEAL_TYPE_LABELS } from '@/types/nutrition';
+
 import { MealActionSheet, type MealAction } from './meal-action-sheet';
 
 type Props = {
@@ -24,18 +20,18 @@ export function MealCard({ meal, onEdit, onDuplicate, onDelete, onMoveDate }: Pr
   const [sheetVisible, setSheetVisible] = useState(false);
 
   function buildActions(): MealAction[] {
-    const actions: MealAction[] = [
-      { label: 'Editar', icon: 'E', onPress: () => onEdit(meal) },
-    ];
+    const actions: MealAction[] = [{ label: 'Editar', icon: 'create-outline', onPress: () => onEdit(meal) }];
+
     if (onDuplicate) {
-      actions.push({ label: 'Duplicar', icon: 'D', onPress: () => onDuplicate(meal.id) });
+      actions.push({ label: 'Duplicar', icon: 'copy-outline', onPress: () => onDuplicate(meal.id) });
     }
     if (onMoveDate) {
-      actions.push({ label: 'Mover de dia', icon: 'M', onPress: () => onMoveDate(meal) });
+      actions.push({ label: 'Mover de dia', icon: 'calendar-outline', onPress: () => onMoveDate(meal) });
     }
+
     actions.push({
       label: 'Apagar',
-      icon: 'X',
+      icon: 'trash-outline',
       destructive: true,
       onPress: () => onDelete(meal.id),
     });
@@ -44,42 +40,37 @@ export function MealCard({ meal, onEdit, onDuplicate, onDelete, onMoveDate }: Pr
 
   return (
     <>
-      <Pressable style={s.row} onLongPress={() => setSheetVisible(true)} onPress={() => setSheetVisible(true)}>
-        {/* Accent bar */}
+      <Pressable
+        style={({ pressed }) => [s.row, pressed && s.rowPressed]}
+        onLongPress={() => setSheetVisible(true)}
+        onPress={() => setSheetVisible(true)}>
         <View style={s.accent} />
 
-        {/* Photo thumbnail */}
         {meal.imageUrl ? (
           <Image source={{ uri: meal.imageUrl }} style={s.thumb} />
         ) : (
           <View style={s.thumbPlaceholder}>
-            <Text style={s.thumbIcon}>🍽️</Text>
+            <Ionicons name="restaurant-outline" size={20} color={Brand.textSecondary} />
           </View>
         )}
 
-        {/* Content */}
         <View style={s.content}>
           <View style={s.topRow}>
             <Text style={s.type}>
               {MEAL_TYPE_LABELS[meal.mealType]}
-              {meal.time ? ` · ${meal.time}` : ''}
+              {meal.time ? ` • ${meal.time}` : ''}
             </Text>
             <Text style={s.cal}>{meal.nutrition.calories}</Text>
           </View>
-          <Text style={s.foods} numberOfLines={1}>{meal.foods}</Text>
+
+          <Text style={s.foods} numberOfLines={2}>
+            {meal.foods}
+          </Text>
+
           <View style={s.macroRow}>
-            <View style={[s.macroPill, { backgroundColor: '#EBF5FB' }]}>
-              <Text style={[s.macroPillLabel, { color: '#5DADE2' }]}>prot</Text>
-              <Text style={[s.macroPillValue, { color: '#5DADE2' }]}>{meal.nutrition.protein}</Text>
-            </View>
-            <View style={[s.macroPill, { backgroundColor: '#FEF5E7' }]}>
-              <Text style={[s.macroPillLabel, { color: Brand.orange }]}>carb</Text>
-              <Text style={[s.macroPillValue, { color: Brand.orange }]}>{meal.nutrition.carbs}</Text>
-            </View>
-            <View style={[s.macroPill, { backgroundColor: '#FDEDEC' }]}>
-              <Text style={[s.macroPillLabel, { color: '#E74C3C' }]}>gord</Text>
-              <Text style={[s.macroPillValue, { color: '#E74C3C' }]}>{meal.nutrition.fat}</Text>
-            </View>
+            <MacroChip label="prot" value={meal.nutrition.protein} textColor={Brand.macroProtein} bg={Brand.macroProteinBg} />
+            <MacroChip label="carb" value={meal.nutrition.carbs} textColor={Brand.macroCarb} bg={Brand.macroCarbBg} />
+            <MacroChip label="gord" value={meal.nutrition.fat} textColor={Brand.macroFat} bg={Brand.macroFatBg} />
           </View>
         </View>
       </Pressable>
@@ -94,89 +85,114 @@ export function MealCard({ meal, onEdit, onDuplicate, onDelete, onMoveDate }: Pr
   );
 }
 
+function MacroChip({
+  label,
+  value,
+  textColor,
+  bg,
+}: {
+  label: string;
+  value: string;
+  textColor: string;
+  bg: string;
+}) {
+  return (
+    <View style={[s.macroPill, { backgroundColor: bg }]}>
+      <Text style={[s.macroPillLabel, { color: textColor }]}>{label}</Text>
+      <Text style={[s.macroPillValue, { color: textColor }]}>{value}</Text>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'stretch',
     backgroundColor: Brand.card,
-    borderRadius: 14,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Brand.border,
     overflow: 'hidden',
   },
+  rowPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.995 }],
+  },
   accent: {
-    width: 3,
+    width: 4,
     backgroundColor: Brand.green,
   },
   thumb: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     marginLeft: 12,
     alignSelf: 'center',
   },
   thumbPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     marginLeft: 12,
     alignSelf: 'center',
-    backgroundColor: Brand.bg,
+    backgroundColor: Brand.surfaceAlt,
+    borderWidth: 1,
+    borderColor: Brand.border,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  thumbIcon: {
-    fontSize: 22,
   },
   content: {
     flex: 1,
     paddingVertical: 14,
-    paddingHorizontal: 16,
-    gap: 4,
+    paddingHorizontal: 14,
+    gap: 5,
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
   },
   type: {
-    fontSize: 10,
-    fontWeight: '700',
+    ...Typography.caption,
     color: Brand.textSecondary,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.7,
   },
   cal: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...Typography.caption,
     color: Brand.greenDark,
+    fontWeight: '800',
   },
   foods: {
-    fontSize: 15,
-    fontWeight: '500',
+    ...Typography.body,
     color: Brand.text,
+    fontWeight: '600',
     lineHeight: 20,
   },
   macroRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 4,
+    flexWrap: 'wrap',
+    marginTop: 2,
   },
   macroPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingVertical: 4,
+    borderRadius: Radii.pill,
   },
   macroPillLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
   macroPillValue: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

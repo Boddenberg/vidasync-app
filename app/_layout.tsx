@@ -69,7 +69,18 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="review/assistida" options={{ title: 'Revisao assistida' }} />
+          <Stack.Screen
+            name="review/assistida"
+            options={{
+              title: 'Resultado da analise',
+              headerBackTitle: '',
+              headerBackButtonDisplayMode: 'minimal',
+              headerTintColor: Brand.greenDark,
+              headerTitleStyle: { fontWeight: '700' },
+              headerShadowVisible: false,
+              headerStyle: { backgroundColor: Brand.bg },
+            }}
+          />
           <Stack.Screen name="tools/imc" options={{ title: 'Calculadora de IMC' }} />
           <Stack.Screen name="nutrition/review" options={{ title: 'Revisao nutricional' }} />
           <Stack.Screen name="plan/review" options={{ title: 'Revisao do plano' }} />

@@ -1,24 +1,13 @@
-/**
- * Bottom sheet estilizado para ações de uma refeição.
- *
- * Substitui o Alert.alert nativo — visual consistente com o design system.
- */
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Brand } from '@/constants/theme';
+import { Brand, Radii, Typography } from '@/constants/theme';
 import type { Meal } from '@/types/nutrition';
 import { MEAL_TYPE_LABELS } from '@/types/nutrition';
-import {
-    Modal,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
-} from 'react-native';
 
 export type MealAction = {
   label: string;
-  /** Letra curta exibida no ícone circular */
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap | string;
   destructive?: boolean;
   onPress: () => void;
 };
@@ -30,65 +19,57 @@ type Props = {
   onClose: () => void;
 };
 
+function normalizeIcon(icon: string): keyof typeof Ionicons.glyphMap {
+  if (icon in Ionicons.glyphMap) {
+    return icon as keyof typeof Ionicons.glyphMap;
+  }
+  return 'ellipse-outline';
+}
+
 export function MealActionSheet({ visible, meal, actions, onClose }: Props) {
   if (!meal) return null;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.overlay} onPress={onClose}>
         <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
-          {/* Header */}
           <View style={s.header}>
             <View style={s.handle} />
             <Text style={s.mealType}>
               {MEAL_TYPE_LABELS[meal.mealType]}
-              {meal.time ? ` · ${meal.time}` : ''}
+              {meal.time ? ` • ${meal.time}` : ''}
             </Text>
-            <Text style={s.mealFoods} numberOfLines={2}>{meal.foods}</Text>
+            <Text style={s.mealFoods} numberOfLines={2}>
+              {meal.foods}
+            </Text>
           </View>
 
-          {/* Ações */}
           <View style={s.actions}>
             {actions.map((action, idx) => (
               <Pressable
-                key={idx}
+                key={`${action.label}-${idx}`}
                 style={({ pressed }) => [
                   s.actionBtn,
-                  pressed && s.actionBtnPressed,
                   idx < actions.length - 1 && s.actionBtnBorder,
+                  pressed && s.actionBtnPressed,
                 ]}
                 onPress={() => {
                   onClose();
-                  // Pequeno delay para o modal fechar antes da ação
-                  setTimeout(action.onPress, 200);
+                  setTimeout(action.onPress, 180);
                 }}>
-                <View style={[
-                  s.actionIconWrap,
-                  action.destructive && s.actionIconWrapDanger,
-                ]}>
-                  <Text style={[
-                    s.actionIconText,
-                    action.destructive && s.actionIconTextDanger,
-                  ]}>{action.icon}</Text>
+                <View style={[s.actionIconWrap, action.destructive && s.actionIconWrapDanger]}>
+                  <Ionicons
+                    name={normalizeIcon(action.icon)}
+                    size={18}
+                    color={action.destructive ? Brand.danger : Brand.greenDark}
+                  />
                 </View>
-                <Text style={[
-                  s.actionLabel,
-                  action.destructive && s.actionLabelDanger,
-                ]}>
-                  {action.label}
-                </Text>
+                <Text style={[s.actionLabel, action.destructive && s.actionLabelDanger]}>{action.label}</Text>
               </Pressable>
             ))}
           </View>
 
-          {/* Cancelar */}
-          <Pressable
-            style={({ pressed }) => [s.cancelBtn, pressed && s.cancelBtnPressed]}
-            onPress={onClose}>
+          <Pressable style={({ pressed }) => [s.cancelBtn, pressed && s.actionBtnPressed]} onPress={onClose}>
             <Text style={s.cancelText}>Cancelar</Text>
           </Pressable>
         </Pressable>
@@ -100,13 +81,13 @@ export function MealActionSheet({ visible, meal, actions, onClose }: Props) {
 const s = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(31,41,51,0.32)',
     justifyContent: 'flex-end',
   },
   sheet: {
     backgroundColor: Brand.bg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: Radii.xl,
+    borderTopRightRadius: Radii.xl,
     paddingBottom: 34,
     paddingHorizontal: 20,
   },
@@ -117,68 +98,62 @@ const s = StyleSheet.create({
     gap: 6,
   },
   handle: {
-    width: 40,
+    width: 42,
     height: 4,
-    borderRadius: 2,
+    borderRadius: Radii.pill,
     backgroundColor: Brand.border,
     marginBottom: 8,
   },
   mealType: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Brand.textSecondary,
+    ...Typography.caption,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+    color: Brand.textSecondary,
   },
   mealFoods: {
+    ...Typography.subtitle,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Brand.text,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 21,
   },
   actions: {
     backgroundColor: Brand.card,
-    borderRadius: 16,
+    borderRadius: Radii.lg,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Brand.border,
   },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    gap: 12,
   },
   actionBtnPressed: {
-    backgroundColor: Brand.bg,
+    opacity: 0.85,
   },
   actionBtnBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Brand.border,
   },
   actionIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: Brand.bg,
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: Brand.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   actionIconWrapDanger: {
-    backgroundColor: '#FFF0F0',
-  },
-  actionIconText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Brand.greenDark,
-  },
-  actionIconTextDanger: {
-    color: Brand.danger,
+    backgroundColor: '#FFEDEE',
   },
   actionLabel: {
-    fontSize: 16,
-    fontWeight: '500',
+    ...Typography.body,
     color: Brand.text,
+    fontWeight: '600',
   },
   actionLabelDanger: {
     color: Brand.danger,
@@ -186,16 +161,15 @@ const s = StyleSheet.create({
   cancelBtn: {
     marginTop: 10,
     backgroundColor: Brand.card,
-    borderRadius: 16,
-    paddingVertical: 15,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    paddingVertical: 14,
     alignItems: 'center',
   },
-  cancelBtnPressed: {
-    backgroundColor: Brand.bg,
-  },
   cancelText: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.body,
     color: Brand.textSecondary,
+    fontWeight: '700',
   },
 });

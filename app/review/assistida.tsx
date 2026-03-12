@@ -261,7 +261,7 @@ export default function AssistedReviewScreen() {
     return (
       <View style={s.root}>
         <View style={s.emptyWrap}>
-          <Text style={s.title}>Revisão assistida</Text>
+          <Text style={s.title}>Resultado da análise</Text>
           <Text style={s.emptyText}>Nenhum dado disponivel para revisao.</Text>
           <AppButton title="Voltar" onPress={closeReview} />
         </View>

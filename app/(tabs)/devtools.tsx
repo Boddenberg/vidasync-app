@@ -1,16 +1,10 @@
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  StatusBar,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, StatusBar, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Brand } from '@/constants/theme';
+import { AppButton } from '@/components/app-button';
+import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import {
   clearNetworkInspectorLogs,
   getNetworkInspectorSnapshot,
@@ -21,10 +15,8 @@ import {
 
 function prettyText(value: string | null): string {
   if (!value) return '-';
-
   const text = value.trim();
   if (!text) return '-';
-
   try {
     const parsed = JSON.parse(text);
     return JSON.stringify(parsed, null, 2);
@@ -34,8 +26,7 @@ function prettyText(value: string | null): string {
 }
 
 function timeLabel(iso: string): string {
-  const date = new Date(iso);
-  return date.toLocaleTimeString();
+  return new Date(iso).toLocaleTimeString();
 }
 
 function statusColor(log: NetworkInspectorLog): string {
@@ -48,14 +39,10 @@ function statusColor(log: NetworkInspectorLog): string {
 
 function useNetworkState() {
   const [state, setState] = useState(getNetworkInspectorSnapshot());
-
   useEffect(() => {
-    const unsubscribe = subscribeNetworkInspector((next) => {
-      setState(next);
-    });
+    const unsubscribe = subscribeNetworkInspector((next) => setState(next));
     return unsubscribe;
   }, []);
-
   return state;
 }
 
@@ -68,27 +55,21 @@ function DetailBlock({ title, value }: { title: string; value: string }) {
   );
 }
 
-export default function DevtoolsScreen() {
+export default function ToolsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const networkState = useNetworkState();
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
 
   const logs = useMemo(() => networkState.logs, [networkState.logs]);
 
   function toggleExpand(id: string) {
-    setExpandedIds((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
   function renderItem({ item }: { item: NetworkInspectorLog }) {
     const expanded = !!expandedIds[item.id];
-    const statusLabel = item.error
-      ? 'ERR'
-      : item.statusCode != null
-        ? `${item.statusCode}`
-        : '-';
+    const statusLabel = item.error ? 'ERR' : item.statusCode != null ? `${item.statusCode}` : '-';
     const requestBodyLabel = item.requestBodyTruncated
       ? `${prettyText(item.requestBody)}\n\n[request body truncated]`
       : prettyText(item.requestBody);
@@ -97,7 +78,7 @@ export default function DevtoolsScreen() {
       : prettyText(item.responseBody);
 
     return (
-      <Pressable style={s.card} onPress={() => toggleExpand(item.id)}>
+      <Pressable style={s.logCard} onPress={() => toggleExpand(item.id)}>
         <View style={s.cardTopRow}>
           <View style={s.methodBadge}>
             <Text style={s.methodBadgeText}>{item.method}</Text>
@@ -129,43 +110,48 @@ export default function DevtoolsScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
 
-      <View style={s.header}>
-        <View>
-          <Text style={s.title}>Devtools</Text>
-          <Text style={s.subtitle}>
-            Network inspector para request/response e performance.
-          </Text>
-        </View>
-      </View>
-
-      <View style={s.controlsRow}>
-        <View style={s.controlItem}>
-          <Text style={s.controlLabel}>Capture logs</Text>
-          <Switch
-            value={networkState.enabled}
-            onValueChange={(value) => setNetworkInspectorEnabled(value)}
-            trackColor={{ false: '#D1D5DB', true: Brand.green }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
-        <Pressable style={s.clearBtn} onPress={clearNetworkInspectorLogs}>
-          <Text style={s.clearBtnText}>Limpar</Text>
-        </Pressable>
-      </View>
-
-      <Text style={s.counterText}>
-        {logs.length} logs
-      </Text>
-
       <FlatList
         data={logs}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={s.listContent}
         renderItem={renderItem}
+        contentContainerStyle={s.listContent}
+        ListHeaderComponent={
+          <View style={s.headerContent}>
+            <Text style={s.title}>Ferramentas</Text>
+            <Text style={s.subtitle}>Atalhos do app e monitor de rede para diagnostico.</Text>
+
+            <View style={s.quickToolsCard}>
+              <Text style={s.quickToolsTitle}>Ferramentas rapidas</Text>
+              <View style={s.quickToolsButtons}>
+                <View style={{ flex: 1 }}>
+                  <AppButton title="Calculadora IMC" onPress={() => router.push('/tools/imc' as any)} variant="secondary" />
+                </View>
+              </View>
+            </View>
+
+            <View style={s.controlsCard}>
+              <View style={s.controlItem}>
+                <Text style={s.controlLabel}>Capturar logs</Text>
+                <Switch
+                  value={networkState.enabled}
+                  onValueChange={(value) => setNetworkInspectorEnabled(value)}
+                  trackColor={{ false: '#D1D5DB', true: Brand.green }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+
+              <Pressable style={({ pressed }) => [s.clearBtn, pressed && s.clearBtnPressed]} onPress={clearNetworkInspectorLogs}>
+                <Text style={s.clearBtnText}>Limpar logs</Text>
+              </Pressable>
+            </View>
+
+            <Text style={s.counterText}>{logs.length} logs capturados</Text>
+          </View>
+        }
         ListEmptyComponent={
           <View style={s.emptyWrap}>
             <Text style={s.emptyText}>Sem logs ainda.</Text>
-            <Text style={s.emptyHint}>Faca uma chamada de API para ver o trafego aqui.</Text>
+            <Text style={s.emptyHint}>Faça chamadas de API para acompanhar trafego e performance aqui.</Text>
           </View>
         }
       />
@@ -177,93 +163,112 @@ const s = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: Brand.bg,
-    paddingHorizontal: 18,
   },
-  header: {
+  headerContent: {
+    paddingHorizontal: 18,
     paddingTop: 14,
-    paddingBottom: 10,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    ...Typography.title,
     color: Brand.text,
-    letterSpacing: -0.5,
+    fontWeight: '800',
   },
   subtitle: {
-    fontSize: 13,
+    ...Typography.body,
     color: Brand.textSecondary,
-    marginTop: 4,
+    marginTop: -8,
+    marginBottom: 14,
   },
-  controlsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    marginBottom: 8,
-    gap: 10,
-  },
-  controlItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  quickToolsCard: {
     backgroundColor: Brand.card,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Brand.border,
+    padding: 14,
+    gap: 10,
+    ...Shadows.card,
+  },
+  quickToolsTitle: {
+    ...Typography.subtitle,
+    color: Brand.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  quickToolsButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  controlsCard: {
+    marginTop: 12,
+    backgroundColor: Brand.card,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 14,
+    gap: 12,
+    ...Shadows.card,
+  },
+  controlItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   controlLabel: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...Typography.body,
     color: Brand.text,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    fontWeight: '700',
   },
   clearBtn: {
-    backgroundColor: Brand.danger,
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    backgroundColor: '#FFEDEE',
+    borderRadius: Radii.md,
     paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearBtnPressed: {
+    opacity: 0.85,
   },
   clearBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
+    ...Typography.body,
+    color: Brand.danger,
     fontWeight: '700',
   },
   counterText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 10,
   },
   listContent: {
-    paddingBottom: 40,
-    gap: 10,
+    paddingBottom: 160,
+    gap: 8,
   },
   emptyWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
+    paddingVertical: 48,
+    paddingHorizontal: 24,
     gap: 8,
   },
   emptyText: {
-    fontSize: 15,
-    fontWeight: '700',
+    ...Typography.subtitle,
     color: Brand.text,
+    fontWeight: '700',
   },
   emptyHint: {
-    fontSize: 13,
+    ...Typography.body,
     color: Brand.textSecondary,
     textAlign: 'center',
   },
-  card: {
+  logCard: {
+    marginHorizontal: 18,
     backgroundColor: Brand.card,
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: Radii.md,
     borderWidth: 1,
     borderColor: Brand.border,
+    padding: 12,
     gap: 8,
+    ...Shadows.card,
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -273,31 +278,31 @@ const s = StyleSheet.create({
   },
   methodBadge: {
     backgroundColor: Brand.greenDark,
-    borderRadius: 8,
+    borderRadius: Radii.pill,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   methodBadgeText: {
+    ...Typography.caption,
     color: '#FFFFFF',
-    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.3,
   },
   statusText: {
-    fontSize: 13,
+    ...Typography.caption,
     fontWeight: '800',
   },
   metaText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
   },
   urlText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.text,
     fontWeight: '600',
+    fontSize: 12,
   },
   errorText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.danger,
     fontWeight: '600',
   },
@@ -305,21 +310,21 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Brand.border,
     paddingTop: 10,
-    gap: 10,
+    gap: 8,
   },
   detailBlock: {
     gap: 4,
   },
   detailTitle: {
-    fontSize: 11,
+    ...Typography.caption,
     color: Brand.textSecondary,
-    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontSize: 10,
   },
   detailValue: {
-    fontSize: 11,
     color: Brand.text,
     fontFamily: 'monospace',
+    fontSize: 11,
+    lineHeight: 16,
   },
 });

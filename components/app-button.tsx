@@ -1,17 +1,6 @@
-/**
- * Botão principal do VidaSync
- *
- * Componente reutilizável para botões.
- * Sempre que precisar de um botão no app, use este.
- *
- * Exemplo:
- *   <AppButton title="Calcular" onPress={handlePress} />
- *   <AppButton title="Enviar" loading={true} />
- *   <AppButton title="Deletar" variant="danger" />
- */
-
-import { Brand } from '@/constants/theme';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+
+import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 
 type Props = {
   title: string;
@@ -21,31 +10,64 @@ type Props = {
   variant?: 'primary' | 'secondary' | 'danger';
 };
 
-export function AppButton({ title, onPress, loading, disabled, variant = 'primary' }: Props) {
-  const bgColor =
-    variant === 'secondary' ? Brand.orange :
-    variant === 'danger' ? Brand.danger :
-    Brand.green;
+type ButtonPalette = {
+  background: string;
+  pressed: string;
+  text: string;
+  border: string;
+  shadowed: boolean;
+};
 
-  const bgPressed =
-    variant === 'secondary' ? '#D9874E' :
-    variant === 'danger' ? '#C04040' :
-    Brand.greenDark;
+function resolvePalette(variant: Props['variant']): ButtonPalette {
+  if (variant === 'secondary') {
+    return {
+      background: Brand.card,
+      pressed: '#EFF5EE',
+      text: Brand.text,
+      border: Brand.border,
+      shadowed: true,
+    };
+  }
+  if (variant === 'danger') {
+    return {
+      background: Brand.danger,
+      pressed: '#B8404A',
+      text: '#FFFFFF',
+      border: Brand.danger,
+      shadowed: true,
+    };
+  }
+  return {
+    background: Brand.green,
+    pressed: '#5AB586',
+    text: '#FFFFFF',
+    border: Brand.green,
+    shadowed: true,
+  };
+}
+
+export function AppButton({ title, onPress, loading, disabled, variant = 'primary' }: Props) {
+  const palette = resolvePalette(variant);
+  const block = loading || disabled;
 
   return (
     <Pressable
       style={({ pressed }) => [
         s.btn,
-        { backgroundColor: bgColor },
-        pressed && { backgroundColor: bgPressed },
-        (loading || disabled) && s.disabled,
+        palette.shadowed && Shadows.card,
+        {
+          backgroundColor: pressed ? palette.pressed : palette.background,
+          borderColor: palette.border,
+          opacity: block ? 0.55 : 1,
+          transform: [{ scale: pressed ? 0.985 : 1 }],
+        },
       ]}
       onPress={onPress}
-      disabled={loading || disabled}>
+      disabled={block}>
       {loading ? (
-        <ActivityIndicator color="#fff" size="small" />
+        <ActivityIndicator color={palette.text} size="small" />
       ) : (
-        <Text style={s.text}>{title}</Text>
+        <Text style={[s.text, { color: palette.text }]}>{title}</Text>
       )}
     </Pressable>
   );
@@ -53,24 +75,17 @@ export function AppButton({ title, onPress, loading, disabled, variant = 'primar
 
 const s = StyleSheet.create({
   btn: {
-    paddingVertical: 15,
-    borderRadius: 14,
+    minHeight: 56,
+    borderRadius: Radii.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  disabled: {
-    opacity: 0.5,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderWidth: 1,
   },
   text: {
-    color: '#fff',
-    fontSize: 16,
+    ...Typography.subtitle,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   },
 });

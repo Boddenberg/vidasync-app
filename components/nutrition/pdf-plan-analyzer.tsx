@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { type Dispatch, type SetStateAction, useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AttachmentPickerField } from '@/components/attachments/attachment-picker-field';
 import { AppButton } from '@/components/app-button';
-import { Brand } from '@/constants/theme';
+import { Brand, Radii, Typography } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
 import { analyzePlanPdfAttachment } from '@/services/plan-pdf';
 import type { AttachmentItem } from '@/types/attachments';
@@ -12,39 +12,22 @@ import { resolvePrimaryPdfAttachment } from '@/utils/attachment-rules';
 
 type Props = {
   attachments: AttachmentItem[];
-  onChangeAttachments: React.Dispatch<React.SetStateAction<AttachmentItem[]>>;
+  onChangeAttachments: Dispatch<SetStateAction<AttachmentItem[]>>;
   onRequiresReview: (result: PlanPdfAnalysisResult) => void;
 };
 
-/*
- * Experiencia de analise de plano alimentar por PDF.
- *
- * Responsabilidades:
- * - selecionar PDF
- * - exibir nome/tamanho e permitir remocao
- * - enviar ao BFF com loading/erro/retry
- * - encaminhar para revisao quando precisa_revisao=true
- */
-export function PdfPlanAnalyzer({
-  attachments,
-  onChangeAttachments,
-  onRequiresReview,
-}: Props) {
+export function PdfPlanAnalyzer({ attachments, onChangeAttachments, onRequiresReview }: Props) {
   const analysis = useAsync(analyzePlanPdfAttachment);
   const reviewHandledRef = useRef(false);
 
-  const selectedPdf = useMemo(
-    () => resolvePrimaryPdfAttachment(attachments),
-    [attachments],
-  );
+  const selectedPdf = useMemo(() => resolvePrimaryPdfAttachment(attachments), [attachments]);
   const canAnalyze = !!selectedPdf && !analysis.loading;
+  const result = analysis.data;
 
   async function handleAnalyze() {
     if (!selectedPdf) return;
     await analysis.execute(selectedPdf);
   }
-
-  const result = analysis.data;
 
   useEffect(() => {
     if (!result?.precisaRevisao || reviewHandledRef.current) return;
@@ -61,10 +44,8 @@ export function PdfPlanAnalyzer({
 
   return (
     <View style={s.wrapper}>
-      <Text style={s.title}>Analisar plano (PDF)</Text>
-      <Text style={s.subtitle}>
-        Selecione um PDF do dispositivo para analisar seu plano alimentar.
-      </Text>
+      <Text style={s.title}>Plano alimentar (PDF)</Text>
+      <Text style={s.subtitle}>Envie seu arquivo para extrair seções e revisar o plano com IA.</Text>
 
       <AttachmentPickerField
         context="plan"
@@ -73,20 +54,15 @@ export function PdfPlanAnalyzer({
         value={attachments}
         onChange={onChangeAttachments}
         title="PDF do plano"
-        subtitle="Mostra nome e tamanho do arquivo antes do envio."
+        subtitle="Mostra nome e tamanho antes do envio."
       />
 
-      <AppButton
-        title="Enviar PDF"
-        onPress={handleAnalyze}
-        disabled={!canAnalyze}
-        loading={analysis.loading}
-      />
+      <AppButton title="Analisar PDF" onPress={handleAnalyze} disabled={!canAnalyze} loading={analysis.loading} />
 
       {analysis.loading ? (
         <View style={s.loadingBox}>
           <ActivityIndicator size="small" color={Brand.greenDark} />
-          <Text style={s.loadingText}>Enviando PDF para analise...</Text>
+          <Text style={s.loadingText}>Enviando PDF para análise...</Text>
         </View>
       ) : null}
 
@@ -94,9 +70,7 @@ export function PdfPlanAnalyzer({
         <View style={s.errorBox}>
           <Text style={s.errorText}>{analysis.error}</Text>
           <Pressable onPress={handleAnalyze} disabled={!canAnalyze}>
-            <Text style={[s.retryText, !canAnalyze && s.retryDisabled]}>
-              Tentar novamente
-            </Text>
+            <Text style={[s.retryText, !canAnalyze && s.retryDisabled]}>Tentar novamente</Text>
           </Pressable>
         </View>
       ) : null}
@@ -108,15 +82,13 @@ export function PdfPlanAnalyzer({
             Arquivo: {result.fileName}
             {result.fileSizeBytes ? ` (${Math.round(result.fileSizeBytes / 1024)} KB)` : ''}
           </Text>
-          <Text style={s.resultMeta}>
-            Secoes detectadas: {result.sections.length}
-          </Text>
+          <Text style={s.resultMeta}>Seções detectadas: {result.sections.length}</Text>
 
           {result.warnings.length > 0 ? (
             <View style={s.warningBox}>
               {result.warnings.map((warning, index) => (
                 <Text key={`${warning}-${index}`} style={s.warningText}>
-                  - {warning}
+                  • {warning}
                 </Text>
               ))}
             </View>
@@ -132,16 +104,14 @@ const s = StyleSheet.create({
     gap: 10,
   },
   title: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...Typography.body,
     color: Brand.text,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontWeight: '700',
   },
   subtitle: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
-    marginTop: -4,
+    marginTop: -6,
   },
   loadingBox: {
     flexDirection: 'row',
@@ -149,40 +119,43 @@ const s = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
   },
   errorBox: {
-    backgroundColor: '#FFF0F0',
-    borderRadius: 12,
+    backgroundColor: '#FFEDEE',
+    borderRadius: Radii.md,
     padding: 12,
-    gap: 8,
+    gap: 6,
   },
   errorText: {
-    fontSize: 13,
+    ...Typography.body,
     color: Brand.danger,
+    fontSize: 14,
   },
   retryText: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...Typography.caption,
     color: Brand.danger,
+    fontWeight: '700',
   },
   retryDisabled: {
     opacity: 0.5,
   },
   resultBox: {
-    backgroundColor: Brand.bg,
-    borderRadius: 12,
-    padding: 14,
-    gap: 8,
+    backgroundColor: Brand.surfaceSoft,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 12,
+    gap: 6,
   },
   resultTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...Typography.body,
     color: Brand.greenDark,
+    fontWeight: '700',
   },
   resultMeta: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
   },
   warningBox: {
@@ -190,8 +163,7 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
   warningText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: '#8A6D3B',
   },
 });
-

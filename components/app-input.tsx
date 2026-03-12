@@ -1,19 +1,7 @@
-/**
- * Campo de texto do VidaSync
- *
- * Input estilizado com a identidade visual do app.
- *
- * Exemplo:
- *   <AppInput
- *     placeholder="O que você comeu?"
- *     value={text}
- *     onChangeText={setText}
- *   />
- */
-
-import { Brand } from '@/constants/theme';
 import { forwardRef } from 'react';
 import { StyleSheet, TextInput, type TextInputProps } from 'react-native';
+
+import { Brand, Radii, Typography } from '@/constants/theme';
 
 type Props = TextInputProps;
 
@@ -33,15 +21,15 @@ AppInput.displayName = 'AppInput';
 
 const s = StyleSheet.create({
   input: {
-    backgroundColor: Brand.bg,
-    borderWidth: 1.5,
+    backgroundColor: Brand.card,
+    borderWidth: 1,
     borderColor: Brand.border,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontSize: 15,
+    borderRadius: Radii.lg,
+    paddingVertical: 15,
+    paddingHorizontal: 18,
     color: Brand.text,
-    minHeight: 52,
+    minHeight: 56,
+    ...Typography.body,
     lineHeight: 22,
   },
 });

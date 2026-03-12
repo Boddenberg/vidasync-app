@@ -1,50 +1,34 @@
-/**
- * Tela Histórico
- *
- * Calendário para selecionar um dia e ver as refeições + totais.
- * Usa um mini-calendário feito à mão (sem lib externa).
- */
-
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import {
-    Alert,
-    Pressable,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalendarPickerModal } from '@/components/calendar-picker-modal';
 import { MealCard } from '@/components/meal-card';
 import { RegisterMealModal } from '@/components/register-meal-modal';
-import { Brand } from '@/constants/theme';
+import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import { deleteMeal, getDaySummary, getMealsByRange, updateMeal } from '@/services/meals';
 import type { Meal, MealType, NutritionData } from '@/types/nutrition';
 import { extractNum, monthRange, MONTHS, todayStr, WEEKDAYS } from '@/utils/helpers';
-
-// ─── helpers ─────────────────────────────────────────────
 
 function getCalendarRows(year: number, month: number): (number | null)[][] {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells: (number | null)[] = [];
+
   for (let i = 0; i < firstDay; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  // Pad last row to 7
+  for (let day = 1; day <= daysInMonth; day++) cells.push(day);
   while (cells.length % 7 !== 0) cells.push(null);
-  // Split into rows of 7
+
   const rows: (number | null)[][] = [];
-  for (let i = 0; i < cells.length; i += 7) {
-    rows.push(cells.slice(i, i + 7));
-  }
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
   return rows;
 }
 
-// ─── componente ──────────────────────────────────────────
+function dayHeading(date: string): string {
+  const [year, month, day] = date.split('-').map((item) => parseInt(item, 10));
+  return `${day} de ${MONTHS[month - 1]} de ${year}`;
+}
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
@@ -58,35 +42,30 @@ export default function HistoryScreen() {
   const [totals, setTotals] = useState<NutritionData | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const calendarRows = getCalendarRows(viewYear, viewMonth);
-
-  // ── Edição de refeição ──
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
   const [editVisible, setEditVisible] = useState(false);
-
-  // ── Datas que possuem refeições (para marcar no calendário) ──
+  const [movingMeal, setMovingMeal] = useState<Meal | null>(null);
   const [datesWithData, setDatesWithData] = useState<Set<string>>(new Set());
+
+  const calendarRows = getCalendarRows(viewYear, viewMonth);
 
   useEffect(() => {
     const { startDate, endDate } = monthRange(viewYear, viewMonth);
     getMealsByRange(startDate, endDate)
       .then((rangeMeals) => {
-        const dates = new Set(rangeMeals.map((m) => m.date));
-        setDatesWithData(dates);
+        setDatesWithData(new Set(rangeMeals.map((item) => item.date)));
       })
       .catch(() => setDatesWithData(new Set()));
-  }, [viewYear, viewMonth]);
+  }, [viewMonth, viewYear]);
 
-  // ── Carrega refeições de uma data ──
   const loadDay = useCallback(async (date: string) => {
     setSelectedDate(date);
     setLoading(true);
     try {
       const summary = await getDaySummary(date);
-      const mealsData = summary.meals ?? [];
-      setMeals(mealsData);
+      setMeals(summary.meals ?? []);
       setTotals(summary.totals ?? null);
-      // atualiza dots do mês
+
       setDatesWithData((prev) => {
         const next = new Set(prev);
         if ((summary.meals ?? []).length > 0) next.add(date);
@@ -101,39 +80,41 @@ export default function HistoryScreen() {
     }
   }, []);
 
-  // ── Mover refeição para outro dia ──
-  const [movingMeal, setMovingMeal] = useState<Meal | null>(null);
-
-  function handleMoveMeal(meal: Meal) {
-    setMovingMeal(meal);
-  }
+  const refreshMonthMarks = useCallback(async () => {
+    const { startDate, endDate } = monthRange(viewYear, viewMonth);
+    try {
+      const rangeMeals = await getMealsByRange(startDate, endDate);
+      setDatesWithData(new Set(rangeMeals.map((item) => item.date)));
+    } catch {
+      // no-op
+    }
+  }, [viewMonth, viewYear]);
 
   async function doMoveMeal(mealId: string, newDate: string) {
     try {
       await updateMeal(mealId, { date: newDate });
       await loadDay(selectedDate);
-      const { startDate, endDate } = monthRange(viewYear, viewMonth);
-      getMealsByRange(startDate, endDate)
-        .then((rangeMeals) => setDatesWithData(new Set(rangeMeals.map((m) => m.date))))
-        .catch(() => {});
+      await refreshMonthMarks();
     } catch {
-      Alert.alert('Erro', 'N\u00e3o foi poss\u00edvel mover a refei\u00e7\u00e3o.');
+      Alert.alert('Erro', 'Nao foi possivel mover a refeicao.');
     }
   }
 
-  // ── Editar refeição ──
   function handleEdit(meal: Meal) {
     setEditingMeal(meal);
     setEditVisible(true);
   }
 
-  async function handleEditSave(id: string, params: {
-    foods: string;
-    mealType: MealType;
-    time?: string;
-    nutrition: NutritionData;
-    imageBase64?: string | null;
-  }) {
+  async function handleEditSave(
+    id: string,
+    params: {
+      foods: string;
+      mealType: MealType;
+      time?: string;
+      nutrition: NutritionData;
+      imageBase64?: string | null;
+    },
+  ) {
     try {
       const { imageBase64, ...mealParams } = params;
       await updateMeal(id, { ...mealParams, ...(imageBase64 ? { image: imageBase64 } : {}) });
@@ -141,125 +122,106 @@ export default function HistoryScreen() {
       setEditVisible(false);
       await loadDay(selectedDate);
     } catch {
-      Alert.alert('Erro', 'Não foi possível editar a refeição.');
+      Alert.alert('Erro', 'Nao foi possivel editar a refeicao.');
     }
   }
 
-  // Recarrega ao ganhar foco (quando volta de outra aba)
   useFocusEffect(
     useCallback(() => {
       loadDay(selectedDate);
-      const { startDate, endDate } = monthRange(viewYear, viewMonth);
-      getMealsByRange(startDate, endDate)
-        .then((rangeMeals) => {
-          setDatesWithData(new Set(rangeMeals.map((m) => m.date)));
-        })
-        .catch(() => {});
-    }, [selectedDate, viewYear, viewMonth]),
+      refreshMonthMarks();
+    }, [loadDay, refreshMonthMarks, selectedDate]),
   );
 
   function prevMonth() {
     if (viewMonth === 0) {
       setViewMonth(11);
-      setViewYear(viewYear - 1);
-    } else {
-      setViewMonth(viewMonth - 1);
+      setViewYear((prev) => prev - 1);
+      return;
     }
+    setViewMonth((prev) => prev - 1);
   }
 
   function nextMonth() {
     if (viewMonth === 11) {
       setViewMonth(0);
-      setViewYear(viewYear + 1);
-    } else {
-      setViewMonth(viewMonth + 1);
+      setViewYear((prev) => prev + 1);
+      return;
     }
+    setViewMonth((prev) => prev + 1);
   }
 
   function handleDayPress(day: number) {
-    const mm = String(viewMonth + 1).padStart(2, '0');
-    const dd = String(day).padStart(2, '0');
-    const date = `${viewYear}-${mm}-${dd}`;
+    const month = String(viewMonth + 1).padStart(2, '0');
+    const dayPad = String(day).padStart(2, '0');
+    const date = `${viewYear}-${month}-${dayPad}`;
     loadDay(date);
   }
 
-  // ── Totais ──
-  const cal = totals ? Math.round(extractNum(totals.calories)) : 0;
-  const prot = totals ? Math.round(extractNum(totals.protein)) : 0;
-  const carb = totals ? Math.round(extractNum(totals.carbs)) : 0;
+  const calories = totals ? Math.round(extractNum(totals.calories)) : 0;
+  const protein = totals ? Math.round(extractNum(totals.protein)) : 0;
+  const carbs = totals ? Math.round(extractNum(totals.carbs)) : 0;
   const fat = totals ? Math.round(extractNum(totals.fat)) : 0;
-
-  // ── Formata data selecionada ──
-  const selParts = selectedDate.split('-');
-  const selLabel = `${parseInt(selParts[2])} de ${MONTHS[parseInt(selParts[1]) - 1]}`;
+  const sortedMeals = [...meals].sort((a, b) => (b.time ?? '').localeCompare(a.time ?? ''));
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
 
-      <ScrollView
-        contentContainerStyle={s.scroll}
-        showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <Text style={s.title}>Historico</Text>
+        <Text style={s.subtitle}>Acompanhe seu progresso alimentar por dia.</Text>
 
-        {/* Header */}
-        <Text style={s.title}>Histórico</Text>
-        <Text style={s.subtitle}>Selecione um dia para ver suas refeições</Text>
-
-        {/* ── Calendário ── */}
-        <View style={s.calendar}>
-          {/* Navegação mês */}
+        <View style={s.calendarCard}>
           <View style={s.calNav}>
-            <Pressable onPress={prevMonth} style={s.calNavBtn}>
+            <Pressable onPress={prevMonth} style={({ pressed }) => [s.calNavBtn, pressed && s.calNavBtnPressed]}>
               <Text style={s.calNavIcon}>‹</Text>
             </Pressable>
+
             <Text style={s.calMonthLabel}>
               {MONTHS[viewMonth]} {viewYear}
             </Text>
-            <Pressable onPress={nextMonth} style={s.calNavBtn}>
+
+            <Pressable onPress={nextMonth} style={({ pressed }) => [s.calNavBtn, pressed && s.calNavBtnPressed]}>
               <Text style={s.calNavIcon}>›</Text>
             </Pressable>
           </View>
 
-          {/* Dias da semana */}
           <View style={s.weekRow}>
-            {WEEKDAYS.map((w) => (
-              <Text key={w} style={s.weekDay}>{w}</Text>
+            {WEEKDAYS.map((item) => (
+              <Text key={item} style={s.weekDay}>
+                {item}
+              </Text>
             ))}
           </View>
 
-          {/* Dias do mês */}
           <View style={s.daysGrid}>
-            {calendarRows.map((row, rowIdx) => (
-              <View key={`row-${rowIdx}`} style={s.weekRow}>
-                {row.map((day, colIdx) => {
+            {calendarRows.map((row, rowIndex) => (
+              <View key={`row-${rowIndex}`} style={s.weekRow}>
+                {row.map((day, colIndex) => {
                   if (day === null) {
-                    return <View key={`empty-${rowIdx}-${colIdx}`} style={s.dayCell} />;
+                    return <View key={`empty-${rowIndex}-${colIndex}`} style={s.dayCell} />;
                   }
-                  const mm = String(viewMonth + 1).padStart(2, '0');
-                  const dd = String(day).padStart(2, '0');
-                  const dateStr = `${viewYear}-${mm}-${dd}`;
-                  const isSelected = dateStr === selectedDate;
-                  const isToday = dateStr === today;
-                  const hasData = datesWithData.has(dateStr);
+
+                  const month = String(viewMonth + 1).padStart(2, '0');
+                  const dayPad = String(day).padStart(2, '0');
+                  const date = `${viewYear}-${month}-${dayPad}`;
+                  const isSelected = date === selectedDate;
+                  const isToday = date === today;
+                  const hasData = datesWithData.has(date);
 
                   return (
                     <Pressable
-                      key={dateStr}
-                      style={[
+                      key={date}
+                      onPress={() => handleDayPress(day)}
+                      style={({ pressed }) => [
                         s.dayCell,
                         isSelected && s.dayCellSelected,
                         isToday && !isSelected && s.dayCellToday,
-                      ]}
-                      onPress={() => handleDayPress(day)}>
-                      <Text
-                        style={[
-                          s.dayText,
-                          isSelected && s.dayTextSelected,
-                          isToday && !isSelected && s.dayTextToday,
-                        ]}>
-                        {day}
-                      </Text>
-                      {hasData && !isSelected && <View style={s.dayDot} />}
+                        pressed && !isSelected && s.dayCellPressed,
+                      ]}>
+                      <Text style={[s.dayText, isSelected && s.dayTextSelected, isToday && !isSelected && s.dayTextToday]}>{day}</Text>
+                      {hasData && !isSelected ? <View style={s.dayDot} /> : null}
                     </Pressable>
                   );
                 })}
@@ -268,32 +230,39 @@ export default function HistoryScreen() {
           </View>
         </View>
 
-        {/* ── Resumo do dia selecionado ── */}
-        <View style={s.summaryCard}>
-          <Text style={s.summaryDate}>{selLabel}</Text>
+        <View style={s.dayDetailsCard}>
+          <View style={s.dayDetailsTop}>
+            <Text style={s.dayLabel}>{dayHeading(selectedDate)}</Text>
+            <Text style={s.dayCount}>
+              {meals.length} {meals.length === 1 ? 'refeicao' : 'refeicoes'}
+            </Text>
+          </View>
 
-          {loading ? (
-            <Text style={s.hint}>Carregando...</Text>
-          ) : meals.length === 0 ? (
-            <Text style={s.hint}>Nenhuma refeição neste dia</Text>
-          ) : (
+          {loading ? <Text style={s.hint}>Carregando dados do dia...</Text> : null}
+
+          {!loading && meals.length === 0 ? (
+            <View style={s.emptyState}>
+              <Text style={s.emptyTitle}>Nenhuma refeicao neste dia</Text>
+              <Text style={s.emptyHint}>Escolha outra data no calendario ou registre uma nova refeicao no Inicio.</Text>
+            </View>
+          ) : null}
+
+          {!loading && meals.length > 0 ? (
             <>
-              {/* Totais */}
-              <View style={s.totalsRow}>
-                <View style={s.totalMain}>
-                  <Text style={s.totalCalValue}>{cal}</Text>
-                  <Text style={s.totalCalUnit}>kcal</Text>
+              <View style={s.totalsCard}>
+                <View style={s.kcalRow}>
+                  <Text style={s.kcalValue}>{calories}</Text>
+                  <Text style={s.kcalUnit}>kcal</Text>
                 </View>
-                <View style={s.totalMacros}>
-                  <MacroPill label="prot" value={`${prot}g`} color="#5DADE2" bg="#EBF5FB" />
-                  <MacroPill label="carb" value={`${carb}g`} color={Brand.orange} bg="#FEF5E7" />
-                  <MacroPill label="gord" value={`${fat}g`} color="#E74C3C" bg="#FDEDEC" />
+                <View style={s.macroRow}>
+                  <MacroChip label="Proteina" value={`${protein}g`} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
+                  <MacroChip label="Carboidrato" value={`${carbs}g`} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
+                  <MacroChip label="Gordura" value={`${fat}g`} color={Brand.macroFat} bg={Brand.macroFatBg} />
                 </View>
               </View>
 
-              {/* Lista de refeições */}
               <View style={s.mealsList}>
-                {[...meals].sort((a, b) => (b.time ?? '').localeCompare(a.time ?? '')).map((meal) => (
+                {sortedMeals.map((meal) => (
                   <MealCard
                     key={meal.id}
                     meal={meal}
@@ -302,35 +271,30 @@ export default function HistoryScreen() {
                       try {
                         await deleteMeal(meal.id);
                         await loadDay(selectedDate);
-                        const { startDate, endDate } = monthRange(viewYear, viewMonth);
-                        getMealsByRange(startDate, endDate)
-                          .then((rangeMeals) => setDatesWithData(new Set(rangeMeals.map((m) => m.date))))
-                          .catch(() => {});
-                      } catch {}
+                        await refreshMonthMarks();
+                      } catch {
+                        // no-op
+                      }
                     }}
-                    onMoveDate={() => handleMoveMeal(meal)}
+                    onMoveDate={() => setMovingMeal(meal)}
                   />
                 ))}
               </View>
             </>
-          )}
+          ) : null}
         </View>
       </ScrollView>
 
-      {/* Modal de calendário para mover refeição */}
       <CalendarPickerModal
         visible={!!movingMeal}
         currentDate={selectedDate}
         title={`Mover: ${movingMeal?.foods ?? ''}`}
         onSelect={(date) => {
-          if (movingMeal) {
-            doMoveMeal(movingMeal.id, date);
-          }
+          if (movingMeal) doMoveMeal(movingMeal.id, date);
         }}
         onClose={() => setMovingMeal(null)}
       />
 
-      {/* Modal de edição de refeição */}
       <RegisterMealModal
         visible={editVisible}
         editMeal={editingMeal}
@@ -345,22 +309,26 @@ export default function HistoryScreen() {
   );
 }
 
-// ─── Sub-componentes ─────────────────────────────────────
-
-function MacroPill({ label, value, color, bg }: {
-  label: string; value: string; color: string; bg: string;
+function MacroChip({
+  label,
+  value,
+  color,
+  bg,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  bg: string;
 }) {
   return (
-    <View style={[s.macroPill, { backgroundColor: bg }]}>
-      <Text style={[s.macroPillLabel, { color }]}>{label}</Text>
-      <Text style={[s.macroPillValue, { color }]}>{value}</Text>
+    <View style={[s.macroChip, { backgroundColor: bg }]}>
+      <Text style={[s.macroLabel, { color }]}>{label}</Text>
+      <Text style={[s.macroValue, { color }]}>{value}</Text>
     </View>
   );
 }
 
-// ─── Estilos ─────────────────────────────────────────────
-
-const CELL_SIZE = 40;
+const CELL_SIZE = 42;
 
 const s = StyleSheet.create({
   root: {
@@ -368,31 +336,29 @@ const s = StyleSheet.create({
     backgroundColor: Brand.bg,
   },
   scroll: {
-    paddingHorizontal: 24,
-    paddingBottom: 48,
-    paddingTop: 20,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 160,
+    gap: 14,
   },
-
-  // Header
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    ...Typography.title,
     color: Brand.text,
-    letterSpacing: -0.5,
+    fontWeight: '800',
   },
   subtitle: {
-    fontSize: 13,
+    ...Typography.body,
     color: Brand.textSecondary,
-    marginTop: 4,
-    marginBottom: 20,
+    marginTop: -8,
   },
-
-  // Calendar
-  calendar: {
+  calendarCard: {
     backgroundColor: Brand.card,
-    borderRadius: 20,
-    padding: 18,
+    borderRadius: Radii.xl,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 16,
     gap: 12,
+    ...Shadows.card,
   },
   calNav: {
     flexDirection: 'row',
@@ -403,20 +369,25 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: Brand.bg,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    backgroundColor: Brand.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  calNavBtnPressed: {
+    opacity: 0.8,
+  },
   calNavIcon: {
-    fontSize: 22,
-    fontWeight: '600',
+    ...Typography.subtitle,
     color: Brand.text,
-    lineHeight: 24,
+    fontSize: 22,
+    marginTop: -1,
   },
   calMonthLabel: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...Typography.subtitle,
     color: Brand.text,
+    fontWeight: '800',
   },
   weekRow: {
     flexDirection: 'row',
@@ -424,15 +395,12 @@ const s = StyleSheet.create({
   weekDay: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 11,
-    fontWeight: '600',
-    color: Brand.textSecondary,
+    ...Typography.caption,
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    paddingVertical: 4,
+    color: Brand.textSecondary,
   },
   daysGrid: {
-    gap: 2,
+    gap: 3,
   },
   dayCell: {
     flex: 1,
@@ -441,100 +409,137 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   dayCellSelected: {
-    backgroundColor: Brand.green,
     borderRadius: 14,
+    backgroundColor: Brand.green,
   },
   dayCellToday: {
+    borderRadius: 14,
     borderWidth: 1.5,
     borderColor: Brand.green,
-    borderRadius: 14,
+  },
+  dayCellPressed: {
+    opacity: 0.8,
   },
   dayText: {
-    fontSize: 14,
-    fontWeight: '500',
+    ...Typography.body,
     color: Brand.text,
   },
   dayTextSelected: {
     color: '#FFFFFF',
-    fontWeight: '700',
+    fontWeight: '800',
   },
   dayTextToday: {
     color: Brand.greenDark,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   dayDot: {
     width: 5,
     height: 5,
-    borderRadius: 3,
+    borderRadius: Radii.pill,
     backgroundColor: Brand.green,
     position: 'absolute',
-    bottom: 4,
+    bottom: 5,
   },
-
-  // Summary
-  summaryCard: {
-    marginTop: 20,
+  dayDetailsCard: {
     backgroundColor: Brand.card,
-    borderRadius: 20,
-    padding: 22,
-    gap: 16,
+    borderRadius: Radii.xl,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 18,
+    gap: 12,
+    ...Shadows.card,
   },
-  summaryDate: {
-    fontSize: 16,
-    fontWeight: '700',
+  dayDetailsTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dayLabel: {
+    ...Typography.subtitle,
     color: Brand.text,
+    fontWeight: '800',
+    flex: 1,
+  },
+  dayCount: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    textTransform: 'uppercase',
   },
   hint: {
-    fontSize: 13,
+    ...Typography.body,
     color: Brand.textSecondary,
     textAlign: 'center',
     paddingVertical: 12,
   },
-
-  // Totals
-  totalsRow: {
-    gap: 12,
+  emptyState: {
+    backgroundColor: Brand.surfaceAlt,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 16,
+    gap: 6,
+    alignItems: 'center',
   },
-  totalMain: {
+  emptyTitle: {
+    ...Typography.body,
+    color: Brand.text,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  emptyHint: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    textAlign: 'center',
+    lineHeight: 17,
+  },
+  totalsCard: {
+    backgroundColor: Brand.surfaceSoft,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 14,
+    gap: 10,
+  },
+  kcalRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 6,
+    gap: 5,
   },
-  totalCalValue: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: Brand.greenDark,
-    letterSpacing: -1,
+  kcalValue: {
+    ...Typography.title,
+    color: Brand.text,
+    fontSize: 34,
+    lineHeight: 40,
   },
-  totalCalUnit: {
-    fontSize: 14,
-    fontWeight: '600',
+  kcalUnit: {
+    ...Typography.body,
     color: Brand.textSecondary,
+    fontWeight: '600',
   },
-  totalMacros: {
+  macroRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  macroPill: {
+  macroChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
+    borderRadius: Radii.pill,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingVertical: 5,
   },
-  macroPillLabel: {
-    fontSize: 10,
-    fontWeight: '700',
+  macroLabel: {
+    ...Typography.caption,
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    fontSize: 10,
+    fontWeight: '800',
   },
-  macroPillValue: {
-    fontSize: 13,
-    fontWeight: '600',
+  macroValue: {
+    ...Typography.caption,
+    fontWeight: '800',
   },
-
-  // Meals
   mealsList: {
     gap: 8,
   },

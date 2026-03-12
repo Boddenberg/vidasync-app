@@ -1,25 +1,14 @@
 import { type Dispatch, type SetStateAction, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Brand } from '@/constants/theme';
+import { Brand, Radii, Typography } from '@/constants/theme';
 import {
   buildBackendPayloadFromDraft,
   createProcessingAttachment,
-  pickPhotoAttachment,
   pickAttachment,
+  pickPhotoAttachment,
 } from '@/services/attachments';
-import type {
-  AttachmentContext,
-  AttachmentItem,
-  AttachmentKind,
-} from '@/types/attachments';
+import type { AttachmentContext, AttachmentItem, AttachmentKind } from '@/types/attachments';
 import { getAllowedAttachmentKinds } from '@/utils/attachment-rules';
 
 type Props = {
@@ -34,7 +23,7 @@ type Props = {
 
 const KIND_LABEL: Record<AttachmentKind, string> = {
   photo: 'Foto',
-  audio: 'Audio',
+  audio: 'Áudio',
   pdf: 'PDF',
 };
 
@@ -55,19 +44,10 @@ function updateAttachment(
 
 function pickLabel(kind: AttachmentKind): string {
   if (kind === 'photo') return 'foto';
-  if (kind === 'audio') return 'audio';
+  if (kind === 'audio') return 'áudio';
   return 'PDF';
 }
 
-/*
- * Campo reutilizavel de anexos com:
- * - selecao de tipo
- * - preview (imagem para foto e resumo para audio/pdf)
- * - estados de processamento (loading, erro, retry, sucesso)
- *
- * O componente nao chama agentes diretamente.
- * Ele apenas prepara payloads para rotas de dominio do BFF.
- */
 export function AttachmentPickerField({
   title = 'Anexos',
   subtitle,
@@ -77,10 +57,7 @@ export function AttachmentPickerField({
   value,
   onChange,
 }: Props) {
-  const kinds = useMemo(
-    () => allowedKinds ?? getAllowedAttachmentKinds(context),
-    [allowedKinds, context],
-  );
+  const kinds = useMemo(() => allowedKinds ?? getAllowedAttachmentKinds(context), [allowedKinds, context]);
   const [selectedKind, setSelectedKind] = useState<AttachmentKind>(kinds[0]);
 
   const hasRoom = value.length < maxItems;
@@ -88,10 +65,7 @@ export function AttachmentPickerField({
   async function handlePick(source: 'camera' | 'library' = 'library') {
     if (!hasRoom) return;
 
-    const draft =
-      selectedKind === 'photo'
-        ? await pickPhotoAttachment(source)
-        : await pickAttachment(selectedKind);
+    const draft = selectedKind === 'photo' ? await pickPhotoAttachment(source) : await pickAttachment(selectedKind);
     if (!draft) return;
 
     const processing = createProcessingAttachment(context, draft);
@@ -99,23 +73,21 @@ export function AttachmentPickerField({
 
     try {
       const backendPayload = await buildBackendPayloadFromDraft(context, draft);
-      onChange(
-        (prev) =>
-          updateAttachment(prev, processing.id, (item) => ({
-            ...item,
-            status: 'success',
-            errorMessage: undefined,
-            backendPayload,
-          })),
+      onChange((prev) =>
+        updateAttachment(prev, processing.id, (item) => ({
+          ...item,
+          status: 'success',
+          errorMessage: undefined,
+          backendPayload,
+        })),
       );
     } catch (error: any) {
-      onChange(
-        (prev) =>
-          updateAttachment(prev, processing.id, (item) => ({
-            ...item,
-            status: 'error',
-            errorMessage: error?.message ?? 'Falha ao processar anexo.',
-          })),
+      onChange((prev) =>
+        updateAttachment(prev, processing.id, (item) => ({
+          ...item,
+          status: 'error',
+          errorMessage: error?.message ?? 'Falha ao processar anexo.',
+        })),
       );
     }
   }
@@ -173,9 +145,7 @@ export function AttachmentPickerField({
               key={kind}
               onPress={() => setSelectedKind(kind)}
               style={[s.kindButton, selectedKind === kind && s.kindButtonActive]}>
-              <Text style={[s.kindButtonText, selectedKind === kind && s.kindButtonTextActive]}>
-                {KIND_LABEL[kind]}
-              </Text>
+              <Text style={[s.kindButtonText, selectedKind === kind && s.kindButtonTextActive]}>{KIND_LABEL[kind]}</Text>
             </Pressable>
           ))}
         </View>
@@ -197,18 +167,11 @@ export function AttachmentPickerField({
               <Text style={s.addButtonText}>+ Galeria</Text>
             </Pressable>
           </View>
-          {!hasRoom ? (
-            <Text style={s.limitHint}>Voce ja adicionou uma foto. Remova a atual para trocar.</Text>
-          ) : null}
+          {!hasRoom ? <Text style={s.limitHint}>Você já adicionou uma foto. Remova para trocar.</Text> : null}
         </>
       ) : (
-        <Pressable
-          style={[s.addButton, !hasRoom && s.addButtonDisabled]}
-          onPress={() => handlePick('library')}
-          disabled={!hasRoom}>
-          <Text style={s.addButtonText}>
-            {hasRoom ? `+ Adicionar ${pickLabel(selectedKind)}` : 'Limite de anexos atingido'}
-          </Text>
+        <Pressable style={[s.addButton, !hasRoom && s.addButtonDisabled]} onPress={() => handlePick('library')} disabled={!hasRoom}>
+          <Text style={s.addButtonText}>{hasRoom ? `+ Adicionar ${pickLabel(selectedKind)}` : 'Limite atingido'}</Text>
         </Pressable>
       )}
 
@@ -219,7 +182,7 @@ export function AttachmentPickerField({
               <Image source={{ uri: item.uri }} style={s.photoPreview} />
             ) : (
               <View style={s.filePreview}>
-                <Text style={s.filePreviewLabel}>{item.kind === 'audio' ? 'AUDIO' : 'PDF'}</Text>
+                <Text style={s.filePreviewLabel}>{item.kind === 'audio' ? 'ÁUDIO' : 'PDF'}</Text>
               </View>
             )}
 
@@ -228,7 +191,7 @@ export function AttachmentPickerField({
                 {item.name}
               </Text>
               <Text style={s.fileMeta}>
-                {KIND_LABEL[item.kind]} · {formatBytes(item.sizeBytes)}
+                {KIND_LABEL[item.kind]} • {formatBytes(item.sizeBytes)}
               </Text>
 
               {item.status === 'processing' ? (
@@ -238,9 +201,7 @@ export function AttachmentPickerField({
                 </View>
               ) : null}
 
-              {item.status === 'success' ? (
-                <Text style={[s.statusText, s.successText]}>Arquivo pronto para uso</Text>
-              ) : null}
+              {item.status === 'success' ? <Text style={[s.statusText, s.successText]}>Arquivo pronto</Text> : null}
 
               {item.status === 'error' ? (
                 <View style={s.errorWrap}>
@@ -267,59 +228,59 @@ const s = StyleSheet.create({
     gap: 10,
   },
   title: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    ...Typography.caption,
     color: Brand.textSecondary,
+    textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   subtitle: {
-    marginTop: -6,
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
+    marginTop: -6,
   },
   kindRow: {
     flexDirection: 'row',
     gap: 8,
+    flexWrap: 'wrap',
   },
   kindButton: {
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: Radii.pill,
     borderWidth: 1,
     borderColor: Brand.border,
-    backgroundColor: Brand.card,
+    backgroundColor: Brand.surfaceAlt,
   },
   kindButtonActive: {
     borderColor: Brand.green,
-    backgroundColor: '#ECF8ED',
+    backgroundColor: Brand.green,
   },
   kindButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...Typography.caption,
     color: Brand.textSecondary,
+    fontWeight: '700',
   },
   kindButtonTextActive: {
-    color: Brand.greenDark,
+    color: '#FFFFFF',
   },
   addButton: {
-    borderRadius: 12,
-    borderWidth: 1.5,
+    borderRadius: Radii.md,
+    borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: Brand.green,
+    backgroundColor: Brand.surfaceSoft,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F2FAF3',
   },
   addButtonDisabled: {
     borderColor: Brand.border,
-    backgroundColor: Brand.card,
+    backgroundColor: Brand.surfaceAlt,
   },
   addButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...Typography.body,
     color: Brand.greenDark,
+    fontWeight: '700',
   },
   photoAddRow: {
     flexDirection: 'row',
@@ -329,16 +290,16 @@ const s = StyleSheet.create({
     flex: 1,
   },
   limitHint: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
   },
   list: {
-    gap: 10,
+    gap: 8,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: Radii.md,
     borderWidth: 1,
     borderColor: Brand.border,
     backgroundColor: Brand.card,
@@ -346,36 +307,38 @@ const s = StyleSheet.create({
     gap: 10,
   },
   photoPreview: {
-    width: 54,
-    height: 54,
-    borderRadius: 10,
+    width: 56,
+    height: 56,
+    borderRadius: 12,
   },
   filePreview: {
-    width: 54,
-    height: 54,
-    borderRadius: 10,
-    backgroundColor: Brand.bg,
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: Brand.surfaceAlt,
     borderWidth: 1,
     borderColor: Brand.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   filePreviewLabel: {
-    fontSize: 10,
-    fontWeight: '700',
+    ...Typography.caption,
     color: Brand.textSecondary,
+    fontWeight: '700',
+    fontSize: 10,
   },
   content: {
     flex: 1,
     gap: 3,
   },
   fileName: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...Typography.body,
     color: Brand.text,
+    fontWeight: '600',
+    fontSize: 14,
   },
   fileMeta: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
   },
   statusRow: {
@@ -385,40 +348,40 @@ const s = StyleSheet.create({
     marginTop: 3,
   },
   statusText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
   },
   successText: {
     color: Brand.greenDark,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   errorWrap: {
-    gap: 6,
+    gap: 5,
     marginTop: 3,
   },
   errorText: {
     color: Brand.danger,
-    fontWeight: '500',
+    fontWeight: '700',
   },
   retryButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FFF0F0',
-    borderRadius: 8,
+    backgroundColor: '#FFEDEE',
+    borderRadius: Radii.pill,
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
   retryButtonText: {
+    ...Typography.caption,
     color: Brand.danger,
-    fontSize: 11,
     fontWeight: '700',
   },
   removeButton: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 4,
   },
   removeButtonText: {
+    ...Typography.caption,
     color: Brand.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

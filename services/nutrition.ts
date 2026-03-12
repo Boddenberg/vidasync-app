@@ -48,6 +48,56 @@ type PhotoNutritionDraft = {
   sizeBytes?: number;
 };
 
+type PhotoAnalysisCacheEntry = {
+  cachedAt: number;
+  result: NutritionAnalysisResult;
+};
+
+const PHOTO_ANALYSIS_CACHE_TTL_MS = 20 * 60 * 1000;
+const PHOTO_ANALYSIS_CACHE_LIMIT = 12;
+const photoAnalysisCache = new Map<string, PhotoAnalysisCacheEntry>();
+
+function hashString(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function resolvePhotoAnalysisCacheKey(input: string | PhotoNutritionDraft): string {
+  const dataUri = typeof input === 'string' ? input : input.dataUri;
+  const normalizedDataUri = `${dataUri}`.trim();
+  return `photo:${normalizedDataUri.length}:${hashString(normalizedDataUri)}`;
+}
+
+function readPhotoAnalysisFromCache(cacheKey: string): NutritionAnalysisResult | null {
+  const cached = photoAnalysisCache.get(cacheKey);
+  if (!cached) return null;
+
+  if (Date.now() - cached.cachedAt > PHOTO_ANALYSIS_CACHE_TTL_MS) {
+    photoAnalysisCache.delete(cacheKey);
+    return null;
+  }
+
+  return cached.result;
+}
+
+function savePhotoAnalysisInCache(cacheKey: string, result: NutritionAnalysisResult) {
+  photoAnalysisCache.set(cacheKey, {
+    cachedAt: Date.now(),
+    result,
+  });
+
+  if (photoAnalysisCache.size > PHOTO_ANALYSIS_CACHE_LIMIT) {
+    const oldestKey = photoAnalysisCache.keys().next().value;
+    if (oldestKey) {
+      photoAnalysisCache.delete(oldestKey);
+    }
+  }
+}
+
 function asWarnings(value?: string[] | null): string[] {
   return Array.isArray(value) ? value.filter((item) => !!item && item.trim().length > 0) : [];
 }
@@ -163,6 +213,12 @@ export async function getNutritionFromPhoto(
   input: string | PhotoNutritionDraft,
 ): Promise<NutritionAnalysisResult> {
   try {
+    const cacheKey = resolvePhotoAnalysisCacheKey(input);
+    const cachedResult = readPhotoAnalysisFromCache(cacheKey);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const dataUri = typeof input === 'string' ? input : input.dataUri;
     const localUri = typeof input === 'string' ? '' : `${input.uri ?? ''}`;
     const mimeType =
@@ -197,8 +253,9 @@ export async function getNutritionFromPhoto(
       file_key: remoteFile.fileKey,
     };
     const data = await apiPost<CalorieResponseWire>('/nutrition/calories', payload);
-
-    return normalizeCalorieResponse(data);
+    const normalized = normalizeCalorieResponse(data);
+    savePhotoAnalysisInCache(cacheKey, normalized);
+    return normalized;
   } catch (err: any) {
     throw new Error(mapPhotoRequestErrorMessage(err?.message ?? 'Falha ao enviar foto.'));
   }

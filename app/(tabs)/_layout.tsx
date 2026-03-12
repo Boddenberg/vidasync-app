@@ -1,66 +1,61 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StyleSheet } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Brand } from '@/constants/theme';
+import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 
 const SHOW_DEVTOOLS_TAB = true;
 
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Brand.green,
-        tabBarInactiveTintColor: '#B0B0B0',
+        tabBarActiveTintColor: Brand.greenDark,
+        tabBarInactiveTintColor: Brand.textMuted,
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarStyle: {
-          backgroundColor: Brand.card,
-          borderTopColor: Brand.border,
-          borderTopWidth: 1,
-          elevation: 0,
-          shadowOpacity: 0,
-          height: 60 + insets.bottom,
-          paddingBottom: 8 + insets.bottom,
-          paddingTop: 4,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
+        tabBarHideOnKeyboard: true,
+        tabBarStyle: s.tabBar,
+        tabBarItemStyle: s.tabBarItem,
+        tabBarLabelStyle: s.tabBarLabel,
+        tabBarActiveBackgroundColor: 'transparent',
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Inicio',
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="house.fill" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons size={21} name={focused ? 'home' : 'home-outline'} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Meus Pratos',
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="fork.knife" color={color} />,
+          title: 'Pratos',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons size={21} name={focused ? 'restaurant' : 'restaurant-outline'} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'Historico',
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="calendar" color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons size={20} name={focused ? 'time' : 'time-outline'} color={color} />
+          ),
         }}
       />
       {SHOW_DEVTOOLS_TAB && (
         <Tabs.Screen
           name="devtools"
           options={{
-            title: 'Devtools',
-            tabBarIcon: ({ color }) => (
-              <IconSymbol size={26} name="chevron.left.forwardslash.chevron.right" color={color} />
+            title: 'Ferramentas',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons size={20} name={focused ? 'construct' : 'construct-outline'} color={color} />
             ),
           }}
         />
@@ -68,3 +63,26 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const s = StyleSheet.create({
+  tabBar: {
+    borderTopWidth: 1,
+    borderTopColor: Brand.border,
+    backgroundColor: Brand.card,
+    minHeight: 64,
+    paddingTop: 7,
+    paddingBottom: 8,
+    ...Shadows.card,
+  },
+  tabBarItem: {
+    borderRadius: Radii.md,
+    marginHorizontal: 2,
+    marginVertical: 2,
+  },
+  tabBarLabel: {
+    ...Typography.caption,
+    marginTop: 1,
+    fontWeight: '700',
+    letterSpacing: 0.1,
+  },
+});

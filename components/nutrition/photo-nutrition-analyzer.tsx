@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { AttachmentPickerField } from '@/components/attachments/attachment-picker-field';
 import { AppButton } from '@/components/app-button';
-import { Brand } from '@/constants/theme';
+import { Brand, Radii, Typography } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
 import { getNutritionFromPhoto } from '@/services/nutrition';
 import type { AttachmentItem } from '@/types/attachments';
@@ -19,28 +19,12 @@ type Props = {
   ) => void;
 };
 
-/*
- * Experiencia de analise por foto para o dominio de calorias.
- *
- * Responsabilidades:
- * - coletar imagem (camera/galeria) com preview e remocao
- * - enviar foto ao BFF
- * - tratar loading, erro, retry e sucesso
- * - disparar navegacao para revisao quando precisa_revisao=true
- */
-export function PhotoNutritionAnalyzer({
-  attachments,
-  onChangeAttachments,
-  onRequiresReview,
-}: Props) {
+export function PhotoNutritionAnalyzer({ attachments, onChangeAttachments, onRequiresReview }: Props) {
   const analysis = useAsync(getNutritionFromPhoto);
   const reviewHandledRef = useRef(false);
 
   const selectedPhoto = useMemo(
-    () =>
-      attachments.find(
-        (attachment) => attachment.kind === 'photo' && attachment.status === 'success',
-      ) ?? null,
+    () => attachments.find((attachment) => attachment.kind === 'photo' && attachment.status === 'success') ?? null,
     [attachments],
   );
   const selectedImagePayload = useMemo(() => resolvePrimaryImagePayload(attachments), [attachments]);
@@ -60,7 +44,7 @@ export function PhotoNutritionAnalyzer({
   const result = analysis.data;
 
   useEffect(() => {
-    if (!result?.precisaRevisao || reviewHandledRef.current) return;
+    if (!result || reviewHandledRef.current) return;
     reviewHandledRef.current = true;
     onRequiresReview(result, {
       photoPreviewUri: selectedPhoto?.uri ?? null,
@@ -77,8 +61,8 @@ export function PhotoNutritionAnalyzer({
 
   return (
     <View style={s.wrapper}>
-      <Text style={s.title}>Consultar calorias por foto</Text>
-      <Text style={s.subtitle}>Tire uma foto ou escolha da galeria para analisar sua refeicao.</Text>
+      <Text style={s.title}>Foto da refeição</Text>
+      <Text style={s.subtitle}>Capture ou selecione uma foto para análise nutricional.</Text>
 
       <AttachmentPickerField
         context="meal"
@@ -89,12 +73,7 @@ export function PhotoNutritionAnalyzer({
         title="Adicionar foto"
       />
 
-      <AppButton
-        title="Analisar foto"
-        onPress={handleAnalyze}
-        disabled={!canAnalyze}
-        loading={analysis.loading}
-      />
+      <AppButton title="Analisar foto" onPress={handleAnalyze} disabled={!canAnalyze} loading={analysis.loading} />
 
       {analysis.error ? (
         <View style={s.errorBox}>
@@ -117,16 +96,16 @@ export function PhotoNutritionAnalyzer({
           <Text style={s.resultDishName}>{result.detectedDishName}</Text>
           <Text style={s.resultCal}>{result.nutrition.calories}</Text>
           <View style={s.macroRow}>
-            <Text style={s.macro}>Prot: {result.nutrition.protein}</Text>
-            <Text style={s.macro}>Carb: {result.nutrition.carbs}</Text>
-            <Text style={s.macro}>Gord: {result.nutrition.fat}</Text>
+            <MacroText text={`Prot: ${result.nutrition.protein}`} />
+            <MacroText text={`Carb: ${result.nutrition.carbs}`} />
+            <MacroText text={`Gord: ${result.nutrition.fat}`} />
           </View>
 
           {result.warnings.length > 0 ? (
             <View style={s.warningBox}>
               {result.warnings.map((warning, index) => (
                 <Text key={`${warning}-${index}`} style={s.warningText}>
-                  - {warning}
+                  • {warning}
                 </Text>
               ))}
             </View>
@@ -137,21 +116,27 @@ export function PhotoNutritionAnalyzer({
   );
 }
 
+function MacroText({ text }: { text: string }) {
+  return (
+    <View style={s.macroTag}>
+      <Text style={s.macro}>{text}</Text>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   wrapper: {
     gap: 10,
   },
   title: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...Typography.body,
     color: Brand.text,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontWeight: '700',
   },
   subtitle: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
-    marginTop: -4,
+    marginTop: -6,
   },
   loadingBox: {
     flexDirection: 'row',
@@ -159,59 +144,70 @@ const s = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
   },
   errorBox: {
-    backgroundColor: '#FFF0F0',
-    borderRadius: 12,
+    backgroundColor: '#FFEDEE',
+    borderRadius: Radii.md,
     padding: 12,
-    gap: 8,
+    gap: 6,
   },
   errorText: {
-    fontSize: 13,
+    ...Typography.body,
     color: Brand.danger,
+    fontSize: 14,
   },
   retryText: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...Typography.caption,
     color: Brand.danger,
+    fontWeight: '700',
   },
   retryDisabled: {
     opacity: 0.5,
   },
   resultBox: {
-    backgroundColor: Brand.bg,
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: Brand.surfaceSoft,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 12,
     gap: 8,
   },
-  resultCal: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Brand.greenDark,
-  },
   resultDishName: {
-    fontSize: 14,
-    fontWeight: '700',
+    ...Typography.body,
     color: Brand.text,
+    fontWeight: '700',
+  },
+  resultCal: {
+    ...Typography.subtitle,
+    color: Brand.greenDark,
+    fontWeight: '800',
   },
   macroRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 6,
     flexWrap: 'wrap',
   },
+  macroTag: {
+    borderRadius: Radii.pill,
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   macro: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   warningBox: {
     gap: 4,
     marginTop: 2,
   },
   warningText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: '#8A6D3B',
   },
 });

@@ -20,12 +20,13 @@ function normalizeOptionalPath(path?: string | null): string {
   return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
 }
 
-const defaultBaseUrl = normalizeBaseUrl('https://vidasync-bff-production.up.railway.app');
+const LOCAL_API_BASE_URL = 'http://localhost:8080';
+const RAILWAY_API_BASE_URL = 'https://vidasync-bff-production.up.railway.app';
+const isDevEnv = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
+const defaultBaseUrl = normalizeBaseUrl(isDevEnv ? LOCAL_API_BASE_URL : RAILWAY_API_BASE_URL);
 
 /* URL base padrao do BFF (backend). */
-export const API_BASE_URL = normalizeBaseUrl(
-  process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || defaultBaseUrl,
-);
+export const API_BASE_URL = defaultBaseUrl;
 
 /*
  * Bases opcionais para fluxos novos.
@@ -70,7 +71,7 @@ export const API_REVIEW_CONFIRM_PATH = normalizePath(
  * Quando configurado, audio/PDF podem ser enviados como link para o backend.
  */
 export const API_UPLOAD_BASE_URL = normalizeBaseUrl(
-  process.env.EXPO_PUBLIC_API_UPLOAD_BASE_URL?.trim() || API_BASE_URL,
+  API_BASE_URL,
 );
 export const API_UPLOAD_PATH = normalizeOptionalPath(
   process.env.EXPO_PUBLIC_API_UPLOAD_PATH?.trim(),

@@ -20,6 +20,7 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   'fork.knife': 'restaurant',
   'calendar': 'calendar-today',
+  'gearshape.fill': 'settings',
 } as IconMapping;
 
 /**

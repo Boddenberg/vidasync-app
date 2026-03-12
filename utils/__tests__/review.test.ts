@@ -20,6 +20,7 @@ describe('review utils', () => {
           carbs: '30 g',
           fat: '10 g',
         },
+        detectedDishName: 'Prato detectado',
         ingredients: [
           {
             name: 'frango',

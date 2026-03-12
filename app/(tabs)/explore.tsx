@@ -1,13 +1,6 @@
-/**
- * Tela Meus Pratos
- *
- * Cadastro de pratos com ingredientes estruturados (nome + peso separados), nome e foto.
- * Salva SEM tipo de refeição — o tipo é escolhido na hora de registrar.
- */
-
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -29,7 +22,7 @@ import { AppButton } from '@/components/app-button';
 import { MealAttachmentField } from '@/components/attachments/domain-attachment-fields';
 import { AppInput } from '@/components/app-input';
 import { NutritionErrorModal } from '@/components/nutrition-error-modal';
-import { Brand } from '@/constants/theme';
+import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useMeals } from '@/hooks/use-meals';
@@ -51,11 +44,39 @@ import {
 
 const UNITS: WeightUnit[] = ['g', 'ml', 'un'];
 
+const SEARCH_CATEGORIES = [
+  { id: 'all', label: 'Todos' },
+  { id: 'frutas', label: 'Frutas' },
+  { id: 'carnes', label: 'Carnes' },
+  { id: 'laticinios', label: 'Laticinios' },
+  { id: 'graos', label: 'Graos' },
+  { id: 'snacks', label: 'Snacks' },
+  { id: 'bebidas', label: 'Bebidas' },
+  { id: 'vegetais', label: 'Vegetais' },
+] as const;
+
+type SearchCategory = (typeof SEARCH_CATEGORIES)[number]['id'];
+
+function inferCategory(foods: string): SearchCategory {
+  const value = foods.toLowerCase();
+  if (/(banana|maca|laranja|morango|fruta)/.test(value)) return 'frutas';
+  if (/(frango|carne|peixe|bovina|porco)/.test(value)) return 'carnes';
+  if (/(iogurte|leite|queijo)/.test(value)) return 'laticinios';
+  if (/(arroz|aveia|quinoa|grao|feijao)/.test(value)) return 'graos';
+  if (/(suco|agua|cha|cafe|refrigerante)/.test(value)) return 'bebidas';
+  if (/(brocolis|alface|tomate|cenoura|vegetal|salada)/.test(value)) return 'vegetais';
+  if (/(barra|biscoito|snack|castanha)/.test(value)) return 'snacks';
+  return 'all';
+}
+
 export default function MyDishesScreen() {
   const insets = useSafeAreaInsets();
-  const [showForm, setShowForm] = useState(false);
+  const router = useRouter();
 
-  // Formulário estruturado
+  const [showForm, setShowForm] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [activeCategory, setActiveCategory] = useState<SearchCategory>('all');
+
   const [foodHint] = useState(() => `ex: ${randomFoodExample()}`);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [ingName, setIngName] = useState('');
@@ -67,19 +88,15 @@ export default function MyDishesScreen() {
   const nutrition = useAsync(getNutrition);
   const { favorites, loading, error, add, remove, refresh } = useFavorites();
   const { add: addMeal } = useMeals();
-  const router = useRouter();
 
-  // Recarrega favoritos sempre que a aba ganha foco
   useFocusEffect(
     useCallback(() => {
       refresh();
     }, [refresh]),
   );
 
-  // ── Ref do input de ingrediente ──
   const ingNameRef = useRef<TextInput>(null);
 
-  // ── Ingredientes ──
   function handleAddIngredient() {
     const name = ingName.trim();
     if (!name) return;
@@ -87,15 +104,12 @@ export default function MyDishesScreen() {
     setIngName('');
     setIngWeight('');
     setIngUnit('g');
-    // Foco volta pro campo de ingrediente
     setTimeout(() => ingNameRef.current?.focus(), 100);
-    // Ingredientes mudaram → macros ficam desatualizados
     if (nutrition.data) nutrition.reset();
   }
 
   function handleRemoveIngredient(index: number) {
     setIngredients((prev) => prev.filter((_, i) => i !== index));
-    // Ingredientes mudaram → macros ficam desatualizados
     if (nutrition.data) nutrition.reset();
   }
 
@@ -126,7 +140,6 @@ export default function MyDishesScreen() {
     setShowForm(false);
   }
 
-  // ── Editar favorito ──
   const [editingFav, setEditingFav] = useState<Favorite | null>(null);
   const [actionSheetFav, setActionSheetFav] = useState<Favorite | null>(null);
   const [mealTypeFav, setMealTypeFav] = useState<Favorite | null>(null);
@@ -147,8 +160,8 @@ export default function MyDishesScreen() {
     if (!mealTypeFav) return;
     const fav = mealTypeFav;
     setMealTypeFav(null);
-    // Baixa a imagem do favorito como base64 para enviar na criação da refeição
     let imageBase64: string | undefined;
+
     if (fav.imageUrl) {
       try {
         const resp = await fetch(fav.imageUrl);
@@ -158,23 +171,22 @@ export default function MyDishesScreen() {
           reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
           reader.readAsDataURL(blob);
         });
-      } catch { /* sem imagem, segue sem */ }
+      } catch {
+        imageBase64 = undefined;
+      }
     }
+
     await addMeal(fav.foods, type, fav.nutrition, undefined, undefined, imageBase64);
     router.navigate('/(tabs)');
   }
 
   function startEditing(fav: Favorite) {
     setEditingFav(fav);
-    // Recupera dishName e ingredientes da string foods
     const { dishName: recoveredName, ingredientsRaw } = splitFoodsAndDishName(fav.foods);
     const parsed = parseFoodsToIngredients(ingredientsRaw);
     setIngredients(parsed);
     setDishName(recoveredName);
-    setAttachments(
-      fav.imageUrl ? [createRemotePhotoAttachment('meal', fav.imageUrl, 'imagem-atual.jpg')] : [],
-    );
-    // Pré-popula a nutrição para não precisar recalcular
+    setAttachments(fav.imageUrl ? [createRemotePhotoAttachment('meal', fav.imageUrl, 'imagem-atual.jpg')] : []);
     nutrition.setData(fav.nutrition);
     setShowForm(true);
   }
@@ -183,7 +195,6 @@ export default function MyDishesScreen() {
     if (!editingFav || !nutrition.data) return;
     const ingredientsStr = ingredients.map(formatIngredient).join(', ');
     const foodsStr = buildFoodsString(dishName, ingredientsStr);
-    // Se a foto não foi alterada, preserva a URL original passando null
     const imageToSend = resolvePrimaryImagePayload(attachments);
     await remove(editingFav.id);
     await add(foodsStr, nutrition.data, imageToSend);
@@ -195,380 +206,354 @@ export default function MyDishesScreen() {
   const calculated = !!nutrition.data;
   const canAddIngredient = ingName.trim().length > 0;
 
+  const filteredFavorites = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+    return favorites.filter((fav) => {
+      const matchesText = query.length === 0 || fav.foods.toLowerCase().includes(query);
+      const category = inferCategory(fav.foods);
+      const matchesCategory = activeCategory === 'all' || category === activeCategory;
+      return matchesText && matchesCategory;
+    });
+  }, [activeCategory, favorites, searchText]);
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
-    <View style={[s.root, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
+      <View style={[s.root, { paddingTop: insets.top }]}>
+        <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
 
-      <ScrollView
-        contentContainerStyle={s.scroll}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <Text style={s.title}>Pratos</Text>
+          <Text style={s.subtitle}>Busque, cadastre e reutilize suas refeicoes favoritas.</Text>
 
-        {/* Header */}
-        <Text style={s.title}>Meus Pratos</Text>
-        <Text style={s.subtitle}>
-          Cadastre o que você come com frequência.{'\n'}
-          Toque em um prato para usar como refeição.
-        </Text>
-
-        <View style={s.divider} />
-
-        {/* ── Formulário de cadastro ── */}
-        {!showForm ? (
-          <Pressable
-            style={s.newBtn}
-            onPress={() => setShowForm(true)}>
-            <Text style={s.newBtnIcon}>+</Text>
-            <Text style={s.newBtnText}>Novo prato</Text>
-          </Pressable>
-        ) : (
-          <View style={s.formSection}>
-
-            {/* Step 1: Ingredientes */}
-            <Text style={s.stepLabel}>1. Ingredientes</Text>
-
-            {ingredients.length > 0 && (
-              <View style={s.chipList}>
-                {ingredients.map((ing, idx) => (
-                  <View key={idx} style={s.chip}>
-                    <Text style={s.chipText}>{formatIngredient(ing)}</Text>
-                    <Pressable
-                      onPress={() => handleRemoveIngredient(idx)}
-                      hitSlop={8}>
-                      <Text style={s.chipRemove}>✕</Text>
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            <AppInput
-              ref={ingNameRef}
-              placeholder={ingredients.length === 0 ? foodHint : 'Adicionar ingrediente'}
-              value={ingName}
-              onChangeText={(t: string) => setIngName(t.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
-              maxLength={50}
+          <View style={s.searchWrap}>
+            <Ionicons name="search-outline" size={18} color={Brand.textSecondary} />
+            <TextInput
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholder="Buscar alimento ou prato salvo"
+              placeholderTextColor={Brand.textSecondary}
+              style={s.searchInput}
             />
-            <View style={s.weightRow}>
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categoryRow}>
+            {SEARCH_CATEGORIES.map((category) => {
+              const active = activeCategory === category.id;
+              return (
+                <Pressable
+                  key={category.id}
+                  style={[s.categoryChip, active && s.categoryChipActive]}
+                  onPress={() => setActiveCategory(category.id)}>
+                  <Text style={[s.categoryChipText, active && s.categoryChipTextActive]}>{category.label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {!showForm ? (
+            <Pressable style={({ pressed }) => [s.newDishCard, pressed && s.newDishCardPressed]} onPress={() => setShowForm(true)}>
+              <View style={s.newDishIcon}>
+                <Text style={s.newDishIconText}>+</Text>
+              </View>
               <View style={{ flex: 1 }}>
-                <AppInput
-                  placeholder="Peso"
-                  value={ingWeight}
-                  onChangeText={(t: string) => setIngWeight(t.replace(/[^0-9.,]/g, ''))}
-                  keyboardType="numeric"
-                  maxLength={7}
+                <Text style={s.newDishTitle}>Novo prato</Text>
+                <Text style={s.newDishSubtitle}>Monte ingredientes, calcule macros e salve.</Text>
+              </View>
+            </Pressable>
+          ) : (
+            <View style={s.formSection}>
+              <Text style={s.stepLabel}>1. Ingredientes</Text>
+
+              {ingredients.length > 0 ? (
+                <View style={s.chipList}>
+                  {ingredients.map((ing, idx) => (
+                    <View key={idx} style={s.chip}>
+                      <Text style={s.chipText}>{formatIngredient(ing)}</Text>
+                      <Pressable onPress={() => handleRemoveIngredient(idx)} hitSlop={8}>
+                        <Text style={s.chipRemove}>×</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              <AppInput
+                ref={ingNameRef}
+                placeholder={ingredients.length === 0 ? foodHint : 'Adicionar ingrediente'}
+                value={ingName}
+                onChangeText={(text: string) => setIngName(text.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
+                maxLength={50}
+              />
+
+              <View style={s.weightRow}>
+                <View style={{ flex: 1 }}>
+                  <AppInput
+                    placeholder="Quantidade"
+                    value={ingWeight}
+                    onChangeText={(text: string) => setIngWeight(text.replace(/[^0-9.,]/g, ''))}
+                    keyboardType="numeric"
+                    maxLength={7}
+                  />
+                </View>
+                <View style={s.unitRow}>
+                  {UNITS.map((unit) => (
+                    <Pressable key={unit} style={[s.unitBtn, ingUnit === unit && s.unitBtnActive]} onPress={() => setIngUnit(unit)}>
+                      <Text style={[s.unitText, ingUnit === unit && s.unitTextActive]}>{unit}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Pressable style={[s.addIngBtn, !canAddIngredient && s.addIngBtnDisabled]} onPress={handleAddIngredient} disabled={!canAddIngredient}>
+                  <Text style={s.addIngBtnText}>+</Text>
+                </Pressable>
+              </View>
+
+              {hasIngredients ? (
+                <AppButton
+                  title={
+                    calculated
+                      ? `Recalcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`
+                      : `Calcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`
+                  }
+                  onPress={handleCalculate}
+                  loading={nutrition.loading}
                 />
-              </View>
-              <View style={s.unitRow}>
-                {UNITS.map((u) => (
-                  <Pressable
-                    key={u}
-                    style={[s.unitBtn, ingUnit === u && s.unitBtnActive]}
-                    onPress={() => setIngUnit(u)}>
-                    <Text style={[s.unitText, ingUnit === u && s.unitTextActive]}>{u}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <Pressable
-                style={[s.addIngBtn, !canAddIngredient && s.addIngBtnDisabled]}
-                onPress={handleAddIngredient}
-                disabled={!canAddIngredient}>
-                <Text style={s.addIngBtnText}>+</Text>
-              </Pressable>
-            </View>
+              ) : null}
 
-            {hasIngredients && (
-              <AppButton
-                title={calculated ? `Recalcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})` : `Calcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`}
-                onPress={handleCalculate}
-                loading={nutrition.loading}
-              />
-            )}
+              {nutrition.error ? (
+                <NutritionErrorModal visible={!!nutrition.error} message={nutrition.error} onClose={() => nutrition.reset()} />
+              ) : null}
 
-            {nutrition.error && (
-              <NutritionErrorModal
-                visible={!!nutrition.error}
-                message={nutrition.error}
-                onClose={() => nutrition.reset()}
-              />
-            )}
-
-            {/* Step 2: Resultado + detalhes */}
-            {calculated && (
-              <>
-                <View style={s.stepDivider} />
-                <Text style={s.stepLabel}>2. Resultado</Text>
-
-                <View style={s.previewCard}>
-                  <View style={s.previewInfo}>
+              {calculated ? (
+                <>
+                  <View style={s.stepDivider} />
+                  <Text style={s.stepLabel}>2. Resultado</Text>
+                  <View style={s.previewCard}>
                     <Text style={s.previewCal}>{nutrition.data!.calories}</Text>
                     <View style={s.previewMacros}>
-                      <MacroPill label="prot" value={nutrition.data!.protein} color="#5DADE2" bg="#EBF5FB" />
-                      <MacroPill label="carb" value={nutrition.data!.carbs} color={Brand.orange} bg="#FEF5E7" />
-                      <MacroPill label="gord" value={nutrition.data!.fat} color="#E74C3C" bg="#FDEDEC" />
+                      <MacroChip label="prot" value={nutrition.data!.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
+                      <MacroChip label="carb" value={nutrition.data!.carbs} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
+                      <MacroChip label="gord" value={nutrition.data!.fat} color={Brand.macroFat} bg={Brand.macroFatBg} />
                     </View>
                   </View>
-                </View>
 
-                <MealAttachmentField
-                  value={attachments}
-                  onChange={setAttachments}
-                  maxItems={1}
-                />
+                  <MealAttachmentField value={attachments} onChange={setAttachments} maxItems={1} />
 
+                  <View style={s.stepDivider} />
+                  <Text style={s.stepLabel}>3. Nome do prato</Text>
+                  <AppInput placeholder="Ex: Marmita fit, Cafe da manha..." value={dishName} onChangeText={setDishName} />
 
-
-                <View style={s.stepDivider} />
-                <Text style={s.stepLabel}>3. Nome do prato</Text>
-
-                <AppInput
-                  placeholder="ex: Marmita fitness, Café da manhã..."
-                  value={dishName}
-                  onChangeText={setDishName}
-                />
-
-                <View style={s.formActions}>
-                  <View style={{ flex: 2 }}>
-                    <AppButton
-                      title={editingFav ? 'Atualizar prato' : 'Salvar prato'}
-                      onPress={editingFav ? handleSaveEdit : handleSave}
-                    />
+                  <View style={s.formActions}>
+                    <View style={{ flex: 2 }}>
+                      <AppButton title={editingFav ? 'Atualizar prato' : 'Salvar prato'} onPress={editingFav ? handleSaveEdit : handleSave} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <AppButton title="Cancelar" onPress={handleCancel} variant="secondary" />
+                    </View>
                   </View>
+                </>
+              ) : (
+                <View style={s.formActions}>
                   <View style={{ flex: 1 }}>
                     <AppButton title="Cancelar" onPress={handleCancel} variant="secondary" />
                   </View>
                 </View>
-              </>
-            )}
-
-            {/* Cancelar quando ainda não calculou */}
-            {!calculated && (
-              <View style={s.formActions}>
-                <View style={{ flex: 1 }}>
-                  <AppButton title="Cancelar" onPress={handleCancel} variant="secondary" />
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* ── Lista de pratos salvos ── */}
-        {loading && <Text style={s.hint}>Carregando...</Text>}
-
-        {!loading && favorites.length === 0 && !showForm && (
-          <View style={s.empty}>
-            <View style={s.emptyIconWrap}>
-              <Text style={s.emptyIconLetter}>P</Text>
-            </View>
-            <Text style={s.emptyTitle}>Nenhum prato cadastrado</Text>
-            <Text style={s.hint}>
-              Toque em + Novo prato para cadastrar algo que voce come sempre.
-            </Text>
-          </View>
-        )}
-
-        {error && (
-          <View style={s.errorBox}>
-            <Text style={s.errorText}>{error}</Text>
-          </View>
-        )}
-
-        {favorites.length > 0 && (
-          <>
-            <View style={s.divider} />
-            <Text style={s.sectionTitle}>
-              {favorites.length} {favorites.length === 1 ? 'prato salvo' : 'pratos salvos'}
-            </Text>
-
-            <View style={s.list}>
-              {favorites.map((fav) => (
-                <Pressable
-                  key={fav.id}
-                  style={s.card}
-                  onLongPress={() => handleFavoriteActions(fav)}
-                  onPress={() => handleFavoriteActions(fav)}>
-                  {fav.imageUrl ? (
-                    <Image source={{ uri: fav.imageUrl }} style={s.cardThumb} />
-                  ) : (
-                    <View style={s.cardThumbPlaceholder}>
-                      <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
-                    </View>
-                  )}
-                  <View style={s.cardContent}>
-                    <View style={s.cardTop}>
-                      <Text style={s.cardFoods} numberOfLines={1}>{fav.foods}</Text>
-                      <Text style={s.cardCal}>{fav.nutrition.calories}</Text>
-                    </View>
-                    <View style={s.cardMacros}>
-                      <MacroPill label="prot" value={fav.nutrition.protein} color="#5DADE2" bg="#EBF5FB" />
-                      <MacroPill label="carb" value={fav.nutrition.carbs} color={Brand.orange} bg="#FEF5E7" />
-                      <MacroPill label="gord" value={fav.nutrition.fat} color="#E74C3C" bg="#FDEDEC" />
-                    </View>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          </>
-        )}
-      </ScrollView>
-    </View>
-
-    {/* ── Modal seletor de tipo de refeição ── */}
-    <Modal
-      visible={!!mealTypeFav}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setMealTypeFav(null)}>
-      <Pressable style={s.asOverlay} onPress={() => setMealTypeFav(null)}>
-        <Pressable style={s.asSheet} onPress={(e) => e.stopPropagation()}>
-          <View style={s.asHandleWrap}>
-            <View style={s.asHandle} />
-          </View>
-          <Text style={s.asTitle}>Adicionar em qual refeição?</Text>
-          {mealTypeFav && (
-            <View style={s.asHeaderRow}>
-              {mealTypeFav.imageUrl ? (
-                <Image source={{ uri: mealTypeFav.imageUrl }} style={s.asHeaderThumb} />
-              ) : (
-                <View style={s.asHeaderThumbPlaceholder}>
-                  <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
-                </View>
               )}
-              <Text style={s.asHeaderFoodName} numberOfLines={2}>{mealTypeFav.foods}</Text>
             </View>
           )}
 
-          <View style={s.asActions}>
-            {(['breakfast', 'lunch', 'snack', 'dinner', 'supper'] as MealType[]).map((type, idx) => {
-              const iconConfig: Record<MealType, { name: 'sunny-outline' | 'restaurant-outline' | 'cafe-outline' | 'moon-outline' | 'bed-outline'; color: string; bg: string }> = {
-                breakfast: { name: 'sunny-outline', color: '#F57C00', bg: '#FFF3E0' },
-                lunch: { name: 'restaurant-outline', color: Brand.greenDark, bg: '#E8F5E9' },
-                snack: { name: 'cafe-outline', color: '#F9A825', bg: '#FFF8E1' },
-                dinner: { name: 'moon-outline', color: '#7E57C2', bg: '#EDE7F6' },
-                supper: { name: 'bed-outline', color: '#5C6BC0', bg: '#E8EAF6' },
-              };
-              const cfg = iconConfig[type];
-              return (
-              <View key={type}>
-                {idx > 0 && <View style={s.asBtnBorder} />}
-                <Pressable
-                  style={({ pressed }) => [s.asBtn, pressed && s.asBtnPressed]}
-                  onPress={() => confirmUseAsMeal(type)}>
-                  <View style={[s.asIconWrap, { backgroundColor: cfg.bg }]}>
-                    <Ionicons name={cfg.name} size={18} color={cfg.color} />
-                  </View>
-                  <Text style={s.asBtnLabel}>{MEAL_TYPE_LABELS[type]}</Text>
-                </Pressable>
-              </View>
-              );
-            })}
-          </View>
+          {loading ? <Text style={s.hint}>Carregando pratos...</Text> : null}
 
-          <Pressable
-            style={({ pressed }) => [s.asCancelBtn, pressed && s.asBtnPressed]}
-            onPress={() => setMealTypeFav(null)}>
-            <Text style={s.asCancelText}>Cancelar</Text>
-          </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
-
-    {/* ── Action Sheet para favoritos ── */}
-    <Modal
-      visible={!!actionSheetFav}
-      transparent
-      animationType="fade"
-      onRequestClose={closeActionSheet}>
-      <Pressable style={s.asOverlay} onPress={closeActionSheet}>
-        <Pressable style={s.asSheet} onPress={(e) => e.stopPropagation()}>
-          {/* Handle */}
-          <View style={s.asHandleWrap}>
-            <View style={s.asHandle} />
-          </View>
-          {actionSheetFav && (
-            <View style={s.asHeaderRow}>
-              {actionSheetFav.imageUrl ? (
-                <Image source={{ uri: actionSheetFav.imageUrl }} style={s.asHeaderThumb} />
-              ) : (
-                <View style={s.asHeaderThumbPlaceholder}>
-                  <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
-                </View>
-              )}
-              <Text style={s.asHeaderFoodName} numberOfLines={2}>{actionSheetFav.foods}</Text>
+          {!loading && favorites.length === 0 && !showForm ? (
+            <View style={s.emptyState}>
+              <Text style={s.emptyTitle}>Nenhum prato cadastrado</Text>
+              <Text style={s.emptyHint}>Use o botao Novo prato para montar sua primeira receita favorita.</Text>
             </View>
-          )}
+          ) : null}
 
-          <View style={s.asActions}>
-            <Pressable
-              style={({ pressed }) => [s.asBtn, pressed && s.asBtnPressed]}
-              onPress={() => {
-                const fav = actionSheetFav!;
-                closeActionSheet();
-                setTimeout(() => handleUseAsMeal(fav), 200);
-              }}>
-              <View style={[s.asIconWrap, { backgroundColor: '#E8F5E9' }]}>
-                <Ionicons name="add-circle-outline" size={18} color={Brand.greenDark} />
+          {error ? (
+            <View style={s.errorBox}>
+              <Text style={s.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {favorites.length > 0 ? (
+            <>
+              <View style={s.sectionHeader}>
+                <Text style={s.sectionTitle}>Pratos salvos</Text>
+                <Text style={s.sectionCount}>
+                  {filteredFavorites.length}/{favorites.length}
+                </Text>
               </View>
-              <Text style={s.asBtnLabel}>Usar como refeição</Text>
-            </Pressable>
 
-            <View style={s.asBtnBorder} />
-
-            <Pressable
-              style={({ pressed }) => [s.asBtn, pressed && s.asBtnPressed]}
-              onPress={() => {
-                const fav = actionSheetFav!;
-                closeActionSheet();
-                setTimeout(() => startEditing(fav), 200);
-              }}>
-              <View style={[s.asIconWrap, { backgroundColor: '#E3F2FD' }]}>
-                <Ionicons name="create-outline" size={18} color="#1E88E5" />
+              <View style={s.list}>
+                {filteredFavorites.map((fav) => (
+                  <Pressable key={fav.id} style={({ pressed }) => [s.card, pressed && s.cardPressed]} onPress={() => handleFavoriteActions(fav)}>
+                    {fav.imageUrl ? (
+                      <Image source={{ uri: fav.imageUrl }} style={s.cardThumb} />
+                    ) : (
+                      <View style={s.cardThumbPlaceholder}>
+                        <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
+                      </View>
+                    )}
+                    <View style={s.cardContent}>
+                      <View style={s.cardTop}>
+                        <Text style={s.cardFoods} numberOfLines={1}>
+                          {fav.foods}
+                        </Text>
+                        <Text style={s.cardCal}>{fav.nutrition.calories}</Text>
+                      </View>
+                      <View style={s.cardMacros}>
+                        <MacroChip label="prot" value={fav.nutrition.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
+                        <MacroChip label="carb" value={fav.nutrition.carbs} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
+                        <MacroChip label="gord" value={fav.nutrition.fat} color={Brand.macroFat} bg={Brand.macroFatBg} />
+                      </View>
+                    </View>
+                  </Pressable>
+                ))}
               </View>
-              <Text style={s.asBtnLabel}>Editar</Text>
+            </>
+          ) : null}
+        </ScrollView>
+      </View>
+
+      <Modal visible={!!mealTypeFav} transparent animationType="fade" onRequestClose={() => setMealTypeFav(null)}>
+        <Pressable style={s.overlay} onPress={() => setMealTypeFav(null)}>
+          <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={s.handleWrap}>
+              <View style={s.handle} />
+            </View>
+            <Text style={s.sheetTitle}>Adicionar em qual refeicao?</Text>
+            {mealTypeFav ? <Text style={s.sheetSubtitle}>{mealTypeFav.foods}</Text> : null}
+
+            <View style={s.sheetActions}>
+              {(['breakfast', 'lunch', 'snack', 'dinner', 'supper'] as MealType[]).map((type, idx) => {
+                const iconConfig: Record<
+                  MealType,
+                  { name: 'sunny-outline' | 'restaurant-outline' | 'cafe-outline' | 'moon-outline' | 'bed-outline'; color: string; bg: string }
+                > = {
+                  breakfast: { name: 'sunny-outline', color: '#F57C00', bg: '#FFF3E0' },
+                  lunch: { name: 'restaurant-outline', color: Brand.greenDark, bg: '#E8F5E9' },
+                  snack: { name: 'cafe-outline', color: '#D6A624', bg: '#FFF8E1' },
+                  dinner: { name: 'moon-outline', color: '#7E57C2', bg: '#EDE7F6' },
+                  supper: { name: 'bed-outline', color: '#5C6BC0', bg: '#E8EAF6' },
+                };
+                const cfg = iconConfig[type];
+                return (
+                  <View key={type}>
+                    {idx > 0 ? <View style={s.sheetBorder} /> : null}
+                    <Pressable style={({ pressed }) => [s.sheetBtn, pressed && s.sheetBtnPressed]} onPress={() => confirmUseAsMeal(type)}>
+                      <View style={[s.sheetIconWrap, { backgroundColor: cfg.bg }]}>
+                        <Ionicons name={cfg.name} size={18} color={cfg.color} />
+                      </View>
+                      <Text style={s.sheetBtnLabel}>{MEAL_TYPE_LABELS[type]}</Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+
+            <Pressable style={({ pressed }) => [s.sheetCancelBtn, pressed && s.sheetBtnPressed]} onPress={() => setMealTypeFav(null)}>
+              <Text style={s.sheetCancelText}>Cancelar</Text>
             </Pressable>
-
-            <View style={s.asBtnBorder} />
-
-            <Pressable
-              style={({ pressed }) => [s.asBtn, pressed && s.asBtnPressed]}
-              onPress={() => {
-                const fav = actionSheetFav!;
-                closeActionSheet();
-                setTimeout(() => {
-                  Alert.alert('Remover prato?', fav.foods, [
-                    { text: 'Remover', style: 'destructive', onPress: () => remove(fav.id) },
-                    { text: 'Cancelar', style: 'cancel' },
-                  ]);
-                }, 200);
-              }}>
-              <View style={[s.asIconWrap, { backgroundColor: '#FFF0F0' }]}>
-                <Ionicons name="trash-outline" size={18} color={Brand.danger} />
-              </View>
-              <Text style={[s.asBtnLabel, { color: Brand.danger }]}>Apagar</Text>
-            </Pressable>
-          </View>
-
-          <Pressable
-            style={({ pressed }) => [s.asCancelBtn, pressed && s.asBtnPressed]}
-            onPress={closeActionSheet}>
-            <Text style={s.asCancelText}>Cancelar</Text>
           </Pressable>
         </Pressable>
-      </Pressable>
-    </Modal>
+      </Modal>
 
+      <Modal visible={!!actionSheetFav} transparent animationType="fade" onRequestClose={closeActionSheet}>
+        <Pressable style={s.overlay} onPress={closeActionSheet}>
+          <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={s.handleWrap}>
+              <View style={s.handle} />
+            </View>
+
+            {actionSheetFav ? (
+              <View style={s.sheetHeaderRow}>
+                {actionSheetFav.imageUrl ? (
+                  <Image source={{ uri: actionSheetFav.imageUrl }} style={s.sheetThumb} />
+                ) : (
+                  <View style={s.sheetThumbPlaceholder}>
+                    <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
+                  </View>
+                )}
+                <Text style={s.sheetHeaderName} numberOfLines={2}>
+                  {actionSheetFav.foods}
+                </Text>
+              </View>
+            ) : null}
+
+            <View style={s.sheetActions}>
+              <Pressable
+                style={({ pressed }) => [s.sheetBtn, pressed && s.sheetBtnPressed]}
+                onPress={() => {
+                  const fav = actionSheetFav!;
+                  closeActionSheet();
+                  setTimeout(() => handleUseAsMeal(fav), 150);
+                }}>
+                <View style={[s.sheetIconWrap, { backgroundColor: '#E8F5E9' }]}>
+                  <Ionicons name="add-circle-outline" size={18} color={Brand.greenDark} />
+                </View>
+                <Text style={s.sheetBtnLabel}>Usar como refeicao</Text>
+              </Pressable>
+
+              <View style={s.sheetBorder} />
+
+              <Pressable
+                style={({ pressed }) => [s.sheetBtn, pressed && s.sheetBtnPressed]}
+                onPress={() => {
+                  const fav = actionSheetFav!;
+                  closeActionSheet();
+                  setTimeout(() => startEditing(fav), 150);
+                }}>
+                <View style={[s.sheetIconWrap, { backgroundColor: '#E6F2FF' }]}>
+                  <Ionicons name="create-outline" size={18} color="#1E88E5" />
+                </View>
+                <Text style={s.sheetBtnLabel}>Editar</Text>
+              </Pressable>
+
+              <View style={s.sheetBorder} />
+
+              <Pressable
+                style={({ pressed }) => [s.sheetBtn, pressed && s.sheetBtnPressed]}
+                onPress={() => {
+                  const fav = actionSheetFav!;
+                  closeActionSheet();
+                  setTimeout(() => {
+                    Alert.alert('Remover prato?', fav.foods, [
+                      { text: 'Remover', style: 'destructive', onPress: () => remove(fav.id) },
+                      { text: 'Cancelar', style: 'cancel' },
+                    ]);
+                  }, 150);
+                }}>
+                <View style={[s.sheetIconWrap, { backgroundColor: '#FFEDEE' }]}>
+                  <Ionicons name="trash-outline" size={18} color={Brand.danger} />
+                </View>
+                <Text style={[s.sheetBtnLabel, { color: Brand.danger }]}>Apagar</Text>
+              </Pressable>
+            </View>
+
+            <Pressable style={({ pressed }) => [s.sheetCancelBtn, pressed && s.sheetBtnPressed]} onPress={closeActionSheet}>
+              <Text style={s.sheetCancelText}>Cancelar</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
 
-// ─── Sub-componente ──────────────────────────────────────
-
-function MacroPill({ label, value, color, bg }: {
-  label: string; value: string; color: string; bg: string;
+function MacroChip({
+  label,
+  value,
+  color,
+  bg,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  bg: string;
 }) {
   return (
     <View style={[s.pill, { backgroundColor: bg }]}>
@@ -578,9 +563,7 @@ function MacroPill({ label, value, color, bg }: {
   );
 }
 
-// ─── Estilos ─────────────────────────────────────────────
-
-const THUMB_SIZE = 52;
+const THUMB_SIZE = 56;
 
 const s = StyleSheet.create({
   root: {
@@ -588,79 +571,125 @@ const s = StyleSheet.create({
     backgroundColor: Brand.bg,
   },
   scroll: {
-    paddingHorizontal: 28,
-    paddingBottom: 120,
-    paddingTop: 20,
-  },
-
-  // Header
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: Brand.text,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: Brand.textSecondary,
-    marginTop: 4,
-    lineHeight: 20,
-  },
-  divider: {
-    width: 40,
-    height: 2,
-    backgroundColor: Brand.border,
-    borderRadius: 1,
-    alignSelf: 'center',
-    marginVertical: 24,
-  },
-
-  // New button
-  newBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    backgroundColor: Brand.card,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: Brand.green,
-    borderStyle: 'dashed',
-  },
-  newBtnIcon: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Brand.green,
-  },
-  newBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Brand.green,
-  },
-
-  // Form
-  formSection: {
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 150,
     gap: 12,
   },
-  stepLabel: {
-    fontSize: 13,
+  title: {
+    ...Typography.title,
+    color: Brand.text,
+    fontWeight: '800',
+  },
+  subtitle: {
+    ...Typography.body,
+    color: Brand.textSecondary,
+    marginTop: -8,
+  },
+  searchWrap: {
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Brand.card,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    paddingHorizontal: 12,
+    ...Shadows.card,
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: 50,
+    color: Brand.text,
+    ...Typography.body,
+  },
+  categoryRow: {
+    gap: 8,
+    paddingRight: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radii.pill,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    backgroundColor: Brand.surfaceAlt,
+  },
+  categoryChipActive: {
+    backgroundColor: Brand.green,
+    borderColor: Brand.green,
+  },
+  categoryChipText: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
     fontWeight: '700',
-    color: Brand.green,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+  },
+  categoryChipTextActive: {
+    color: '#FFFFFF',
+  },
+  newDishCard: {
+    marginTop: 2,
+    backgroundColor: Brand.card,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    ...Shadows.card,
+  },
+  newDishCardPressed: {
+    opacity: 0.88,
+  },
+  newDishIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    backgroundColor: Brand.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newDishIconText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: -2,
+  },
+  newDishTitle: {
+    ...Typography.body,
+    color: Brand.text,
+    fontWeight: '700',
+  },
+  newDishSubtitle: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
     marginTop: 2,
   },
+  formSection: {
+    backgroundColor: Brand.card,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 16,
+    gap: 12,
+    ...Shadows.card,
+  },
+  stepLabel: {
+    ...Typography.caption,
+    color: Brand.greenDark,
+    textTransform: 'uppercase',
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
   stepDivider: {
-    width: 32,
+    width: 28,
     height: 2,
-    borderRadius: 1,
+    borderRadius: Radii.pill,
     backgroundColor: Brand.border,
     alignSelf: 'center',
-    marginVertical: 8,
   },
-
-  // Ingredient chips
   chipList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -669,28 +698,24 @@ const s = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Brand.card,
-    borderRadius: 10,
-    paddingLeft: 12,
-    paddingRight: 8,
-    paddingVertical: 8,
     gap: 6,
+    borderRadius: Radii.pill,
     borderWidth: 1,
     borderColor: Brand.border,
+    backgroundColor: Brand.surfaceAlt,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   chipText: {
-    fontSize: 13,
-    fontWeight: '500',
+    ...Typography.caption,
     color: Brand.text,
+    fontWeight: '700',
   },
   chipRemove: {
-    fontSize: 11,
-    fontWeight: '700',
     color: Brand.textSecondary,
-    paddingHorizontal: 4,
+    fontSize: 12,
+    fontWeight: '800',
   },
-
-  // Add ingredient row
   weightRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -698,26 +723,25 @@ const s = StyleSheet.create({
   },
   unitRow: {
     flexDirection: 'row',
-    gap: 0,
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: Brand.border,
+    borderRadius: Radii.md,
+    overflow: 'hidden',
+    backgroundColor: Brand.surfaceAlt,
   },
   unitBtn: {
-    paddingVertical: 12,
     minWidth: 40,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    backgroundColor: Brand.card,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   unitBtnActive: {
     backgroundColor: Brand.green,
   },
   unitText: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...Typography.caption,
     color: Brand.textSecondary,
+    fontWeight: '700',
   },
   unitTextActive: {
     color: '#FFFFFF',
@@ -725,7 +749,7 @@ const s = StyleSheet.create({
   addIngBtn: {
     width: 48,
     height: 48,
-    borderRadius: 14,
+    borderRadius: Radii.md,
     backgroundColor: Brand.green,
     alignItems: 'center',
     justifyContent: 'center',
@@ -734,294 +758,273 @@ const s = StyleSheet.create({
     backgroundColor: Brand.border,
   },
   addIngBtnText: {
+    color: '#FFFFFF',
     fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
     marginTop: -2,
   },
-
-  // Recalculate
-  recalcBtn: {
-    alignSelf: 'center',
-    paddingVertical: 4,
+  previewCard: {
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    backgroundColor: Brand.surfaceSoft,
+    padding: 14,
+    gap: 8,
   },
-  recalcText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Brand.textSecondary,
+  previewCal: {
+    ...Typography.subtitle,
+    color: Brand.greenDark,
+    fontWeight: '800',
   },
-
+  previewMacros: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   formActions: {
     flexDirection: 'row',
     gap: 10,
   },
-
-  // Preview card
-  previewCard: {
-    backgroundColor: Brand.card,
-    borderRadius: 16,
-    padding: 18,
-    gap: 14,
-  },
-  previewInfo: {
-    flex: 1,
-    gap: 8,
-  },
-  previewCal: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Brand.greenDark,
-  },
-  previewMacros: {
+  sectionHeader: {
+    marginTop: 8,
     flexDirection: 'row',
-    gap: 6,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-
-  // Section title
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Brand.textSecondary,
-    letterSpacing: 0.5,
-    marginBottom: 12,
-    textTransform: 'uppercase',
-  },
-
-  // Empty
-  empty: {
-    alignItems: 'center',
-    paddingVertical: 48,
-    gap: 8,
-  },
-  emptyIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: Brand.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  emptyIconLetter: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Brand.textSecondary,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    ...Typography.subtitle,
     color: Brand.text,
+    fontWeight: '800',
+  },
+  sectionCount: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
   },
   hint: {
-    fontSize: 13,
+    ...Typography.body,
     color: Brand.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    paddingVertical: 8,
   },
-
-  // Error
-  errorBox: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    backgroundColor: '#FFF0F0',
-    borderRadius: 16,
+  emptyState: {
+    marginTop: 2,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    backgroundColor: Brand.surfaceAlt,
+    padding: 18,
     alignItems: 'center',
-    marginTop: 8,
+    gap: 6,
   },
-  errorText: {
-    fontSize: 14,
-    color: Brand.danger,
+  emptyTitle: {
+    ...Typography.body,
+    color: Brand.text,
+    fontWeight: '700',
     textAlign: 'center',
   },
-
-  // List
+  emptyHint: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    textAlign: 'center',
+    lineHeight: 17,
+  },
+  errorBox: {
+    borderRadius: Radii.md,
+    backgroundColor: '#FFEDEE',
+    padding: 12,
+  },
+  errorText: {
+    ...Typography.body,
+    color: Brand.danger,
+    fontSize: 14,
+  },
   list: {
     gap: 8,
   },
-
-  // Card with thumbnail
   card: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Brand.border,
     backgroundColor: Brand.card,
-    borderRadius: 14,
-    overflow: 'hidden',
-    paddingLeft: 12,
-    paddingVertical: 10,
+    padding: 10,
+    ...Shadows.card,
+  },
+  cardPressed: {
+    opacity: 0.88,
   },
   cardThumb: {
     width: THUMB_SIZE,
     height: THUMB_SIZE,
-    borderRadius: 10,
+    borderRadius: 12,
   },
   cardThumbPlaceholder: {
     width: THUMB_SIZE,
     height: THUMB_SIZE,
-    borderRadius: 10,
-    backgroundColor: Brand.bg,
+    borderRadius: 12,
+    backgroundColor: Brand.surfaceAlt,
+    borderWidth: 1,
+    borderColor: Brand.border,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  cardThumbLetter: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Brand.textSecondary,
   },
   cardContent: {
     flex: 1,
-    paddingVertical: 4,
-    paddingHorizontal: 14,
-    gap: 4,
+    paddingHorizontal: 12,
+    gap: 6,
   },
   cardTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
   },
   cardFoods: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
+    ...Typography.body,
     color: Brand.text,
-    marginRight: 12,
+    fontWeight: '700',
+    flex: 1,
   },
   cardCal: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...Typography.caption,
     color: Brand.greenDark,
+    fontWeight: '800',
+    fontSize: 12,
   },
   cardMacros: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 6,
-    marginTop: 4,
   },
-
-  // Macro pill
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
+    borderRadius: Radii.pill,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingVertical: 4,
   },
   pillLabel: {
-    fontSize: 9,
-    fontWeight: '700',
+    ...Typography.caption,
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    fontWeight: '800',
+    fontSize: 10,
   },
   pillValue: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...Typography.caption,
+    fontWeight: '700',
   },
-
-  // Action Sheet
-  asOverlay: {
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(31,41,51,0.34)',
     justifyContent: 'flex-end',
   },
-  asSheet: {
+  sheet: {
     backgroundColor: Brand.bg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 48,
+    borderTopLeftRadius: Radii.xl,
+    borderTopRightRadius: Radii.xl,
+    paddingBottom: 34,
     paddingHorizontal: 20,
   },
-  asHandleWrap: {
+  handleWrap: {
     alignItems: 'center',
     paddingTop: 12,
-    paddingBottom: 14,
+    paddingBottom: 8,
   },
-  asHandle: {
-    width: 40,
+  handle: {
+    width: 42,
     height: 4,
-    borderRadius: 2,
+    borderRadius: Radii.pill,
     backgroundColor: Brand.border,
   },
-  asTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+  sheetTitle: {
+    ...Typography.subtitle,
     color: Brand.text,
     textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 20,
+    fontWeight: '700',
+    marginBottom: 4,
   },
-  asActions: {
+  sheetSubtitle: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  sheetActions: {
     backgroundColor: Brand.card,
-    borderRadius: 16,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Brand.border,
     overflow: 'hidden',
   },
-  asBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    gap: 14,
-  },
-  asBtnPressed: {
-    backgroundColor: Brand.bg,
-  },
-  asBtnBorder: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: Brand.border,
-  },
-  asIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: Brand.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  asIconText: {
-    fontSize: 16,
-  },
-  asBtnLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: Brand.text,
-  },
-  asCancelBtn: {
-    marginTop: 10,
-    backgroundColor: Brand.card,
-    borderRadius: 16,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  asCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Brand.textSecondary,
-  },
-  asHeaderRow: {
+  sheetBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 16,
-    paddingHorizontal: 4,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  asHeaderThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+  sheetBtnPressed: {
+    opacity: 0.82,
   },
-  asHeaderThumbPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: Brand.bg,
+  sheetBorder: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Brand.border,
+  },
+  sheetIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  asHeaderFoodName: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
+  sheetBtnLabel: {
+    ...Typography.body,
     color: Brand.text,
-    lineHeight: 19,
+    fontWeight: '600',
+  },
+  sheetCancelBtn: {
+    marginTop: 10,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    backgroundColor: Brand.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  sheetCancelText: {
+    ...Typography.body,
+    color: Brand.textSecondary,
+    fontWeight: '700',
+  },
+  sheetHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  sheetThumb: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+  },
+  sheetThumbPlaceholder: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: Brand.surfaceAlt,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetHeaderName: {
+    ...Typography.body,
+    color: Brand.text,
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 20,
   },
 });
-

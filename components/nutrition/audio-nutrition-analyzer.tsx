@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
-import { Brand } from '@/constants/theme';
+import { Brand, Radii, Typography } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
 import { useAudioCapture } from '@/hooks/use-audio-capture';
 import { getNutritionFromAudio } from '@/services/nutrition-audio';
@@ -28,13 +28,6 @@ type Props = {
   onRequiresReview: (result: NutritionAnalysisResult) => void;
 };
 
-/*
- * Analise nutricional por voz.
- *
- * Reaproveita o hook de captura de audio e integra com o BFF.
- * O componente ja esta pronto para ser reutilizado em chat e
- * registro de refeicoes por voz com troca do service de envio.
- */
 export function AudioNutritionAnalyzer({ onRequiresReview }: Props) {
   const capture = useAudioCapture();
   const analysis = useAsync(getNutritionFromAudio);
@@ -47,9 +40,7 @@ export function AudioNutritionAnalyzer({ onRequiresReview }: Props) {
   const recordingLabel = useMemo(() => {
     if (capture.captureState === 'recording') return `Gravando ${formatDuration(capture.recordDurationMs)}`;
     if (capture.captureState === 'paused') return `Pausado ${formatDuration(capture.recordDurationMs)}`;
-    if (capture.captureState === 'ready' && capture.draft) {
-      return `Pronto ${formatDuration(capture.draft.durationMs)}`;
-    }
+    if (capture.captureState === 'ready' && capture.draft) return `Pronto ${formatDuration(capture.draft.durationMs)}`;
     return 'Nenhum audio gravado';
   }, [capture.captureState, capture.draft, capture.recordDurationMs]);
 
@@ -73,40 +64,21 @@ export function AudioNutritionAnalyzer({ onRequiresReview }: Props) {
 
   return (
     <View style={s.wrapper}>
-      <Text style={s.title}>Consultar calorias por voz</Text>
-      <Text style={s.subtitle}>Grave, ouca a previa e envie para analisar sua refeicao.</Text>
+      <Text style={s.title}>Voz</Text>
+      <Text style={s.subtitle}>Grave sua refeicao e envie para análise automática.</Text>
 
       <View style={s.stateRow}>
         <Text style={s.stateText}>{recordingLabel}</Text>
-        {capture.permissionGranted === false ? (
-          <Text style={s.permissionWarning}>Microfone sem permissao</Text>
-        ) : null}
+        {capture.permissionGranted === false ? <Text style={s.permissionWarning}>Microfone sem permissao</Text> : null}
       </View>
 
       <View style={s.controlsRow}>
         {capture.canRecord ? (
-          <Pressable style={[s.controlBtn, s.recordBtn]} onPress={capture.startRecording}>
-            <Text style={s.controlBtnText}>Iniciar</Text>
-          </Pressable>
+          <ActionChip title="Iniciar" active onPress={capture.startRecording} />
         ) : null}
-
-        {capture.canPause ? (
-          <Pressable style={s.controlBtn} onPress={capture.pauseRecording}>
-            <Text style={s.controlBtnText}>Pausar</Text>
-          </Pressable>
-        ) : null}
-
-        {capture.canResume ? (
-          <Pressable style={s.controlBtn} onPress={capture.resumeRecording}>
-            <Text style={s.controlBtnText}>Continuar</Text>
-          </Pressable>
-        ) : null}
-
-        {capture.canStop ? (
-          <Pressable style={s.controlBtn} onPress={capture.stopRecording}>
-            <Text style={s.controlBtnText}>Parar</Text>
-          </Pressable>
-        ) : null}
+        {capture.canPause ? <ActionChip title="Pausar" onPress={capture.pauseRecording} /> : null}
+        {capture.canResume ? <ActionChip title="Continuar" onPress={capture.resumeRecording} /> : null}
+        {capture.canStop ? <ActionChip title="Parar" onPress={capture.stopRecording} /> : null}
       </View>
 
       {capture.error ? (
@@ -120,33 +92,24 @@ export function AudioNutritionAnalyzer({ onRequiresReview }: Props) {
 
       {capture.draft ? (
         <View style={s.previewCard}>
-          <Text style={s.previewTitle}>Previa de audio</Text>
+          <Text style={s.previewTitle}>Prévia do áudio</Text>
           <Text style={s.previewMeta}>
-            Duracao: {formatDuration(draftDuration)} | Tamanho: {formatBytes(capture.draft.sizeBytes)}
+            Duração: {formatDuration(draftDuration)} | Tamanho: {formatBytes(capture.draft.sizeBytes)}
           </Text>
 
           <View style={s.previewActions}>
-            <Pressable style={s.controlBtn} onPress={capture.togglePreview}>
-              <Text style={s.controlBtnText}>{capture.isPlayingPreview ? 'Pausar previa' : 'Ouvir previa'}</Text>
-            </Pressable>
-            <Pressable style={s.removeBtn} onPress={capture.clearRecording}>
-              <Text style={s.removeBtnText}>Remover</Text>
-            </Pressable>
+            <ActionChip title={capture.isPlayingPreview ? 'Pausar prévia' : 'Ouvir prévia'} onPress={capture.togglePreview} />
+            <ActionChip title="Remover" danger onPress={capture.clearRecording} />
           </View>
         </View>
       ) : null}
 
-      <AppButton
-        title="Enviar audio"
-        onPress={handleSendAudio}
-        disabled={!canSend}
-        loading={analysis.loading}
-      />
+      <AppButton title="Enviar áudio" onPress={handleSendAudio} disabled={!canSend} loading={analysis.loading} />
 
       {analysis.loading ? (
         <View style={s.loadingBox}>
           <ActivityIndicator size="small" color={Brand.greenDark} />
-          <Text style={s.loadingText}>Enviando audio para analise...</Text>
+          <Text style={s.loadingText}>Enviando áudio para análise...</Text>
         </View>
       ) : null}
 
@@ -164,16 +127,15 @@ export function AudioNutritionAnalyzer({ onRequiresReview }: Props) {
           <Text style={s.resultDishName}>{result.detectedDishName}</Text>
           <Text style={s.resultCal}>{result.nutrition.calories}</Text>
           <View style={s.macroRow}>
-            <Text style={s.macro}>Prot: {result.nutrition.protein}</Text>
-            <Text style={s.macro}>Carb: {result.nutrition.carbs}</Text>
-            <Text style={s.macro}>Gord: {result.nutrition.fat}</Text>
+            <MacroTag label={`Prot: ${result.nutrition.protein}`} />
+            <MacroTag label={`Carb: ${result.nutrition.carbs}`} />
+            <MacroTag label={`Gord: ${result.nutrition.fat}`} />
           </View>
-
           {result.warnings.length > 0 ? (
             <View style={s.warningBox}>
               {result.warnings.map((warning, index) => (
                 <Text key={`${warning}-${index}`} style={s.warningText}>
-                  - {warning}
+                  • {warning}
                 </Text>
               ))}
             </View>
@@ -184,36 +146,68 @@ export function AudioNutritionAnalyzer({ onRequiresReview }: Props) {
   );
 }
 
+function ActionChip({
+  title,
+  onPress,
+  active,
+  danger,
+}: {
+  title: string;
+  onPress: () => void;
+  active?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        s.controlBtn,
+        active && s.controlBtnActive,
+        danger && s.controlBtnDanger,
+        pressed && s.controlBtnPressed,
+      ]}
+      onPress={onPress}>
+      <Text style={[s.controlBtnText, active && s.controlBtnTextActive, danger && s.controlBtnTextDanger]}>{title}</Text>
+    </Pressable>
+  );
+}
+
+function MacroTag({ label }: { label: string }) {
+  return (
+    <View style={s.macroTag}>
+      <Text style={s.macro}>{label}</Text>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   wrapper: {
     gap: 10,
   },
   title: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...Typography.body,
     color: Brand.text,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontWeight: '700',
   },
   subtitle: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
-    marginTop: -4,
+    marginTop: -6,
   },
   stateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
   },
   stateText: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...Typography.caption,
     color: Brand.textSecondary,
+    fontWeight: '700',
   },
   permissionWarning: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.danger,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   controlsRow: {
     flexDirection: 'row',
@@ -221,51 +215,56 @@ const s = StyleSheet.create({
     flexWrap: 'wrap',
   },
   controlBtn: {
-    borderRadius: 10,
+    borderRadius: Radii.pill,
     borderWidth: 1,
     borderColor: Brand.border,
-    backgroundColor: Brand.card,
-    paddingVertical: 9,
+    backgroundColor: Brand.surfaceAlt,
+    paddingVertical: 8,
     paddingHorizontal: 12,
   },
-  recordBtn: {
+  controlBtnActive: {
+    backgroundColor: Brand.green,
     borderColor: Brand.green,
-    backgroundColor: '#F2FAF3',
+  },
+  controlBtnDanger: {
+    backgroundColor: '#FFEDEE',
+    borderColor: '#FFD7DA',
+  },
+  controlBtnPressed: {
+    opacity: 0.82,
   },
   controlBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
+    ...Typography.caption,
     color: Brand.text,
+    fontWeight: '700',
+  },
+  controlBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  controlBtnTextDanger: {
+    color: Brand.danger,
   },
   previewCard: {
-    backgroundColor: Brand.bg,
-    borderRadius: 12,
+    backgroundColor: Brand.surfaceSoft,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Brand.border,
     padding: 12,
     gap: 8,
   },
   previewTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...Typography.body,
     color: Brand.text,
+    fontWeight: '700',
   },
   previewMeta: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
   },
   previewActions: {
     flexDirection: 'row',
     gap: 8,
-  },
-  removeBtn: {
-    borderRadius: 10,
-    backgroundColor: '#FFF0F0',
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-  },
-  removeBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Brand.danger,
+    flexWrap: 'wrap',
   },
   loadingBox: {
     flexDirection: 'row',
@@ -273,60 +272,69 @@ const s = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
   },
   errorBox: {
-    backgroundColor: '#FFF0F0',
-    borderRadius: 12,
+    backgroundColor: '#FFEDEE',
+    borderRadius: Radii.md,
     padding: 12,
-    gap: 8,
+    gap: 6,
   },
   errorText: {
-    fontSize: 13,
+    ...Typography.body,
     color: Brand.danger,
+    fontSize: 14,
   },
   retryText: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...Typography.caption,
     color: Brand.danger,
+    fontWeight: '700',
   },
   retryDisabled: {
     opacity: 0.5,
   },
   resultBox: {
-    backgroundColor: Brand.bg,
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: Brand.surfaceSoft,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 12,
     gap: 8,
   },
-  resultCal: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Brand.greenDark,
-  },
   resultDishName: {
-    fontSize: 14,
-    fontWeight: '700',
+    ...Typography.body,
     color: Brand.text,
+    fontWeight: '700',
+  },
+  resultCal: {
+    ...Typography.subtitle,
+    color: Brand.greenDark,
+    fontWeight: '800',
   },
   macroRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 6,
     flexWrap: 'wrap',
   },
+  macroTag: {
+    borderRadius: Radii.pill,
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   macro: {
-    fontSize: 12,
+    ...Typography.caption,
     color: Brand.textSecondary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   warningBox: {
     gap: 4,
-    marginTop: 2,
   },
   warningText: {
-    fontSize: 12,
+    ...Typography.caption,
     color: '#8A6D3B',
   },
 });
-
