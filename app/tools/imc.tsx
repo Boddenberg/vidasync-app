@@ -18,8 +18,7 @@ export default function BmiToolScreen() {
       <ScrollView contentContainerStyle={s.scroll}>
         <BmiCalculatorCard
           title="Calculadora de IMC"
-          subtitle="Ferramenta rapida para estimativa inicial. Nao substitui avaliacao profissional."
-          compact
+          subtitle="Use peso e altura para uma leitura rápida do momento atual. O acompanhamento de peso pode complementar essa análise depois."
         />
       </ScrollView>
 

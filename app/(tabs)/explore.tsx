@@ -44,38 +44,12 @@ import {
 
 const UNITS: WeightUnit[] = ['g', 'ml', 'un'];
 
-const SEARCH_CATEGORIES = [
-  { id: 'all', label: 'Todos' },
-  { id: 'frutas', label: 'Frutas' },
-  { id: 'carnes', label: 'Carnes' },
-  { id: 'laticinios', label: 'Laticinios' },
-  { id: 'graos', label: 'Graos' },
-  { id: 'snacks', label: 'Snacks' },
-  { id: 'bebidas', label: 'Bebidas' },
-  { id: 'vegetais', label: 'Vegetais' },
-] as const;
-
-type SearchCategory = (typeof SEARCH_CATEGORIES)[number]['id'];
-
-function inferCategory(foods: string): SearchCategory {
-  const value = foods.toLowerCase();
-  if (/(banana|maca|laranja|morango|fruta)/.test(value)) return 'frutas';
-  if (/(frango|carne|peixe|bovina|porco)/.test(value)) return 'carnes';
-  if (/(iogurte|leite|queijo)/.test(value)) return 'laticinios';
-  if (/(arroz|aveia|quinoa|grao|feijao)/.test(value)) return 'graos';
-  if (/(suco|agua|cha|cafe|refrigerante)/.test(value)) return 'bebidas';
-  if (/(brocolis|alface|tomate|cenoura|vegetal|salada)/.test(value)) return 'vegetais';
-  if (/(barra|biscoito|snack|castanha)/.test(value)) return 'snacks';
-  return 'all';
-}
-
 export default function MyDishesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const [showForm, setShowForm] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [activeCategory, setActiveCategory] = useState<SearchCategory>('all');
 
   const [foodHint] = useState(() => `ex: ${randomFoodExample()}`);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -208,13 +182,8 @@ export default function MyDishesScreen() {
 
   const filteredFavorites = useMemo(() => {
     const query = searchText.trim().toLowerCase();
-    return favorites.filter((fav) => {
-      const matchesText = query.length === 0 || fav.foods.toLowerCase().includes(query);
-      const category = inferCategory(fav.foods);
-      const matchesCategory = activeCategory === 'all' || category === activeCategory;
-      return matchesText && matchesCategory;
-    });
-  }, [activeCategory, favorites, searchText]);
+    return favorites.filter((fav) => query.length === 0 || fav.foods.toLowerCase().includes(query));
+  }, [favorites, searchText]);
 
   return (
     <KeyboardAvoidingView
@@ -238,20 +207,6 @@ export default function MyDishesScreen() {
               style={s.searchInput}
             />
           </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.categoryRow}>
-            {SEARCH_CATEGORIES.map((category) => {
-              const active = activeCategory === category.id;
-              return (
-                <Pressable
-                  key={category.id}
-                  style={[s.categoryChip, active && s.categoryChipActive]}
-                  onPress={() => setActiveCategory(category.id)}>
-                  <Text style={[s.categoryChipText, active && s.categoryChipTextActive]}>{category.label}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
 
           {!showForm ? (
             <Pressable style={({ pressed }) => [s.newDishCard, pressed && s.newDishCardPressed]} onPress={() => setShowForm(true)}>

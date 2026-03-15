@@ -6,8 +6,6 @@ import { StyleSheet } from 'react-native';
 import { HapticTab } from '@/components/haptic-tab';
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 
-const SHOW_DEVTOOLS_TAB = true;
-
 export default function TabLayout() {
   return (
     <Tabs
@@ -43,23 +41,18 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: 'Historico',
+          title: 'Progresso',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons size={20} name={focused ? 'time' : 'time-outline'} color={color} />
+            <Ionicons size={20} name={focused ? 'stats-chart' : 'stats-chart-outline'} color={color} />
           ),
         }}
       />
-      {SHOW_DEVTOOLS_TAB && (
-        <Tabs.Screen
-          name="devtools"
-          options={{
-            title: 'Ferramentas',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons size={20} name={focused ? 'construct' : 'construct-outline'} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="devtools"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
@@ -69,9 +62,9 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Brand.border,
     backgroundColor: Brand.card,
-    minHeight: 64,
-    paddingTop: 7,
-    paddingBottom: 8,
+    minHeight: 66,
+    paddingTop: 8,
+    paddingBottom: 10,
     ...Shadows.card,
   },
   tabBarItem: {
@@ -81,8 +74,9 @@ const s = StyleSheet.create({
   },
   tabBarLabel: {
     ...Typography.caption,
-    marginTop: 1,
+    marginTop: 2,
     fontWeight: '700',
-    letterSpacing: 0.1,
+    letterSpacing: 0.2,
   },
 });
+

@@ -23,7 +23,7 @@ type Props = {
  */
 export function BmiCalculatorCard({
   title = 'Calculadora de IMC',
-  subtitle = 'Informe peso e altura para obter o indice e a faixa interpretativa.',
+  subtitle = 'Informe peso e altura para obter o índice e a faixa interpretativa.',
   compact = false,
   onOpenAsQuickAction,
 }: Props) {
@@ -42,13 +42,13 @@ export function BmiCalculatorCard({
     const height = parseMetricInput(heightInput);
 
     if (!weight || !height) {
-      setError('Informe peso e altura validos para calcular o IMC.');
+      setError('Informe peso e altura válidos para calcular o IMC.');
       setResult(null);
       return;
     }
 
     if (height < 100 || height > 250) {
-      setError('A altura deve estar em centimetros (ex.: 170).');
+      setError('A altura deve estar em centímetros (ex.: 170).');
       setResult(null);
       return;
     }
@@ -128,7 +128,7 @@ export function BmiCalculatorCard({
 
         {!compact && onOpenAsQuickAction ? (
           <Pressable onPress={onOpenAsQuickAction} style={s.quickActionButton}>
-            <Text style={s.quickActionButtonText}>Abrir em acao rapida</Text>
+            <Text style={s.quickActionButtonText}>Abrir em ação rápida</Text>
           </Pressable>
         ) : null}
       </View>
