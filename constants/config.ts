@@ -91,6 +91,13 @@ export const API_REQUIRE_REMOTE_FILE_URL =
     ? true
     : requireRemoteFileUrlNormalized === 'true';
 
+/*
+ * Chave opcional para painel interno/admin de feedback.
+ *
+ * Como roda no frontend, use apenas em builds internas controladas.
+ */
+export const INTERNAL_ADMIN_API_KEY = `${process.env.EXPO_PUBLIC_INTERNAL_ADMIN_API_KEY ?? ''}`.trim();
+
 /* Nome do app. */
 export const APP_NAME = 'VidaSync';
 

@@ -52,8 +52,11 @@ export async function apiGet(path: string): Promise<string> {
 /**
  * Faz uma requisição GET e retorna JSON parseado.
  */
-export async function apiGetJson<T = unknown>(path: string): Promise<T> {
-  const headers = await authHeaders();
+export async function apiGetJson<T = unknown>(
+  path: string,
+  extraHeaders?: Record<string, string>,
+): Promise<T> {
+  const headers = await authHeaders(extraHeaders);
   const res = await fetch(buildUrl(API_BASE_URL, path), { headers });
   const text = await res.text();
   if (!res.ok) throw new Error(text || `Erro ${res.status}`);
