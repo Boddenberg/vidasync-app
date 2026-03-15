@@ -42,6 +42,7 @@ import {
     parseFoodsToIngredients,
     randomFoodExample,
     splitFoodsAndDishName,
+    todayStr,
     type Ingredient,
     type WeightUnit,
 } from '@/utils/helpers';
@@ -67,6 +68,7 @@ type Props = {
     nutrition: NutritionData;
     imageBase64?: string | null;
   }) => void;
+  defaultDate?: string;
   onClose: () => void;
 };
 
@@ -79,6 +81,7 @@ export function RegisterMealModal({
   editMeal,
   onSave,
   onEditSave,
+  defaultDate,
   onClose,
 }: Props) {
   const isEditing = !!editMeal;
@@ -121,6 +124,16 @@ export function RegisterMealModal({
       setEditInitialized(false);
     }
   }, [visible, editMeal, editInitialized]);
+
+  useEffect(() => {
+    if (!visible || isEditing || editInitialized) return;
+
+    const initialDate = defaultDate || todayStr();
+    const shouldUseToday = initialDate === todayStr();
+
+    setMealDate(initialDate);
+    setUseToday(shouldUseToday);
+  }, [defaultDate, editInitialized, isEditing, visible]);
 
   function reset() {
     setIngredients([]);

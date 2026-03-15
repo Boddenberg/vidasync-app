@@ -1,338 +1,349 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  Image,
-  Keyboard,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Animated, Image, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
-import { AppInput } from '@/components/app-input';
+import { CalendarPickerModal } from '@/components/calendar-picker-modal';
 import { EditProfileModal } from '@/components/edit-profile-modal';
-import { BmiCalculatorCard } from '@/components/health/bmi-calculator-card';
-import { MealCard } from '@/components/meal-card';
-import { AudioNutritionAnalyzer } from '@/components/nutrition/audio-nutrition-analyzer';
-import { PdfPlanAnalyzer } from '@/components/nutrition/pdf-plan-analyzer';
-import { PhotoNutritionAnalyzer } from '@/components/nutrition/photo-nutrition-analyzer';
-import { NutritionErrorModal } from '@/components/nutrition-error-modal';
-import { NutritionIllustration } from '@/components/nutrition-illustration';
-import { QuickAddSheet } from '@/components/quick-add-sheet';
+import { NotificationCenterModal } from '@/components/notifications/notification-center-modal';
+import { NutritionGoalsModal } from '@/components/nutrition-goals-modal';
 import { RegisterMealModal } from '@/components/register-meal-modal';
 import { Brand, Radii, Shadows, Spacing, Typography } from '@/constants/theme';
-import { useAsync } from '@/hooks/use-async';
 import { useAuth } from '@/hooks/use-auth';
-import { useFavorites } from '@/hooks/use-favorites';
 import { useMeals } from '@/hooks/use-meals';
-import { getMealsByRange } from '@/services/meals';
-import { getNutrition } from '@/services/nutrition';
-import { setReviewSession } from '@/services/review-session';
-import { getWaterStatus, saveWaterStatus, type WaterStatus } from '@/services/water';
-import type { AttachmentItem } from '@/types/attachments';
-import type { Favorite, Meal, MealType, NutritionAnalysisResult, NutritionData } from '@/types/nutrition';
-import type { PlanPdfAnalysisResult } from '@/types/plan';
-import { buildFoodsString, extractNum, toDateStr } from '@/utils/helpers';
+import {
+  getNotifications,
+  markNotificationsRead,
+  type AppNotification,
+  type NotificationsSnapshot,
+} from '@/services/notifications';
+import {
+  getNutritionGoals,
+  saveNutritionGoals,
+  type NutritionGoalsStatus,
+} from '@/services/nutrition-goals';
+import { getWaterStatus, saveWaterStatus, type WaterEvent, type WaterStatus } from '@/services/water';
+import type { Meal, MealType, NutritionData } from '@/types/nutrition';
+import { buildFoodsString, extractNum, toDateStr, todayStr } from '@/utils/helpers';
 
-type AnalyzerTab = 'photo' | 'audio' | 'plan';
-type WeeklySnapshot = {
-  avgCalories: number;
-  avgProtein: number;
-  daysWithMeals: number;
+const MEAL_SUMMARY_META: Record<
+  MealType,
+  {
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    color: string;
+    bg: string;
+  }
+> = {
+  breakfast: { label: 'Café da manhã', icon: 'sunny-outline', color: '#D97706', bg: '#FFF4DE' },
+  lunch: { label: 'Almoço', icon: 'restaurant-outline', color: Brand.greenDark, bg: '#EAF7EE' },
+  snack: { label: 'Lanche', icon: 'cafe-outline', color: '#C97A1C', bg: '#FFF2E1' },
+  dinner: { label: 'Jantar', icon: 'moon-outline', color: '#6D5BD0', bg: '#F1EEFF' },
+  supper: { label: 'Ceia', icon: 'bed-outline', color: '#4F46E5', bg: '#EEF2FF' },
 };
 
-const DAILY_GOAL_KCAL = 2000;
-const DEFAULT_HYDRATION_GOAL_ML = 2500;
-const DAILY_MACRO_GOALS = {
-  protein: 160,
-  carbs: 180,
-  fat: 60,
-} as const;
+const MEAL_SUMMARY_ORDER: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner', 'supper'];
 
-const FOOD_CATEGORIES = [
-  { id: 'frutas', label: 'Frutas', icon: 'nutrition-outline', tint: '#EAF8EE', query: 'banana' },
-  { id: 'carnes', label: 'Carnes', icon: 'barbell-outline', tint: '#FFF0EB', query: 'frango grelhado' },
-  { id: 'laticinios', label: 'Laticinios', icon: 'cafe-outline', tint: '#EEF4FF', query: 'iogurte natural' },
-  { id: 'vegetais', label: 'Vegetais', icon: 'leaf-outline', tint: '#EAF7EA', query: 'brocolis cozido' },
-  { id: 'graos', label: 'Graos', icon: 'flower-outline', tint: '#FFF6E1', query: 'arroz integral' },
-  { id: 'snacks', label: 'Snacks', icon: 'fast-food-outline', tint: '#F8EFE4', query: 'mix de castanhas' },
-] as const;
+const HYDRATION_GOAL_OPTIONS = [2000, 2500, 3000, 3500];
 
-function greeting(): string {
+const HYDRATION_QUICK_ACTIONS = [
+  { label: '-500 ml', deltaMl: -500, tone: 'negative' as const },
+  { label: '-300 ml', deltaMl: -300, tone: 'negative' as const },
+  { label: '+200 ml', deltaMl: 200, tone: 'positive' as const },
+  { label: '+1L', deltaMl: 1000, tone: 'positive' as const },
+];
+
+type GoalProgress = {
+  key: 'calories' | 'protein' | 'carbs' | 'fat';
+  label: string;
+  unit: string;
+  consumed: number;
+  goal: number;
+  remaining: number;
+  progress: number;
+  reached: boolean;
+  color: string;
+  bg: string;
+};
+
+type MealSummary = {
+  type: MealType;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  bg: string;
+  count: number;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function parseDateInput(date: string): Date {
+  const [year, month, day] = date.split('-').map((item) => parseInt(item, 10));
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
+function greeting() {
   const hour = new Date().getHours();
   if (hour < 12) return 'Bom dia';
   if (hour < 18) return 'Boa tarde';
   return 'Boa noite';
 }
 
-function todayLabel(): string {
-  const now = new Date();
-  const weekdayRaw = now.toLocaleDateString('pt-BR', { weekday: 'long' });
-  const monthRaw = now.toLocaleDateString('pt-BR', { month: 'long' });
-  const weekday = weekdayRaw.charAt(0).toUpperCase() + weekdayRaw.slice(1);
-  return `${weekday}, ${now.getDate()} de ${monthRaw}`;
+function isTodayDate(date: string) {
+  return date === todayStr();
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
+function formatCompactSelectedDate(date: string) {
+  const parsed = parseDateInput(date);
+  const weekday = parsed
+    .toLocaleDateString('pt-BR', { weekday: 'short' })
+    .replace('.', '');
+  const month = parsed
+    .toLocaleDateString('pt-BR', { month: 'short' })
+    .replace('.', '');
+
+  return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${parsed.getDate()} ${month}`;
 }
 
-function calculateNutritionScore(proteinG: number, carbsG: number, fatG: number, calories: number): number {
-  const proteinKcal = proteinG * 4;
-  const carbsKcal = carbsG * 4;
-  const fatKcal = fatG * 9;
-  const totalMacroKcal = proteinKcal + carbsKcal + fatKcal;
-
-  if (totalMacroKcal <= 0) return 0;
-
-  const proteinRatio = proteinKcal / totalMacroKcal;
-  const carbsRatio = carbsKcal / totalMacroKcal;
-  const fatRatio = fatKcal / totalMacroKcal;
-
-  const deviation =
-    Math.abs(proteinRatio - 0.3) + Math.abs(carbsRatio - 0.45) + Math.abs(fatRatio - 0.25);
-
-  const macroScore = clamp(Math.round(100 - deviation * 130), 0, 100);
-  const completionBonus = clamp(Math.round(Math.min(calories / DAILY_GOAL_KCAL, 1) * 20), 0, 20);
-
-  return clamp(macroScore * 0.8 + completionBonus, 0, 100);
+function formatDateChip(date: string) {
+  if (isTodayDate(date)) return 'Hoje';
+  return parseDateInput(date).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+  });
 }
 
-function formatLiters(valueMl: number): string {
+function formatDateForModal(date: string) {
+  return parseDateInput(date).toLocaleDateString('pt-BR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function shiftDate(date: string, days: number) {
+  const next = parseDateInput(date);
+  next.setDate(next.getDate() + days);
+  return toDateStr(next);
+}
+
+function formatLiters(valueMl: number) {
   return `${(valueMl / 1000).toFixed(1)}L`;
 }
 
-function macroGoalProgress(consumed: number, goal: number): number {
-  if (goal <= 0) return 0;
-  return clamp(consumed / goal, 0, 1);
+function formatMetricValue(value: number, unit: string) {
+  return `${Number.isInteger(value) ? value : value.toFixed(1)}${unit}`;
 }
 
-function insightMessage(params: {
-  mealsCount: number;
-  proteinRemaining: number;
-  hydrationRemainingMl: number;
-  caloriesRemaining: number;
-}): string {
-  if (params.mealsCount === 0) {
-    return 'Registre a primeira refeicao do dia para liberar recomendacoes inteligentes.';
-  }
+function buildGoalProgress(
+  key: GoalProgress['key'],
+  label: string,
+  unit: string,
+  consumed: number,
+  goal: number | null,
+  color: string,
+  bg: string,
+): GoalProgress | null {
+  if (goal === null || goal <= 0) return null;
 
-  if (params.proteinRemaining >= 25) {
-    return `Proteina abaixo da meta: faltam ${params.proteinRemaining}g para fechar o dia.`;
-  }
-
-  if (params.hydrationRemainingMl >= 400) {
-    return `Hidratacao em alerta: faltam ${params.hydrationRemainingMl}ml para a meta.`;
-  }
-
-  if (params.caloriesRemaining >= 450) {
-    return `Voce ainda tem ${params.caloriesRemaining} kcal disponiveis para completar a meta.`;
-  }
-
-  return 'Dia consistente: mantenha refeicoes equilibradas e hidratacao ativa.';
+  return {
+    key,
+    label,
+    unit,
+    consumed,
+    goal,
+    remaining: Math.max(0, goal - consumed),
+    progress: clamp(consumed / goal, 0, 1),
+    reached: consumed >= goal,
+    color,
+    bg,
+  };
 }
 
-function mealSuggestions(params: {
-  proteinRemaining: number;
-  carbsRemaining: number;
-  fatRemaining: number;
-  caloriesRemaining: number;
-}): string[] {
-  const suggestions: string[] = [];
+function buildGoalItems(
+  calories: number,
+  protein: number,
+  carbs: number,
+  fat: number,
+  goals: NutritionGoalsStatus | null,
+): GoalProgress[] {
+  return [
+    buildGoalProgress('calories', 'Calorias', ' kcal', calories, goals?.goals.calories ?? null, Brand.greenDark, '#E7F6EC'),
+    buildGoalProgress('protein', 'Proteína', 'g', protein, goals?.goals.protein ?? null, Brand.macroProtein, Brand.macroProteinBg),
+    buildGoalProgress('carbs', 'Carboidrato', 'g', carbs, goals?.goals.carbs ?? null, Brand.macroCarb, Brand.macroCarbBg),
+    buildGoalProgress('fat', 'Gordura', 'g', fat, goals?.goals.fat ?? null, Brand.macroFat, Brand.macroFatBg),
+  ].filter((item): item is GoalProgress => item !== null);
+}
 
-  if (params.proteinRemaining >= 25) {
-    suggestions.push('Omelete com queijo cottage');
-    suggestions.push('Frango grelhado com salada');
-  }
+function buildMealSummaries(meals: Meal[]): MealSummary[] {
+  const buckets = new Map<MealType, MealSummary>();
 
-  if (params.carbsRemaining >= 35) {
-    suggestions.push('Arroz integral com legumes');
-  }
+  MEAL_SUMMARY_ORDER.forEach((type) => {
+    const meta = MEAL_SUMMARY_META[type];
+    buckets.set(type, {
+      type,
+      label: meta.label,
+      icon: meta.icon,
+      color: meta.color,
+      bg: meta.bg,
+      count: 0,
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+    });
+  });
 
-  if (params.fatRemaining >= 12) {
-    suggestions.push('Iogurte natural com castanhas');
-  }
+  meals.forEach((meal) => {
+    const bucket = buckets.get(meal.mealType);
+    if (!bucket) return;
 
-  if (params.caloriesRemaining <= 300) {
-    suggestions.push('Iogurte proteico com frutas');
-  }
+    bucket.count += 1;
+    bucket.calories += extractNum(meal.nutrition?.calories ?? '0');
+    bucket.protein += extractNum(meal.nutrition?.protein ?? '0');
+    bucket.carbs += extractNum(meal.nutrition?.carbs ?? '0');
+    bucket.fat += extractNum(meal.nutrition?.fat ?? '0');
+  });
 
-  if (suggestions.length === 0) {
-    suggestions.push('Meta quase concluida: finalize com uma refeicao leve.');
-  }
+  return MEAL_SUMMARY_ORDER.map((type) => buckets.get(type)!).filter((item) => item.count > 0);
+}
 
-  return suggestions.slice(0, 3);
+function formatWaterEventTime(event: WaterEvent) {
+  if (!event.createdAt) return 'Movimento registrado';
+
+  const parsed = new Date(event.createdAt);
+  if (Number.isNaN(parsed.getTime())) return 'Movimento registrado';
+
+  return parsed.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function sortNotifications(notifications: AppNotification[]) {
+  return [...notifications].sort((a, b) => {
+    const aTime = new Date(a.createdAt).getTime();
+    const bTime = new Date(b.createdAt).getTime();
+    return bTime - aTime;
+  });
 }
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
   const router = useRouter();
+  const { user } = useAuth();
 
   const [registerVisible, setRegisterVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
-  const [quickAddVisible, setQuickAddVisible] = useState(false);
-  const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
-  const [photoAttachments, setPhotoAttachments] = useState<AttachmentItem[]>([]);
-  const [planPdfAttachments, setPlanPdfAttachments] = useState<AttachmentItem[]>([]);
-  const [analyzerTab, setAnalyzerTab] = useState<AnalyzerTab>('photo');
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [goalsModalVisible, setGoalsModalVisible] = useState(false);
+
+  const [waterStatus, setWaterStatus] = useState<WaterStatus | null>(null);
   const [hydrationMl, setHydrationMl] = useState(0);
-  const [hydrationGoalMl, setHydrationGoalMl] = useState(DEFAULT_HYDRATION_GOAL_ML);
-  const [hydrationLoading, setHydrationLoading] = useState(false);
+  const [hydrationGoalMl, setHydrationGoalMl] = useState(0);
   const [hydrationSaving, setHydrationSaving] = useState(false);
+  const [hydrationLoading, setHydrationLoading] = useState(false);
   const [hydrationError, setHydrationError] = useState<string | null>(null);
-  const [weeklySnapshot, setWeeklySnapshot] = useState<WeeklySnapshot | null>(null);
-  const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const [hydrationGoalMenuOpen, setHydrationGoalMenuOpen] = useState(false);
 
-  const [query, setQuery] = useState('');
-  const [queryWeight, setQueryWeight] = useState('');
-  const [queryUnit, setQueryUnit] = useState<'g' | 'ml' | 'un'>('g');
-  const queryInputRef = useRef<TextInput>(null);
+  const [nutritionGoals, setNutritionGoals] = useState<NutritionGoalsStatus | null>(null);
+  const [goalsLoading, setGoalsLoading] = useState(false);
+  const [goalsSaving, setGoalsSaving] = useState(false);
+  const [goalsError, setGoalsError] = useState<string | null>(null);
 
-  const nutrition = useAsync(getNutrition);
-  const UNITS: ('g' | 'ml' | 'un')[] = ['g', 'ml', 'un'];
+  const [notificationsSnapshot, setNotificationsSnapshot] = useState<NotificationsSnapshot>({
+    notifications: [],
+    unreadCount: 0,
+  });
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const [notificationBusyIds, setNotificationBusyIds] = useState<Record<string, boolean>>({});
+  const [notificationsMarkingAll, setNotificationsMarkingAll] = useState(false);
 
-  const { meals, totals, add, edit, remove, duplicate, refresh } = useMeals();
-  const { favorites, refresh: refreshFavorites } = useFavorites();
+  const { meals, totals, add, refresh, date: selectedDate, setDate } = useMeals();
 
-  const dayProgressAnim = useRef(new Animated.Value(0)).current;
-  const hydrationProgressAnim = useRef(new Animated.Value(0)).current;
+  const dayAnim = useRef(new Animated.Value(0)).current;
+  const hydrationAnim = useRef(new Animated.Value(0)).current;
   const hydrationPulse = useRef(new Animated.Value(0)).current;
 
-  const applyHydrationState = useCallback((water: WaterStatus | null) => {
+  const applyHydration = useCallback((water: WaterStatus | null) => {
+    setWaterStatus(water);
     if (!water) {
       setHydrationMl(0);
-      setHydrationGoalMl(DEFAULT_HYDRATION_GOAL_ML);
+      setHydrationGoalMl(0);
       return;
     }
-
     setHydrationMl(Math.max(0, water.consumedMl));
-    setHydrationGoalMl(water.goalMl > 0 ? water.goalMl : DEFAULT_HYDRATION_GOAL_ML);
+    setHydrationGoalMl(water.goalMl > 0 ? water.goalMl : 0);
   }, []);
 
-  const loadHydration = useCallback(async () => {
+  const loadHydration = useCallback(async (date: string) => {
     setHydrationLoading(true);
     try {
-      const water = await getWaterStatus();
-      applyHydrationState(water);
+      applyHydration(await getWaterStatus(date));
       setHydrationError(null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Falha ao carregar agua do dia.';
-      setHydrationError(message);
+      setHydrationError(error instanceof Error ? error.message : 'Falha ao carregar hidratacao.');
     } finally {
       setHydrationLoading(false);
     }
-  }, [applyHydrationState]);
+  }, [applyHydration]);
+
+  const loadGoalState = useCallback(async (date: string) => {
+    setGoalsLoading(true);
+    try {
+      setNutritionGoals(await getNutritionGoals(date));
+      setGoalsError(null);
+    } catch (error) {
+      setGoalsError(error instanceof Error ? error.message : 'Falha ao carregar metas do dia.');
+    } finally {
+      setGoalsLoading(false);
+    }
+  }, []);
+
+  const applyNotifications = useCallback((snapshot: NotificationsSnapshot) => {
+    setNotificationsSnapshot({
+      notifications: sortNotifications(snapshot.notifications),
+      unreadCount: snapshot.unreadCount,
+    });
+  }, []);
+
+  const loadNotifications = useCallback(async () => {
+    setNotificationsLoading(true);
+    try {
+      applyNotifications(await getNotifications());
+      setNotificationsError(null);
+    } catch (error) {
+      setNotificationsError(error instanceof Error ? error.message : 'Falha ao carregar notificações.');
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [applyNotifications]);
 
   useFocusEffect(
     useCallback(() => {
       refresh();
-      refreshFavorites();
-      loadHydration();
-    }, [loadHydration, refresh, refreshFavorites]),
+      loadHydration(selectedDate);
+      loadGoalState(selectedDate);
+      loadNotifications();
+    }, [refresh, loadHydration, loadGoalState, loadNotifications, selectedDate]),
   );
 
   useEffect(() => {
-    let active = true;
+    loadHydration(selectedDate);
+    loadGoalState(selectedDate);
+    setHydrationGoalMenuOpen(false);
+  }, [loadGoalState, loadHydration, selectedDate]);
 
-    async function loadWeeklySnapshot() {
-      setWeeklyLoading(true);
-      try {
-        const end = new Date();
-        const start = new Date(end);
-        start.setDate(end.getDate() - 6);
-
-        const mealsInWeek = await getMealsByRange(toDateStr(start), toDateStr(end));
-        const totalsByDate = new Map<string, { calories: number; protein: number }>();
-
-        mealsInWeek.forEach((meal) => {
-          const current = totalsByDate.get(meal.date) ?? { calories: 0, protein: 0 };
-          current.calories += extractNum(meal.nutrition?.calories ?? '0');
-          current.protein += extractNum(meal.nutrition?.protein ?? '0');
-          totalsByDate.set(meal.date, current);
-        });
-
-        const daysWithMeals = totalsByDate.size;
-        const totals = Array.from(totalsByDate.values());
-        const sumCalories = totals.reduce((acc, day) => acc + day.calories, 0);
-        const sumProtein = totals.reduce((acc, day) => acc + day.protein, 0);
-
-        if (!active) return;
-
-        setWeeklySnapshot({
-          avgCalories: daysWithMeals > 0 ? Math.round(sumCalories / daysWithMeals) : 0,
-          avgProtein: daysWithMeals > 0 ? Math.round(sumProtein / daysWithMeals) : 0,
-          daysWithMeals,
-        });
-      } catch {
-        if (!active) return;
-        setWeeklySnapshot(null);
-      } finally {
-        if (active) {
-          setWeeklyLoading(false);
-        }
-      }
-    }
-
-    loadWeeklySnapshot();
-
-    return () => {
-      active = false;
-    };
-  }, [meals.length]);
-
-  function handleQuery() {
-    const name = query.trim();
-    if (!name) return;
-    Keyboard.dismiss();
-    const weight = queryWeight.trim();
-    const text = weight ? `${weight}${queryUnit} de ${name}` : name;
-    nutrition.execute(text);
-  }
-
-  function handleClearQuery() {
-    setQuery('');
-    setQueryWeight('');
-    setQueryUnit('g');
-    nutrition.reset();
-  }
-
-  function handleNutritionNeedsReview(
-    source: 'photo' | 'audio',
-    result: NutritionAnalysisResult,
-    payload?: { photoPreviewUri?: string | null; photoPayload?: string | null },
-  ) {
-    setReviewSession({
-      kind: 'nutrition',
-      source,
-      createdAt: new Date().toISOString(),
-      result,
-      photoPreviewUri: payload?.photoPreviewUri ?? null,
-      photoPayload: payload?.photoPayload ?? null,
-    });
-    router.push('/review/assistida' as any);
-  }
-
-  function handlePlanPdfNeedsReview(result: PlanPdfAnalysisResult) {
-    setReviewSession({
-      kind: 'plan',
-      source: 'pdf',
-      createdAt: new Date().toISOString(),
-      result,
-    });
-    router.push('/review/assistida' as any);
-  }
-
-  function handleOpenBmiQuickAction() {
-    router.push('/tools/imc' as any);
-  }
   async function handleSaveNew(params: {
     foods: string;
     mealType: MealType;
@@ -342,596 +353,484 @@ export default function HomeScreen() {
     dishName?: string;
     imageBase64?: string | null;
   }) {
-    const foodsWithName = buildFoodsString(params.dishName, params.foods);
-    await add(foodsWithName, params.mealType, params.nutrition, params.time, params.date, params.imageBase64);
+    await add(buildFoodsString(params.dishName, params.foods), params.mealType, params.nutrition, params.time, params.date, params.imageBase64);
     setRegisterVisible(false);
-  }
-
-  function handleEdit(meal: Meal) {
-    setEditingMeal(meal);
-    setRegisterVisible(true);
-  }
-
-  async function handleEditSave(
-    id: string,
-    params: {
-      foods: string;
-      mealType: MealType;
-      time?: string;
-      nutrition: NutritionData;
-      imageBase64?: string | null;
-    },
-  ) {
-    const { imageBase64, ...mealParams } = params;
-    await edit(id, { ...mealParams, ...(imageBase64 ? { image: imageBase64 } : {}) });
-    setEditingMeal(null);
-    setRegisterVisible(false);
-    refresh();
-  }
-
-  async function handleQuickAdd(fav: Favorite, mealType: MealType) {
-    let imageBase64: string | undefined;
-    if (fav.imageUrl) {
-      try {
-        const resp = await fetch(fav.imageUrl);
-        const blob = await resp.blob();
-        imageBase64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-          reader.readAsDataURL(blob);
-        });
-      } catch {
-        imageBase64 = undefined;
-      }
-    }
-    await add(fav.foods, mealType, fav.nutrition, undefined, undefined, imageBase64);
-    setQuickAddVisible(false);
-  }
-
-  function handleOpenMyDishes() {
-    if (favorites.length > 0) {
-      setQuickAddVisible(true);
-      return;
-    }
-    router.push('/(tabs)/explore' as any);
-  }
-
-  function runHydrationPulse() {
-    Animated.sequence([
-      Animated.timing(hydrationPulse, {
-        toValue: 1,
-        duration: 130,
-        useNativeDriver: true,
-      }),
-      Animated.timing(hydrationPulse, {
-        toValue: 0,
-        duration: 190,
-        useNativeDriver: true,
-      }),
-    ]).start();
   }
 
   async function sendHydrationUpdate(params: { deltaMl?: number; goalMl?: number }) {
     if (hydrationSaving) return;
-
     setHydrationSaving(true);
     try {
-      const water = await saveWaterStatus(params);
-      applyHydrationState(water);
+      applyHydration(await saveWaterStatus({ date: selectedDate, ...params }));
       setHydrationError(null);
-
-      if (typeof params.deltaMl === 'number' && params.deltaMl !== 0) {
-        runHydrationPulse();
+      if (params.deltaMl) {
+        hydrationPulse.setValue(0);
+        Animated.sequence([
+          Animated.timing(hydrationPulse, { toValue: 1, duration: 120, useNativeDriver: true }),
+          Animated.timing(hydrationPulse, { toValue: 0, duration: 160, useNativeDriver: true }),
+        ]).start();
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Falha ao atualizar hidratacao.';
-      setHydrationError(message);
+      setHydrationError(error instanceof Error ? error.message : 'Falha ao atualizar hidratacao.');
     } finally {
       setHydrationSaving(false);
     }
   }
 
-  function addHydration(deltaMl: number) {
-    void sendHydrationUpdate({ deltaMl });
+  async function handleHydrationGoalSelect(goalMl: number) {
+    setHydrationGoalMenuOpen(false);
+    await sendHydrationUpdate({ goalMl });
   }
 
-  function setHydrationGoal(goalMl: number) {
-    void sendHydrationUpdate({ goalMl });
+  async function handleSaveGoals(
+    updates: Partial<{
+      caloriesGoal: number;
+      proteinGoal: number;
+      carbsGoal: number;
+      fatGoal: number;
+    }>,
+  ) {
+    if (goalsSaving) return;
+
+    setGoalsSaving(true);
+    try {
+      const nextGoals = await saveNutritionGoals({ date: selectedDate, ...updates });
+      setNutritionGoals(nextGoals);
+      setGoalsError(null);
+      setGoalsModalVisible(false);
+    } catch (error) {
+      setGoalsError(error instanceof Error ? error.message : 'Falha ao salvar metas do dia.');
+    } finally {
+      setGoalsSaving(false);
+    }
   }
 
-  const cal = totals ? Math.round(extractNum(totals.calories)) : 0;
-  const prot = totals ? Math.round(extractNum(totals.protein)) : 0;
-  const carb = totals ? Math.round(extractNum(totals.carbs)) : 0;
+  function markNotificationsLocally(params: { ids?: string[]; markAll?: boolean }) {
+    setNotificationsSnapshot((current) => {
+      const notifications = current.notifications.map((item) => {
+        const shouldMark = params.markAll || params.ids?.includes(item.id);
+        if (!shouldMark || item.readAt) return item;
+        return { ...item, readAt: new Date().toISOString() };
+      });
+
+      return {
+        notifications,
+        unreadCount: notifications.filter((item) => !item.readAt).length,
+      };
+    });
+  }
+
+  async function handleOpenNotifications() {
+    setNotificationsVisible(true);
+    await loadNotifications();
+  }
+
+  async function handlePressNotification(notification: AppNotification) {
+    if (!notification.readAt) {
+      setNotificationBusyIds((current) => ({ ...current, [notification.id]: true }));
+      markNotificationsLocally({ ids: [notification.id] });
+
+      try {
+        const snapshot = await markNotificationsRead({ notificationIds: [notification.id] });
+        if (snapshot) {
+          applyNotifications(snapshot);
+        }
+        setNotificationsError(null);
+      } catch (error) {
+        setNotificationsError(error instanceof Error ? error.message : 'Falha ao atualizar a notificação.');
+        await loadNotifications();
+      } finally {
+        setNotificationBusyIds((current) => {
+          const next = { ...current };
+          delete next[notification.id];
+          return next;
+        });
+      }
+    }
+
+    if (notification.actionRoute) {
+      setNotificationsVisible(false);
+      router.push(notification.actionRoute as any);
+    }
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    if (notificationsMarkingAll || notificationsSnapshot.unreadCount === 0) return;
+
+    setNotificationsMarkingAll(true);
+    markNotificationsLocally({ markAll: true });
+
+    try {
+      const snapshot = await markNotificationsRead({ markAll: true });
+      if (snapshot) {
+        applyNotifications(snapshot);
+      }
+      setNotificationsError(null);
+    } catch (error) {
+      setNotificationsError(error instanceof Error ? error.message : 'Falha ao marcar as notificações.');
+      await loadNotifications();
+    } finally {
+      setNotificationsMarkingAll(false);
+    }
+  }
+
+  const calories = totals ? Math.round(extractNum(totals.calories)) : 0;
+  const protein = totals ? Math.round(extractNum(totals.protein)) : 0;
+  const carbs = totals ? Math.round(extractNum(totals.carbs)) : 0;
   const fat = totals ? Math.round(extractNum(totals.fat)) : 0;
-  const progress = clamp(cal / DAILY_GOAL_KCAL, 0, 1);
-  const score = calculateNutritionScore(prot, carb, fat, cal);
-  const activeHydrationGoalMl = hydrationGoalMl > 0 ? hydrationGoalMl : DEFAULT_HYDRATION_GOAL_ML;
-  const hydrationProgress = clamp(hydrationMl / activeHydrationGoalMl, 0, 1);
-  const sortedMeals = [...meals].sort((a, b) => (b.time ?? '').localeCompare(a.time ?? ''));
-  const macros = [
-    {
-      id: 'protein',
-      label: 'Proteina',
-      consumed: prot,
-      goal: DAILY_MACRO_GOALS.protein,
-      color: Brand.macroProtein,
-      bg: Brand.macroProteinBg,
-    },
-    {
-      id: 'carbs',
-      label: 'Carboidrato',
-      consumed: carb,
-      goal: DAILY_MACRO_GOALS.carbs,
-      color: Brand.macroCarb,
-      bg: Brand.macroCarbBg,
-    },
-    {
-      id: 'fat',
-      label: 'Gordura',
-      consumed: fat,
-      goal: DAILY_MACRO_GOALS.fat,
-      color: Brand.macroFat,
-      bg: Brand.macroFatBg,
-    },
-  ] as const;
 
-  const proteinRemaining = Math.max(0, DAILY_MACRO_GOALS.protein - prot);
-  const carbsRemaining = Math.max(0, DAILY_MACRO_GOALS.carbs - carb);
-  const fatRemaining = Math.max(0, DAILY_MACRO_GOALS.fat - fat);
-  const caloriesRemaining = Math.max(0, DAILY_GOAL_KCAL - cal);
-  const hydrationRemaining = Math.max(0, activeHydrationGoalMl - hydrationMl);
-  const dailyInsight = insightMessage({
-    mealsCount: meals.length,
-    proteinRemaining,
-    hydrationRemainingMl: hydrationRemaining,
-    caloriesRemaining,
-  });
-  const suggestedMeals = mealSuggestions({
-    proteinRemaining,
-    carbsRemaining,
-    fatRemaining,
-    caloriesRemaining,
-  });
+  const goalItems = buildGoalItems(calories, protein, carbs, fat, nutritionGoals);
+  const calorieGoal = goalItems.find((item) => item.key === 'calories') ?? null;
+  const macroGoalItems = goalItems.filter((item) => item.key !== 'calories');
+  const hasAnyGoals = goalItems.length > 0;
+  const progress = hasAnyGoals ? goalItems.reduce((sum, item) => sum + item.progress, 0) / goalItems.length : 0;
+  const dashboardDateLabel = isTodayDate(selectedDate) ? 'Hoje' : 'Dia selecionado';
+  const dashboardSupportText = isTodayDate(selectedDate)
+    ? 'Tudo importante do seu dia em um so lugar.'
+    : 'Revise outra data sem perder o contexto.';
+  const heroTitle = hasAnyGoals ? 'Metas e macros' : 'Nutrição do dia';
+  const heroBadgeValue = meals.length;
+  const heroBadgeLabel = meals.length === 1 ? 'refeição' : 'refeições';
+  const calorieBadgeValue = calorieGoal ? `${Math.round(calorieGoal.progress * 100)}%` : `${Math.round(progress * 100)}%`;
+  const calorieBadgeLabel = calorieGoal ? 'da meta' : 'do plano';
+  const calorieSummaryText = calorieGoal
+    ? calorieGoal.reached
+      ? 'Meta calórica concluída.'
+      : `${Math.round(calorieGoal.remaining)} kcal restantes.`
+    : hasAnyGoals
+      ? `${goalItems.length} metas ativas para esta data.`
+      : 'Cadastre metas para acompanhar melhor o seu dia.';
+  const calorieSecondaryText = calorieGoal
+    ? `Meta ${Math.round(calorieGoal.goal)} kcal`
+    : meals.length > 0
+      ? `${meals.length} ${meals.length === 1 ? 'registro' : 'registros'} em ${formatDateChip(selectedDate)}`
+      : `Sem registros em ${formatDateChip(selectedDate)}`;
+
+  const hydrationGoal = hydrationGoalMl > 0 ? hydrationGoalMl : null;
+  const hydrationProgress = hydrationGoal ? clamp(hydrationMl / hydrationGoal, 0, 1) : 0;
+
+  const hydrationRemaining = waterStatus ? Math.max(0, waterStatus.remainingMl) : null;
+  const lastWaterEvent =
+    waterStatus && waterStatus.events.length > 0 ? waterStatus.events[waterStatus.events.length - 1] : null;
+  const hydrationStatusText = hydrationGoal
+    ? waterStatus?.goalReached
+      ? 'Meta de água concluída hoje.'
+      : hydrationRemaining !== null
+        ? `Faltam ${Math.round(hydrationRemaining)} ml para fechar a meta.`
+        : `Meta de ${formatLiters(hydrationGoal)} pronta para acompanhar.`
+    : 'Defina uma meta na engrenagem para acompanhar seu progresso.';
+  const hydrationEventText = lastWaterEvent
+    ? `Último ajuste ${lastWaterEvent.deltaMl >= 0 ? '+' : ''}${Math.round(lastWaterEvent.deltaMl)} ml às ${formatWaterEventTime(lastWaterEvent)}.`
+    : 'Ajuste a água com um toque nos botões abaixo.';
+  const mealSummaries = buildMealSummaries(meals);
+  const unreadNotificationsCount = notificationsSnapshot.unreadCount;
 
   useEffect(() => {
-    Animated.timing(dayProgressAnim, {
-      toValue: progress,
-      duration: 450,
-      useNativeDriver: false,
-    }).start();
-  }, [dayProgressAnim, progress]);
+    Animated.timing(dayAnim, { toValue: progress, duration: 450, useNativeDriver: false }).start();
+  }, [dayAnim, progress]);
 
   useEffect(() => {
-    Animated.timing(hydrationProgressAnim, {
-      toValue: hydrationProgress,
-      duration: 350,
-      useNativeDriver: false,
-    }).start();
-  }, [hydrationProgress, hydrationProgressAnim]);
+    Animated.timing(hydrationAnim, { toValue: hydrationProgress, duration: 320, useNativeDriver: false }).start();
+  }, [hydrationAnim, hydrationProgress]);
 
-  const dayProgressWidth = dayProgressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
-
-  const hydrationProgressWidth = hydrationProgressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
-
-  const hydrationScale = hydrationPulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.04],
-  });
+  const dayWidth = dayAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  const hydrationWidth = hydrationAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  const hydrationScale = hydrationPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] });
 
   return (
     <View style={s.root}>
       <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
-
       <ScrollView
-        contentContainerStyle={[s.scroll, { paddingBottom: 160 + insets.bottom }]}
+        contentContainerStyle={[s.scroll, { paddingTop: insets.top + Spacing.sm, paddingBottom: 140 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        <View style={[s.headerHero, { paddingTop: insets.top + 10 }]}> 
-          <View style={s.headerGlowPrimary} />
-          <View style={s.headerGlowSecondary} />
-
-          <View style={s.headerTopRow}>
-            <Pressable style={s.headerLeft} onPress={() => setProfileVisible(true)}>
-              {user?.profileImageUrl ? (
-                <Image source={{ uri: user.profileImageUrl }} style={s.avatar} />
-              ) : (
-                <View style={s.avatarPlaceholder}>
-                  <Text style={s.avatarLetter}>{(user?.username ?? 'V').charAt(0).toUpperCase()}</Text>
-                </View>
-              )}
-              <View style={s.headerTextWrap}>
-                <Text style={s.greeting}>{greeting()}{user ? `, ${user.username}` : ''}</Text>
-                <Text style={s.dateLabel}>{todayLabel()}</Text>
-              </View>
-            </Pressable>
-            <View style={s.headerActions}>
-              <Pressable style={({ pressed }) => [s.headerIconBtn, pressed && s.iconBtnPressed]} onPress={() => router.push('/(tabs)/history' as any)}>
-                <Ionicons name="notifications-outline" size={18} color={Brand.text} />
+        <View style={s.header}>
+          <View style={s.headerRow}>
+            <View style={s.profile}>
+              <Pressable style={({ pressed }) => [s.avatarButton, pressed && s.pressed]} onPress={() => setProfileVisible(true)}>
+                {user?.profileImageUrl ? (
+                  <Image source={{ uri: user.profileImageUrl }} style={s.avatar} />
+                ) : (
+                  <View style={s.avatarFallback}><Text style={s.avatarText}>{(user?.username ?? 'V').charAt(0).toUpperCase()}</Text></View>
+                )}
               </Pressable>
-              <Pressable style={({ pressed }) => [s.headerIconBtn, pressed && s.iconBtnPressed]} onPress={() => setProfileVisible(true)}>
-                <Ionicons name="settings-outline" size={18} color={Brand.text} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.greeting}>{greeting()}{user ? `, ${user.username}` : ''}</Text>
+                <Text style={s.date}>{dashboardSupportText}</Text>
+              </View>
+            </View>
+            <View style={s.actions}>
+              <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} onPress={() => router.push('/(tabs)/history' as any)}>
+                <Ionicons name="stats-chart-outline" size={18} color={Brand.text} />
+              </Pressable>
+              <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} onPress={handleOpenNotifications}>
+                <Ionicons name={unreadNotificationsCount > 0 ? 'notifications' : 'notifications-outline'} size={18} color={Brand.text} />
+                {unreadNotificationsCount > 0 ? (
+                  <View style={s.notificationBadge}>
+                    <Text style={s.notificationBadgeText}>{unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}</Text>
+                  </View>
+                ) : null}
               </Pressable>
             </View>
           </View>
-
-          <View style={s.headerBottomHint}>
-            <NutritionIllustration size={20} />
-            <Text style={s.headerBottomHintText}>Seu progresso alimentar de hoje</Text>
+          <View style={s.dateRail}>
+            <Pressable style={({ pressed }) => [s.dateArrow, pressed && s.pressed]} onPress={() => setDate(shiftDate(selectedDate, -1))}>
+              <Ionicons name="chevron-back" size={18} color={Brand.greenDark} />
+            </Pressable>
+            <Pressable style={({ pressed }) => [s.dateCenter, pressed && s.pressed]} onPress={() => setCalendarVisible(true)}>
+              <View style={s.dateCenterHeader}>
+                <Ionicons name="calendar-outline" size={14} color={Brand.greenDark} />
+                <Text style={s.dateCenterLabel}>{dashboardDateLabel}</Text>
+              </View>
+              <Text style={s.dateCenterValue}>{formatCompactSelectedDate(selectedDate)}</Text>
+            </Pressable>
+            <Pressable style={({ pressed }) => [s.dateArrow, pressed && s.pressed]} onPress={() => setDate(shiftDate(selectedDate, 1))}>
+              <Ionicons name="chevron-forward" size={18} color={Brand.greenDark} />
+            </Pressable>
           </View>
         </View>
 
-        <View style={s.dayCard}>
-          <View style={s.cardHeadingRow}>
-            <View>
-              <Text style={s.dayTitle}>Meu dia</Text>
-              <Text style={s.daySubtitle}>Resumo calorico e distribuicao de macros</Text>
+        <View style={s.hero}>
+          <View pointerEvents="none" style={s.heroGlowTop} />
+          <View pointerEvents="none" style={s.heroGlowBottom} />
+          <View style={s.heroTop}>
+            <View style={s.heroCopy}>
+              <Text style={s.heroLabel}>Nutrição</Text>
+              <Text style={s.heroTitle}>{heroTitle}</Text>
+              <Text style={s.heroSubtitle}>
+                {meals.length > 0
+                  ? 'Calorias e macros organizados para leitura mais rápida.'
+                  : 'Quando você registrar as refeições, o resumo vai ficar bem mais claro aqui.'}
+              </Text>
             </View>
-            <View style={s.scoreChip}>
-              <Text style={s.scoreLabel}>Score</Text>
-              <Text style={s.scoreValue}>{Math.round(score)}</Text>
+            <View style={s.heroBadge}>
+              <Text style={s.heroBadgeValue}>{heroBadgeValue}</Text>
+              <Text style={s.heroBadgeLabel}>{heroBadgeLabel}</Text>
             </View>
           </View>
-
-          <View style={s.kcalRow}>
-            <Text style={s.kcalValue}>{cal}</Text>
-            <Text style={s.kcalGoal}>/ {DAILY_GOAL_KCAL} kcal</Text>
-          </View>
-
-          <View style={s.progressTrack}>
-            <Animated.View style={[s.progressFill, { width: dayProgressWidth }]} />
-          </View>
-          <Text style={s.progressText}>{Math.round(progress * 100)}% da meta concluida</Text>
-          <Text style={s.goalHint}>{Math.max(0, DAILY_GOAL_KCAL - cal)} kcal para bater a meta</Text>
-
-          <View style={s.macroRow}>
-            <MacroPill label="proteina" value={`${prot}g`} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
-            <MacroPill label="carboidrato" value={`${carb}g`} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
-            <MacroPill label="gordura" value={`${fat}g`} color={Brand.macroFat} bg={Brand.macroFatBg} />
-          </View>
-
-          <View style={s.macroGoalsWrap}>
-            <Text style={s.macroGoalsTitle}>Metas de macros</Text>
-            {macros.map((macro) => {
-              const ratio = macroGoalProgress(macro.consumed, macro.goal);
-              return (
-                <View key={macro.id} style={s.macroGoalRow}>
-                  <View style={s.macroGoalTop}>
-                    <Text style={s.macroGoalLabel}>{macro.label}</Text>
-                    <Text style={s.macroGoalValue}>
-                      {macro.consumed} / {macro.goal}g
-                    </Text>
-                  </View>
-                  <View style={[s.macroGoalTrack, { backgroundColor: macro.bg }]}>
-                    <View
-                      style={[
-                        s.macroGoalFill,
-                        {
-                          backgroundColor: macro.color,
-                          width: `${Math.round(ratio * 100)}%`,
-                        },
-                      ]}
-                    />
+          {goalsLoading ? (
+            <View style={s.loadingBox}>
+              <ActivityIndicator color={Brand.greenDark} size="small" />
+              <Text style={s.loadingText}>Carregando metas desta data...</Text>
+            </View>
+          ) : hasAnyGoals ? (
+            <>
+              <View style={s.calorieSpotlight}>
+                <View style={s.calorieSpotlightCopy}>
+                  <Text style={s.calorieSpotlightLabel}>Calorias</Text>
+                  <View style={s.calorieSpotlightRow}>
+                    <Text style={s.calorieSpotlightValue}>{calories}</Text>
+                    <Text style={s.calorieSpotlightUnit}>kcal</Text>
                   </View>
                 </View>
-              );
-            })}
+                <View style={s.calorieBadge}>
+                  <Text style={s.calorieBadgeValue}>{calorieBadgeValue}</Text>
+                  <Text style={s.calorieBadgeLabel}>{calorieBadgeLabel}</Text>
+                </View>
+              </View>
+              <View style={s.track}><Animated.View style={[s.fill, { width: dayWidth }]} /></View>
+              <View style={s.heroMetaRow}>
+                <View style={[s.heroMetaChip, s.heroMetaChipPrimary]}>
+                  <Text style={[s.heroMetaChipText, s.heroMetaChipTextPrimary]}>{calorieSummaryText}</Text>
+                </View>
+                <View style={s.heroMetaChip}>
+                  <Text style={s.heroMetaChipText}>{calorieSecondaryText}</Text>
+                </View>
+              </View>
+              <View style={s.macroSection}>
+                <View style={s.rowBetween}>
+                  <Text style={s.sectionMiniTitle}>Macros</Text>
+                  {macroGoalItems.length > 0 ? <Text style={s.counter}>{macroGoalItems.length} ativos</Text> : null}
+                </View>
+                {macroGoalItems.length > 0 ? (
+                  macroGoalItems.map((item) => (
+                    <MacroBar
+                      key={item.key}
+                      label={item.label}
+                      consumed={Math.round(item.consumed)}
+                      goal={Math.round(item.goal)}
+                      color={item.color}
+                      bg={item.bg}
+                      unit={item.unit}
+                      remaining={Math.round(item.remaining)}
+                    />
+                  ))
+                ) : (
+                  <Text style={s.sectionSub}>Cadastre proteina, carboidrato e gordura para acompanhar os macros com mais clareza.</Text>
+                )}
+              </View>
+            </>
+          ) : (
+            <View style={s.emptyGoalState}>
+              <Text style={s.emptyGoalTitle}>Nenhuma meta cadastrada para este dia</Text>
+              <Text style={s.emptyGoalText}>Cadastre calorias e macros por data para acompanhar a evolução com a meta correta.</Text>
+              <AppButton title="Configurar metas do dia" onPress={() => setGoalsModalVisible(true)} />
+            </View>
+          )}
+
+          <View style={s.mealSummarySection}>
+            <View style={s.rowBetween}>
+              <Text style={s.sectionMiniTitle}>Períodos registrados</Text>
+              <Text style={s.counter}>
+                {meals.length > 0 ? `${meals.length} ${meals.length === 1 ? 'item' : 'itens'}` : 'Sem registros'}
+              </Text>
+            </View>
+            {mealSummaries.length > 0 ? (
+              <View style={s.mealSummaryGrid}>
+                {mealSummaries.map((item) => (
+                  <View key={item.type} style={s.mealSummaryCard}>
+                    <View style={s.mealSummaryHeader}>
+                      <View style={[s.mealSummaryIcon, { backgroundColor: item.bg }]}>
+                        <Ionicons name={item.icon} size={16} color={item.color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.mealSummaryLabel}>{item.label}</Text>
+                        <Text style={s.mealSummaryCount}>{item.count} {item.count === 1 ? 'registro' : 'registros'}</Text>
+                      </View>
+                      <Text style={s.mealSummaryCalories}>{Math.round(item.calories)} kcal</Text>
+                    </View>
+                    <Text style={s.mealSummaryMacros}>
+                      P {Math.round(item.protein)}g • C {Math.round(item.carbs)}g • G {Math.round(item.fat)}g
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={s.sectionSub}>Os períodos só aparecem aqui quando houver pratos registrados no dia.</Text>
+            )}
+          </View>
+          <View style={s.heroActions}>
+            <Pressable style={({ pressed }) => [s.secondaryChip, pressed && s.pressed]} onPress={() => setGoalsModalVisible(true)}>
+              <Ionicons name="sparkles-outline" size={15} color={Brand.greenDark} />
+              <Text style={s.secondaryChipText}>{hasAnyGoals ? 'Editar metas' : 'Criar metas'}</Text>
+            </Pressable>
+            <Pressable style={({ pressed }) => [s.secondaryChip, pressed && s.pressed]} onPress={() => setCalendarVisible(true)}>
+              <Ionicons name="calendar-outline" size={15} color={Brand.greenDark} />
+              <Text style={s.secondaryChipText}>Trocar dia</Text>
+            </Pressable>
+          </View>
+          {goalsError ? <Text style={s.error}>{goalsError}</Text> : null}
+        </View>
+
+        <View style={s.actionCard}>
+          <Text style={s.sectionTitle}>Registrar refeição</Text>
+          <Text style={s.sectionSub}>Tudo que você salvar aqui entra no resumo de {formatDateChip(selectedDate)}.</Text>
+          <AppButton title="Registrar refeição" onPress={() => setRegisterVisible(true)} />
+          <View style={s.quickRow}>
+            <Shortcut label="Foto" icon="camera-outline" onPress={() => router.push({ pathname: '/(tabs)/devtools', params: { tool: 'photo' } } as any)} />
+            <Shortcut label="Buscar" icon="search-outline" onPress={() => router.push({ pathname: '/(tabs)/devtools', params: { tool: 'search' } } as any)} />
           </View>
         </View>
 
         <View style={s.hydrationCard}>
-          <View style={s.hydrationTopRow}>
-            <View style={s.hydrationTitleWrap}>
+          <View pointerEvents="none" style={s.hydrationGlowLarge} />
+          <View pointerEvents="none" style={s.hydrationGlowSmall} />
+          <View style={s.hydrationHeaderRow}>
+            <View style={s.hydrationHeaderCopy}>
               <View style={s.hydrationIconWrap}>
-                <Ionicons name="water-outline" size={17} color={Brand.hydration} />
+                <Ionicons name="water-outline" size={18} color="#0B6B94" />
               </View>
-              <View>
-                <Text style={s.hydrationTitle}>Hidratacao</Text>
-                <Text style={s.hydrationSubtitle}>Acompanhe sua agua no dia</Text>
-              </View>
-            </View>
-            <Animated.View style={[s.hydrationValueWrap, { transform: [{ scale: hydrationScale }] }]}>
-              <Text style={s.hydrationValue}>{formatLiters(hydrationMl)}</Text>
-              <Text style={s.hydrationGoal}>/ {formatLiters(activeHydrationGoalMl)}</Text>
-            </Animated.View>
-          </View>
-
-          <View style={s.hydrationTrack}>
-            <Animated.View style={[s.hydrationFill, { width: hydrationProgressWidth }]} />
-          </View>
-
-          {hydrationLoading || hydrationSaving ? (
-            <Text style={s.hydrationStatusText}>
-              {hydrationSaving ? 'Sincronizando hidratacao...' : 'Carregando hidratacao do dia...'}
-            </Text>
-          ) : null}
-          {hydrationError ? <Text style={s.hydrationErrorText}>{hydrationError}</Text> : null}
-
-          <View style={s.hydrationActions}>
-            <HydrationButton
-              label="+200ml"
-              onPress={() => addHydration(200)}
-              disabled={hydrationLoading || hydrationSaving}
-            />
-            <HydrationButton
-              label="-15ml"
-              onPress={() => addHydration(-15)}
-              disabled={hydrationLoading || hydrationSaving || hydrationMl <= 0}
-            />
-            <HydrationButton
-              label="Meta 2.5L"
-              onPress={() => setHydrationGoal(2500)}
-              disabled={hydrationLoading || hydrationSaving}
-            />
-          </View>
-        </View>
-
-        <View style={s.insightCard}>
-          <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionTitle}>Insight do dia</Text>
-            <Text style={s.counterText}>acoes sugeridas</Text>
-          </View>
-          <Text style={s.insightText}>{dailyInsight}</Text>
-          <View style={s.suggestionRow}>
-            {suggestedMeals.map((suggestion, index) => (
-              <View key={`${suggestion}-${index}`} style={s.suggestionChip}>
-                <Text style={s.suggestionChipText}>{suggestion}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={s.card}>
-          <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionTitle}>Semana em foco</Text>
-            <Text style={s.counterText}>ultimos 7 dias</Text>
-          </View>
-          {weeklyLoading ? (
-            <Text style={s.sectionSubtitle}>Carregando panorama semanal...</Text>
-          ) : weeklySnapshot && weeklySnapshot.daysWithMeals > 0 ? (
-            <View style={s.weeklyGrid}>
-              <View style={s.weeklyMetric}>
-                <Text style={s.weeklyMetricLabel}>Calorias medias</Text>
-                <Text style={s.weeklyMetricValue}>{weeklySnapshot.avgCalories} kcal</Text>
-              </View>
-              <View style={s.weeklyMetric}>
-                <Text style={s.weeklyMetricLabel}>Proteina media</Text>
-                <Text style={s.weeklyMetricValue}>{weeklySnapshot.avgProtein}g</Text>
-              </View>
-              <View style={s.weeklyMetric}>
-                <Text style={s.weeklyMetricLabel}>Dias com refeicoes</Text>
-                <Text style={s.weeklyMetricValue}>{weeklySnapshot.daysWithMeals}/7</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.hydrationTitle}>Hidratação</Text>
+                <Text style={s.hydrationHeaderHint}>
+                  {hydrationGoal ? `Meta ${formatLiters(hydrationGoal)}` : 'Defina a meta na engrenagem'}
+                </Text>
               </View>
             </View>
-          ) : (
-            <Text style={s.sectionSubtitle}>
-              Sem dados suficientes na semana. Registre refeicoes para liberar seu panorama.
-            </Text>
-          )}
-        </View>
-
-        <AppButton title="+ Nova refeicao" onPress={() => setRegisterVisible(true)} />
-
-        <View style={s.card}>
-          <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionTitle}>Pratos salvos</Text>
-            <Pressable onPress={handleOpenMyDishes}>
-              <Text style={s.linkText}>{favorites.length > 0 ? 'Ver todos' : 'Cadastrar'}</Text>
+            <Pressable
+              style={({ pressed }) => [s.hydrationSettingsButton, pressed && s.pressed]}
+              onPress={() => setHydrationGoalMenuOpen((current) => !current)}>
+              <Ionicons name="settings-outline" size={18} color="#0B6B94" />
             </Pressable>
           </View>
-
-          {favorites.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.savedCarousel}>
-              {favorites.map((fav) => (
-                <Pressable
-                  key={fav.id}
-                  style={({ pressed }) => [s.savedCard, pressed && s.savedCardPressed]}
-                  onPress={() => setQuickAddVisible(true)}>
-                  {fav.imageUrl ? (
-                    <Image source={{ uri: fav.imageUrl }} style={s.savedCardImage} />
-                  ) : (
-                    <View style={s.savedCardImagePlaceholder}>
-                      <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
-                    </View>
-                  )}
-                  <Text style={s.savedCardTitle} numberOfLines={2}>{fav.foods}</Text>
-                  <Text style={s.savedCardKcal}>{fav.nutrition.calories}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={s.emptyState}>
-              <Text style={s.emptyTitle}>Nenhum prato salvo ainda</Text>
-              <Text style={s.emptySubtitle}>Salve seus pratos para lancamento rapido.</Text>
-              <View style={s.emptyButtonWrap}>
-                <AppButton title="Ir para Meus pratos" variant="secondary" onPress={handleOpenMyDishes} />
-              </View>
-            </View>
-          )}
-        </View>
-
-        <View style={s.card}>
-          <Text style={s.sectionTitle}>Consulta de alimentos</Text>
-          <Text style={s.sectionSubtitle}>Busque rapidamente e consulte calorias e macros.</Text>
-
-          <View style={s.searchInputWrap}>
-            <Ionicons style={s.searchIcon} name="search-outline" size={18} color={Brand.textSecondary} />
-            <AppInput
-              ref={queryInputRef}
-              placeholder="Buscar banana, arroz, frango..."
-              value={query}
-              onChangeText={(t: string) => setQuery(t.replace(/[^a-zA-Z\s]/g, ''))}
-              maxLength={50}
-              style={s.searchInput}
-            />
-          </View>
-
-          <View style={s.categoryRow}>
-            {FOOD_CATEGORIES.map((item) => (
-              <Pressable
-                key={item.id}
-                style={({ pressed }) => [s.categoryChip, { backgroundColor: item.tint }, pressed && s.categoryChipPressed]}
-                onPress={() => {
-                  setQuery(item.query);
-                  setQueryWeight('');
-                  setQueryUnit('g');
-                  nutrition.reset();
-                }}>
-                <Ionicons name={item.icon as keyof typeof Ionicons.glyphMap} size={14} color={Brand.text} />
-                <Text style={s.categoryChipLabel}>{item.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <View style={s.queryWeightRow}>
-            <View style={{ flex: 1 }}>
-              <AppInput
-                placeholder="Quantidade"
-                value={queryWeight}
-                onChangeText={(t: string) => setQueryWeight(t.replace(/[^0-9.,]/g, ''))}
-                keyboardType="numeric"
-                maxLength={7}
-              />
-            </View>
-            <View style={s.queryUnitRow}>
-              {UNITS.map((u) => (
-                <Pressable
-                  key={u}
-                  style={[s.queryUnitBtn, queryUnit === u && s.queryUnitBtnActive]}
-                  onPress={() => setQueryUnit(u)}>
-                  <Text style={[s.queryUnitText, queryUnit === u && s.queryUnitTextActive]}>{u}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-
-          <AppButton title="Consultar calorias" onPress={handleQuery} loading={nutrition.loading} disabled={!query.trim()} />
-
-          {nutrition.data ? (
-            <View style={s.resultBox}>
-              <Text style={s.resultCal}>{nutrition.data.calories}</Text>
-              <View style={s.resultMacros}>
-                <MacroPill label="proteina" value={nutrition.data.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
-                <MacroPill label="carboidrato" value={nutrition.data.carbs} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
-                <MacroPill label="gordura" value={nutrition.data.fat} color={Brand.macroFat} bg={Brand.macroFatBg} />
-              </View>
-              <Pressable onPress={handleClearQuery}>
-                <Text style={s.resultClear}>Limpar consulta</Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          {nutrition.error ? (
-            <NutritionErrorModal visible={!!nutrition.error} message={nutrition.error} onClose={() => nutrition.reset()} />
-          ) : null}
-        </View>
-
-        <View style={s.analysisCard}>
-          <View style={s.analysisGlowTop} />
-          <View style={s.sectionHeader}>
-            <View>
-              <Text style={s.sectionTitle}>Analisar refeicao</Text>
-              <Text style={s.analysisSubtitle}>Foto, voz ou plano alimentar (PDF)</Text>
-            </View>
-            <View style={s.analysisBadge}>
-              <Ionicons name="sparkles-outline" size={14} color={Brand.greenDark} />
-            </View>
-          </View>
-          <View style={s.analyzerTabRow}>
-            <AnalyzerTabButton label="Foto" active={analyzerTab === 'photo'} onPress={() => setAnalyzerTab('photo')} />
-            <AnalyzerTabButton label="Voz" active={analyzerTab === 'audio'} onPress={() => setAnalyzerTab('audio')} />
-            <AnalyzerTabButton label="Plano alimentar" active={analyzerTab === 'plan'} onPress={() => setAnalyzerTab('plan')} />
-          </View>
-
-          {analyzerTab === 'photo' ? (
-            <PhotoNutritionAnalyzer
-              attachments={photoAttachments}
-              onChangeAttachments={setPhotoAttachments}
-              onRequiresReview={(result, payload) => handleNutritionNeedsReview('photo', result, payload)}
-            />
-          ) : null}
-          {analyzerTab === 'audio' ? (
-            <AudioNutritionAnalyzer onRequiresReview={(result) => handleNutritionNeedsReview('audio', result)} />
-          ) : null}
-          {analyzerTab === 'plan' ? (
-            <PdfPlanAnalyzer
-              attachments={planPdfAttachments}
-              onChangeAttachments={setPlanPdfAttachments}
-              onRequiresReview={handlePlanPdfNeedsReview}
-            />
-          ) : null}
-        </View>
-
-        <View style={s.card}>
-          <View style={s.sectionHeaderRow}>
-            <Text style={s.sectionTitle}>Refeicoes de hoje</Text>
-            <Text style={s.counterText}>{meals.length} {meals.length === 1 ? 'registro' : 'registros'}</Text>
-          </View>
-
-          {sortedMeals.length > 0 ? (
-            <View style={s.mealsList}>
-              {sortedMeals.map((meal) => (
-                <MealCard key={meal.id} meal={meal} onEdit={handleEdit} onDuplicate={duplicate} onDelete={remove} />
-              ))}
+          {hydrationLoading ? (
+            <View style={s.loadingBox}>
+              <ActivityIndicator color={Brand.hydration} size="small" />
+              <Text style={s.loadingText}>Carregando água desta data...</Text>
             </View>
           ) : (
-            <View style={s.emptyState}>
-              <Text style={s.emptyTitle}>Nenhuma refeicao registrada hoje</Text>
-              <Text style={s.emptySubtitle}>Comece registrando sua primeira refeicao para acompanhar o progresso.</Text>
-              <View style={s.emptyButtonWrap}>
-                <AppButton title="+ Adicionar refeicao" onPress={() => setRegisterVisible(true)} variant="secondary" />
+            <>
+              <View style={s.hydrationTopRow}>
+                <View style={s.hydrationMetricGroup}>
+                  <Animated.Text style={[s.hydrationHeroValue, { transform: [{ scale: hydrationScale }] }]}>
+                    {formatLiters(hydrationMl)}
+                  </Animated.Text>
+                  <Text style={s.hydrationMetricHint}>
+                    {hydrationGoal ? `de ${formatLiters(hydrationGoal)}` : 'sem meta definida'}
+                  </Text>
+                </View>
+                <View style={[s.hydrationProgressBadge, waterStatus?.goalReached && s.hydrationProgressBadgeDone]}>
+                  <Text style={[s.hydrationProgressValue, waterStatus?.goalReached && s.hydrationProgressValueDone]}>
+                    {Math.round(hydrationProgress * 100)}%
+                  </Text>
+                  <Text style={[s.hydrationProgressLabel, waterStatus?.goalReached && s.hydrationProgressLabelDone]}>
+                    progresso
+                  </Text>
+                </View>
               </View>
-            </View>
+              <View style={s.hydrationTrackShell}>
+                <Animated.View style={[s.hydrationTrackFill, { width: hydrationWidth }]} />
+              </View>
+              <Text style={s.hydrationStatus}>{hydrationStatusText}</Text>
+              <View style={s.hydrationActionsGrid}>
+                {HYDRATION_QUICK_ACTIONS.map((action) => (
+                  <HydrationButton
+                    key={action.label}
+                    label={action.label}
+                    tone={action.tone}
+                    onPress={() => sendHydrationUpdate({ deltaMl: action.deltaMl })}
+                    disabled={hydrationSaving}
+                  />
+                ))}
+              </View>
+              {hydrationGoalMenuOpen ? (
+                <View style={s.hydrationGoalMenu}>
+                  <Text style={s.hydrationGoalMenuTitle}>Meta diária</Text>
+                  <View style={s.quickRow}>
+                    {HYDRATION_GOAL_OPTIONS.map((goal) => (
+                      <GoalChip
+                        key={goal}
+                        label={formatLiters(goal)}
+                        active={hydrationGoalMl === goal}
+                        onPress={() => handleHydrationGoalSelect(goal)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+              <Text style={s.hydrationFootnote}>{hydrationEventText}</Text>
+            </>
           )}
-        </View>
-
-        <View style={s.card}>
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>Calculadora de IMC</Text>
-          </View>
-          <BmiCalculatorCard onOpenAsQuickAction={handleOpenBmiQuickAction} />
+          {hydrationError ? <Text style={s.error}>{hydrationError}</Text> : null}
         </View>
       </ScrollView>
 
-      <RegisterMealModal
-        visible={registerVisible}
-        editMeal={editingMeal}
-        onSave={handleSaveNew}
-        onEditSave={handleEditSave}
-        onClose={() => {
-          setEditingMeal(null);
-          setRegisterVisible(false);
-        }}
-      />
-
+      <RegisterMealModal visible={registerVisible} defaultDate={selectedDate} onSave={handleSaveNew} onClose={() => setRegisterVisible(false)} />
       <EditProfileModal visible={profileVisible} onClose={() => setProfileVisible(false)} />
-
-      <QuickAddSheet
-        visible={quickAddVisible}
-        favorites={favorites}
-        onSelect={handleQuickAdd}
-        onClose={() => setQuickAddVisible(false)}
+      <NotificationCenterModal
+        visible={notificationsVisible}
+        notifications={notificationsSnapshot.notifications}
+        unreadCount={notificationsSnapshot.unreadCount}
+        loading={notificationsLoading}
+        error={notificationsError}
+        busyIds={notificationBusyIds}
+        markingAll={notificationsMarkingAll}
+        onClose={() => setNotificationsVisible(false)}
+        onRefresh={loadNotifications}
+        onPressNotification={handlePressNotification}
+        onMarkAllRead={handleMarkAllNotificationsRead}
       />
+      <CalendarPickerModal visible={calendarVisible} currentDate={selectedDate} title="Selecionar dia do painel" onSelect={(date) => setDate(date)} onClose={() => setCalendarVisible(false)} />
+      <NutritionGoalsModal visible={goalsModalVisible} dateLabel={formatDateForModal(selectedDate)} currentGoals={nutritionGoals?.goals ?? null} goalInherited={nutritionGoals?.goalInherited} saving={goalsSaving} onSave={handleSaveGoals} onClose={() => setGoalsModalVisible(false)} />
     </View>
   );
 }
-function AnalyzerTabButton({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
+
+function Shortcut({ label, icon, onPress }: { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
   return (
-    <Pressable style={[s.analyzerTab, active && s.analyzerTabActive]} onPress={onPress}>
-      <Text style={[s.analyzerTabText, active && s.analyzerTabTextActive]}>{label}</Text>
+    <Pressable style={({ pressed }) => [s.shortcut, pressed && s.pressed]} onPress={onPress}>
+      <Ionicons name={icon} size={15} color={Brand.greenDark} />
+      <Text style={s.shortcutText}>{label}</Text>
     </Pressable>
   );
 }
@@ -939,746 +838,387 @@ function AnalyzerTabButton({
 function HydrationButton({
   label,
   onPress,
-  disabled = false,
+  disabled,
+  tone = 'positive',
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  tone?: 'positive' | 'negative';
 }) {
   return (
     <Pressable
       disabled={disabled}
       style={({ pressed }) => [
-        s.hydrationBtn,
-        disabled && s.hydrationBtnDisabled,
-        pressed && !disabled && s.hydrationBtnPressed,
+        s.waterBtn,
+        tone === 'positive' ? s.waterBtnPositive : s.waterBtnNegative,
+        disabled && s.disabled,
+        pressed && s.pressed,
       ]}
       onPress={onPress}>
-      <Text style={s.hydrationBtnText}>{label}</Text>
+      <Text style={[s.waterBtnText, tone === 'positive' ? s.waterBtnTextPositive : s.waterBtnTextNegative]}>{label}</Text>
     </Pressable>
   );
 }
 
-function MacroPill({
+function GoalChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return <Pressable style={({ pressed }) => [s.goalChip, active && s.goalChipActive, pressed && s.pressed]} onPress={onPress}><Text style={[s.goalChipText, active && s.goalChipTextActive]}>{label}</Text></Pressable>;
+}
+
+function MacroBar({
   label,
-  value,
+  consumed,
+  goal,
   color,
   bg,
+  unit,
+  remaining,
 }: {
   label: string;
-  value: string;
+  consumed: number;
+  goal: number;
   color: string;
   bg: string;
+  unit: string;
+  remaining: number;
 }) {
+  const ratio = goal <= 0 ? 0 : clamp(consumed / goal, 0, 1);
   return (
-    <View style={[s.pill, { backgroundColor: bg }]}> 
-      <Text style={[s.pillLabel, { color }]}>{label}</Text>
-      <Text style={[s.pillValue, { color }]}>{value}</Text>
+    <View style={s.macroCard}>
+      <View style={s.rowBetween}><Text style={s.macroLabel}>{label}</Text><Text style={s.macroValue}>{formatMetricValue(consumed, unit)} / {formatMetricValue(goal, unit)}</Text></View>
+      <View style={[s.macroTrack, { backgroundColor: bg }]}><View style={[s.macroFill, { backgroundColor: color, width: `${Math.round(ratio * 100)}%` }]} /></View>
+      <Text style={s.macroHint}>{consumed >= goal ? 'Meta concluída.' : `${remaining}${unit} restantes.`}</Text>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Brand.bg,
-  },
-  scroll: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: 0,
-    gap: Spacing.sm,
-  },
+  root: { flex: 1, backgroundColor: Brand.bg },
+  scroll: { paddingHorizontal: Spacing.md, gap: Spacing.sm },
 
-  headerHero: {
-    minHeight: 156,
-    borderBottomLeftRadius: Radii.xxl,
-    borderBottomRightRadius: Radii.xxl,
-    backgroundColor: '#E7F5EB',
-    paddingHorizontal: Spacing.md,
-    paddingBottom: 14,
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-  },
-  headerGlowPrimary: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 220,
-    right: -70,
-    top: -120,
-    backgroundColor: '#CDEDD9',
-  },
-  headerGlowSecondary: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 200,
-    left: -80,
-    bottom: -110,
-    backgroundColor: '#D9F2E1',
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  avatarPlaceholder: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Brand.green,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLetter: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  headerTextWrap: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  greeting: {
-    ...Typography.subtitle,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  dateLabel: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
-    marginTop: 1,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  headerIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.82)',
+  header: {
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.95)',
+    borderColor: '#D7ECDD',
+    backgroundColor: '#EEF7F1',
+    padding: 16,
+    gap: 14,
+    ...Shadows.card,
   },
-  iconBtnPressed: {
-    opacity: 0.75,
-  },
-  headerBottomHint: {
-    marginTop: 10,
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderRadius: Radii.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.95)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  headerBottomHintText: {
-    ...Typography.caption,
-    color: Brand.greenDeeper,
-    fontWeight: '700',
-  },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  profile: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  avatarButton: { borderRadius: 24 },
+  avatar: { width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: '#FFFFFF' },
+  avatarFallback: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: Brand.green, borderWidth: 2, borderColor: '#FFFFFF' },
+  avatarText: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
+  greeting: { ...Typography.subtitle, color: Brand.text, fontWeight: '800' },
+  date: { ...Typography.caption, color: Brand.textSecondary, fontWeight: '700' },
+  actions: { flexDirection: 'row', gap: 8 },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 1, borderColor: '#FFFFFF', position: 'relative' },
+  notificationBadge: { position: 'absolute', top: -5, right: -4, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: Brand.danger, borderWidth: 2, borderColor: '#E6F4EA', alignItems: 'center', justifyContent: 'center' },
+  notificationBadgeText: { ...Typography.caption, color: '#FFFFFF', fontWeight: '800', fontSize: 9, lineHeight: 10 },
+  dateRail: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dateArrow: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 1, borderColor: '#D6E8DB' },
+  dateCenter: { flex: 1, borderRadius: 22, borderWidth: 1, borderColor: '#D6E8DB', backgroundColor: 'rgba(255,255,255,0.96)', paddingHorizontal: 14, paddingVertical: 12, gap: 4 },
+  dateCenterHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dateCenterLabel: { ...Typography.caption, color: Brand.greenDark, textTransform: 'uppercase', fontWeight: '700' },
+  dateCenterValue: { ...Typography.subtitle, color: Brand.text, fontWeight: '800' },
+  headerPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pill: { borderRadius: Radii.pill, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.82)', borderWidth: 1, borderColor: '#D1E7D8' },
+  pillText: { ...Typography.caption, color: Brand.greenDeeper, fontWeight: '700' },
 
-  dayCard: {
-    backgroundColor: '#F4F9F4',
-    borderRadius: Radii.xl,
+  hero: {
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: '#DDEADD',
+    borderColor: '#DDE9E0',
+    backgroundColor: '#FCFDFC',
     padding: 18,
-    gap: 12,
+    gap: 14,
+    overflow: 'hidden',
+    position: 'relative',
     ...Shadows.soft,
   },
-  cardHeadingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
+  heroGlowTop: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(198, 239, 214, 0.45)',
+    top: -80,
+    right: -40,
   },
-  dayTitle: {
-    ...Typography.subtitle,
-    color: Brand.text,
-    fontWeight: '800',
+  heroGlowBottom: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(232, 246, 237, 0.8)',
+    bottom: -40,
+    left: -16,
   },
-  daySubtitle: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
-    marginTop: 1,
-  },
-  scoreChip: {
-    width: 74,
-    height: 74,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 37,
-    backgroundColor: '#FFFFFF',
+  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  heroCopy: { gap: 4, flex: 1 },
+  heroLabel: { ...Typography.caption, color: Brand.greenDark, textTransform: 'uppercase', fontWeight: '700' },
+  heroTitle: { ...Typography.title, color: Brand.text, fontSize: 24, lineHeight: 28 },
+  heroSubtitle: { ...Typography.helper, color: Brand.textSecondary, lineHeight: 18 },
+  heroBadge: {
+    minWidth: 78,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#DDEADD',
-    ...Shadows.card,
-  },
-  scoreLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    textTransform: 'uppercase',
-    lineHeight: 12,
-    fontSize: 10,
-  },
-  scoreValue: {
-    ...Typography.title,
-    color: Brand.greenDark,
-    fontWeight: '800',
-    marginTop: -1,
-    lineHeight: 26,
-  },
-  kcalRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-  },
-  kcalValue: {
-    ...Typography.hero,
-    color: Brand.text,
-    fontSize: 42,
-    lineHeight: 44,
-  },
-  kcalGoal: {
-    ...Typography.body,
-    color: Brand.textSecondary,
-    fontWeight: '600',
-  },
-  progressTrack: {
-    width: '100%',
-    height: 11,
-    borderRadius: Radii.pill,
-    backgroundColor: '#DCE8DC',
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: Radii.pill,
-    backgroundColor: Brand.green,
-  },
-  progressText: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
-    marginTop: -2,
-  },
-  goalHint: {
-    ...Typography.caption,
-    color: Brand.greenDark,
-    fontWeight: '700',
-    marginTop: -2,
-  },
-  macroRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 2,
-  },
-  macroGoalsWrap: {
-    marginTop: 2,
-    gap: 9,
-  },
-  macroGoalsTitle: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  macroGoalRow: {
-    gap: 6,
-  },
-  macroGoalTop: {
-    flexDirection: 'row',
+    borderColor: '#D7EBDD',
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
-  macroGoalLabel: {
-    ...Typography.caption,
-    color: Brand.text,
-    fontWeight: '700',
-  },
-  macroGoalValue: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  macroGoalTrack: {
-    height: 7,
-    borderRadius: Radii.pill,
-    overflow: 'hidden',
-  },
-  macroGoalFill: {
-    height: '100%',
-    borderRadius: Radii.pill,
-  },
-
-  hydrationCard: {
-    backgroundColor: Brand.hydrationBg,
-    borderRadius: Radii.xl,
-    borderWidth: 1,
-    borderColor: '#D8E9FF',
-    padding: 18,
-    gap: 12,
-    ...Shadows.card,
-  },
-  hydrationTopRow: {
+  heroBadgeValue: { ...Typography.subtitle, color: Brand.greenDark, fontWeight: '800' },
+  heroBadgeLabel: { ...Typography.caption, color: Brand.textSecondary, fontWeight: '700' },
+  score: { width: 70, height: 70, borderRadius: 35, borderWidth: 1, borderColor: '#DCEADC', backgroundColor: '#F5FBF6', alignItems: 'center', justifyContent: 'center' },
+  scoreValue: { ...Typography.subtitle, color: Brand.greenDark, fontWeight: '800' },
+  scoreLabel: { ...Typography.caption, color: Brand.textSecondary, fontSize: 10 },
+  loadingBox: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  loadingText: { ...Typography.helper, color: Brand.textSecondary },
+  calorieSpotlight: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 10,
+    gap: 12,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#E2ECE5',
+    backgroundColor: 'rgba(255,255,255,0.84)',
+    padding: 14,
   },
-  hydrationTitleWrap: {
-    flexDirection: 'row',
+  calorieSpotlightCopy: { gap: 4, flex: 1 },
+  calorieSpotlightLabel: { ...Typography.caption, color: Brand.textSecondary, textTransform: 'uppercase', fontWeight: '700' },
+  calorieSpotlightRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  calorieSpotlightValue: { ...Typography.hero, color: Brand.text, fontSize: 40, lineHeight: 42 },
+  calorieSpotlightUnit: { ...Typography.body, color: Brand.textSecondary, fontWeight: '700' },
+  calorieBadge: {
+    minWidth: 84,
+    borderRadius: 22,
+    backgroundColor: '#EAF7EE',
+    borderWidth: 1,
+    borderColor: '#D3E9DA',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     alignItems: 'center',
-    gap: 10,
-    flex: 1,
   },
+  calorieBadgeValue: { ...Typography.subtitle, color: Brand.greenDark, fontWeight: '800' },
+  calorieBadgeLabel: { ...Typography.caption, color: Brand.textSecondary, textTransform: 'uppercase', fontWeight: '700' },
+  track: { height: 11, borderRadius: Radii.pill, backgroundColor: '#DDEADF', overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: Radii.pill, backgroundColor: Brand.green },
+  hint: { ...Typography.caption, color: Brand.textSecondary, fontWeight: '700' },
+  heroMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  heroMetaChip: {
+    flexGrow: 1,
+    minWidth: 140,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E3ECE5',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  heroMetaChipPrimary: {
+    backgroundColor: '#F3FAF5',
+    borderColor: '#D8ECDD',
+  },
+  heroMetaChipText: { ...Typography.caption, color: Brand.textSecondary, fontWeight: '700' },
+  heroMetaChipTextPrimary: { color: Brand.greenDeeper },
+  macroSection: { gap: 10 },
+  emptyGoalState: { borderRadius: Radii.lg, borderWidth: 1, borderColor: '#D9E8DD', backgroundColor: '#F7FBF8', padding: 16, gap: 10 },
+  emptyGoalTitle: { ...Typography.body, color: Brand.text, fontWeight: '700' },
+  emptyGoalText: { ...Typography.helper, color: Brand.textSecondary },
+  timelineBox: { borderTopWidth: 1, borderTopColor: '#E7EEE8', paddingTop: 8, gap: 6 },
+  timelineItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: Radii.md, borderWidth: 1, borderColor: '#E8EFE8', backgroundColor: '#FAFCFA', paddingHorizontal: 10, paddingVertical: 7 },
+  timelineLabel: { ...Typography.body, color: Brand.text, fontWeight: '600', fontSize: 14 },
+  timelineStatus: { ...Typography.subtitle, fontWeight: '800', minWidth: 18, textAlign: 'center' },
+  timelineDone: { color: Brand.greenDark },
+  timelinePending: { color: Brand.textMuted },
+  mealSummarySection: { borderTopWidth: 1, borderTopColor: '#E7EEE8', paddingTop: 12, gap: 10 },
+  mealSummaryGrid: { gap: 8 },
+  mealSummaryCard: { borderRadius: Radii.md, borderWidth: 1, borderColor: '#E6ECE7', backgroundColor: '#FAFCFA', padding: 12, gap: 8 },
+  mealSummaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  mealSummaryIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  mealSummaryLabel: { ...Typography.body, color: Brand.text, fontWeight: '700' },
+  mealSummaryCount: { ...Typography.caption, color: Brand.textSecondary },
+  mealSummaryCalories: { ...Typography.caption, color: Brand.greenDark, fontWeight: '800' },
+  mealSummaryMacros: { ...Typography.caption, color: Brand.textSecondary, fontWeight: '700' },
+  heroActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  secondaryChip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: Radii.pill, borderWidth: 1, borderColor: '#D9E8DD', backgroundColor: '#F8FCF8', paddingHorizontal: 12, paddingVertical: 8 },
+  secondaryChipText: { ...Typography.caption, color: Brand.greenDark, fontWeight: '700' },
+
+  actionCard: { borderRadius: Radii.lg, borderWidth: 1, borderColor: '#CCE4D4', backgroundColor: '#EBF8EF', padding: 16, gap: 10, ...Shadows.card },
+  quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  shortcut: { borderRadius: Radii.pill, borderWidth: 1, borderColor: '#D3E8DA', backgroundColor: '#FFFFFF', paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  shortcutText: { ...Typography.caption, color: Brand.greenDeeper, fontWeight: '700' },
+
+  card: { borderRadius: Radii.lg, borderWidth: 1, borderColor: Brand.border, backgroundColor: Brand.card, padding: 16, gap: 10, ...Shadows.card },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  sectionTitle: { ...Typography.subtitle, color: Brand.text, fontWeight: '800' },
+  sectionMiniTitle: { ...Typography.caption, color: Brand.textSecondary, textTransform: 'uppercase', fontWeight: '700' },
+  sectionSub: { ...Typography.helper, color: Brand.textSecondary },
+  hydrationCard: {
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: '#C6E8F8',
+    backgroundColor: '#F7FCFF',
+    padding: 16,
+    gap: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    ...Shadows.card,
+  },
+  hydrationGlowLarge: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(110, 208, 255, 0.18)',
+    top: -70,
+    right: -40,
+  },
+  hydrationGlowSmall: {
+    position: 'absolute',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    bottom: -30,
+    left: -20,
+  },
+  hydrationHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  hydrationHeaderCopy: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   hydrationIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 42,
+    height: 42,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,255,255,0.74)',
     borderWidth: 1,
-    borderColor: '#DAE9FF',
+    borderColor: '#D7EFFA',
   },
-  hydrationTitle: {
-    ...Typography.subtitle,
-    color: '#356AA7',
-    fontWeight: '800',
+  hydrationTitle: { ...Typography.subtitle, color: '#083B58', fontWeight: '800' },
+  hydrationHeaderHint: { ...Typography.caption, color: '#4F7E9A', fontWeight: '700' },
+  hydrationSettingsButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderWidth: 1,
+    borderColor: '#D7EFFA',
   },
-  hydrationSubtitle: {
-    ...Typography.helper,
-    color: '#507BAE',
-    marginTop: 1,
+  hydrationTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  hydrationMetricGroup: { gap: 2, flex: 1 },
+  hydrationHeroValue: { ...Typography.hero, color: '#0D5F8E', fontSize: 36, lineHeight: 40 },
+  hydrationMetricHint: { ...Typography.helper, color: '#56819A', fontWeight: '600' },
+  hydrationProgressBadge: {
+    minWidth: 76,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    borderWidth: 1,
+    borderColor: '#D2ECFA',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    alignItems: 'center',
   },
-  hydrationValueWrap: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 3,
-  },
-  hydrationValue: {
-    ...Typography.title,
-    color: '#356AA7',
-    fontSize: 24,
-  },
-  hydrationGoal: {
-    ...Typography.body,
-    color: '#5E84B5',
-    fontWeight: '600',
-  },
-  hydrationTrack: {
-    width: '100%',
-    height: 9,
+  hydrationProgressBadgeDone: { backgroundColor: '#0B6B94', borderColor: '#0B6B94' },
+  hydrationProgressValue: { ...Typography.subtitle, color: '#0B6B94', fontWeight: '800' },
+  hydrationProgressValueDone: { color: '#FFFFFF' },
+  hydrationProgressLabel: { ...Typography.caption, color: '#5F88A1', textTransform: 'uppercase', fontWeight: '700' },
+  hydrationProgressLabelDone: { color: 'rgba(255,255,255,0.78)' },
+  hydrationTrackShell: {
+    height: 10,
     borderRadius: Radii.pill,
-    backgroundColor: '#D8E8FC',
+    backgroundColor: 'rgba(166, 221, 245, 0.5)',
     overflow: 'hidden',
   },
-  hydrationFill: {
+  hydrationTrackFill: {
     height: '100%',
     borderRadius: Radii.pill,
-    backgroundColor: Brand.hydration,
+    backgroundColor: '#1AA6E8',
   },
-  hydrationActions: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  hydrationStatusText: {
-    ...Typography.caption,
-    color: '#507BAE',
-    fontWeight: '600',
-  },
-  hydrationErrorText: {
-    ...Typography.caption,
-    color: '#A03D3D',
-    fontWeight: '700',
-  },
-  hydrationBtn: {
-    borderRadius: Radii.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D6E7FF',
-  },
-  hydrationBtnDisabled: {
-    opacity: 0.55,
-  },
-  hydrationBtnPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
-  },
-  hydrationBtnText: {
-    ...Typography.caption,
-    color: '#3E6FA8',
-    fontWeight: '700',
-  },
-  insightCard: {
-    backgroundColor: '#F5FAF6',
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: '#DDECDD',
-    padding: 16,
-    gap: 12,
-    ...Shadows.card,
-  },
-  insightText: {
-    ...Typography.body,
-    color: Brand.text,
-  },
-  suggestionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  suggestionChip: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radii.pill,
-    borderWidth: 1,
-    borderColor: '#DCEADB',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  suggestionChipText: {
-    ...Typography.caption,
-    color: Brand.greenDeeper,
-    fontWeight: '700',
-  },
-  weeklyGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  weeklyMetric: {
+  hydrationStatus: { ...Typography.body, color: '#134B6A', fontWeight: '700' },
+  hydrationActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  waterBtn: {
     flexGrow: 1,
-    minWidth: '31%',
-    borderRadius: Radii.md,
+    minWidth: 132,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#DDE6E0',
-    backgroundColor: Brand.surfaceAlt,
-    padding: 10,
-    gap: 4,
-  },
-  weeklyMetricLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  weeklyMetricValue: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-
-  card: {
-    backgroundColor: Brand.card,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    padding: 16,
-    gap: 12,
-    ...Shadows.card,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sectionTitle: {
-    ...Typography.subtitle,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  sectionSubtitle: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
-    marginTop: -4,
-  },
-  linkText: {
-    ...Typography.helper,
-    color: Brand.greenDark,
-    fontWeight: '700',
-  },
-  analysisCard: {
-    backgroundColor: '#F8FBF7',
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: '#DFEBDD',
-    padding: 16,
-    gap: 12,
-    overflow: 'hidden',
-    ...Shadows.card,
-  },
-  analysisGlowTop: {
-    position: 'absolute',
-    top: -42,
-    right: -32,
-    width: 140,
-    height: 140,
-    borderRadius: 140,
-    backgroundColor: '#E4F4E9',
-  },
-  analysisSubtitle: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    marginTop: 2,
-  },
-  analysisBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EBF6EE',
-    borderWidth: 1,
-    borderColor: '#D6EAD9',
   },
-
-  savedCarousel: {
+  waterBtnPositive: {
+    borderColor: '#0F88BF',
+    backgroundColor: '#0F88BF',
+    ...Shadows.soft,
+  },
+  waterBtnNegative: {
+    borderColor: '#CFE7F5',
+    backgroundColor: 'rgba(255,255,255,0.82)',
+  },
+  waterBtnText: { ...Typography.body, fontWeight: '800' },
+  waterBtnTextPositive: { color: '#FFFFFF' },
+  waterBtnTextNegative: { color: '#1A678F' },
+  hydrationGoalMenu: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#D4ECF8',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    padding: 12,
     gap: 10,
-    paddingRight: 2,
   },
-  savedCard: {
-    width: 132,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: '#DDEADD',
-    backgroundColor: '#F8FCF8',
-    padding: 10,
-    gap: 8,
-  },
-  savedCardPressed: {
-    opacity: 0.86,
-  },
-  savedCardImage: {
-    width: '100%',
-    height: 76,
-    borderRadius: 12,
-  },
-  savedCardImagePlaceholder: {
-    width: '100%',
-    height: 76,
-    borderRadius: 12,
-    backgroundColor: Brand.surfaceAlt,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  savedCardTitle: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '700',
-    minHeight: 38,
-  },
-  savedCardKcal: {
-    ...Typography.caption,
-    color: Brand.greenDark,
-    fontWeight: '800',
-  },
+  hydrationGoalMenuTitle: { ...Typography.caption, color: '#4C7892', textTransform: 'uppercase', fontWeight: '700' },
+  hydrationFootnote: { ...Typography.caption, color: '#5D86A1', fontWeight: '700' },
+  goalChip: { borderRadius: Radii.pill, borderWidth: 1, borderColor: '#CFE5F7', backgroundColor: '#F6FBFF', paddingHorizontal: 12, paddingVertical: 7 },
+  goalChipActive: { backgroundColor: '#DDF2FF', borderColor: '#88CBEE' },
+  goalChipText: { ...Typography.caption, color: '#4C7FA8', fontWeight: '700' },
+  goalChipTextActive: { color: '#0D5F8E' },
+  error: { ...Typography.caption, color: Brand.danger, fontWeight: '700' },
 
-  searchInputWrap: {
-    position: 'relative',
-  },
-  searchIcon: {
-    position: 'absolute',
-    left: 14,
-    top: 18,
-    zIndex: 1,
-  },
-  searchInput: {
-    paddingLeft: 40,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryChip: {
-    borderRadius: Radii.pill,
+  counter: { ...Typography.caption, color: Brand.textSecondary, textTransform: 'uppercase', fontWeight: '700' },
+  insight: { ...Typography.body, color: Brand.text },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { borderRadius: Radii.pill, borderWidth: 1, borderColor: '#DDEBDD', backgroundColor: '#FFFFFF', paddingHorizontal: 10, paddingVertical: 6 },
+  chipText: { ...Typography.caption, color: Brand.greenDeeper, fontWeight: '700' },
+  habitRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  habit: { flexGrow: 1, minWidth: 95, borderRadius: Radii.md, borderWidth: 1, borderColor: '#DDEBDD', backgroundColor: '#FFFFFF', paddingHorizontal: 10, paddingVertical: 10 },
+  habitValue: { ...Typography.subtitle, color: Brand.text, fontWeight: '800' },
+  habitLabel: { ...Typography.caption, color: Brand.textSecondary, fontWeight: '700' },
+
+  macroCard: {
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: Brand.border,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderColor: '#E5ECE6',
+    backgroundColor: '#FFFFFF',
+    padding: 12,
     gap: 6,
   },
-  categoryChipPressed: {
-    opacity: 0.82,
-  },
-  categoryChipLabel: {
-    ...Typography.caption,
-    color: Brand.text,
-    fontWeight: '700',
-  },
+  macroLabel: { ...Typography.caption, color: Brand.text, fontWeight: '700' },
+  macroValue: { ...Typography.caption, color: Brand.textSecondary, fontWeight: '700' },
+  macroTrack: { height: 8, borderRadius: Radii.pill, overflow: 'hidden' },
+  macroFill: { height: '100%', borderRadius: Radii.pill },
+  macroHint: { ...Typography.caption, color: Brand.textSecondary },
 
-  queryWeightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  queryUnitRow: {
-    flexDirection: 'row',
-    borderRadius: Radii.md,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Brand.border,
-    backgroundColor: Brand.surfaceAlt,
-  },
-  queryUnitBtn: {
-    minWidth: 42,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  queryUnitBtnActive: {
-    backgroundColor: Brand.green,
-  },
-  queryUnitText: {
-    ...Typography.body,
-    fontSize: 13,
-    color: Brand.textSecondary,
-    fontWeight: '600',
-  },
-  queryUnitTextActive: {
-    color: '#FFFFFF',
-  },
+  empty: { borderRadius: Radii.md, borderWidth: 1, borderColor: Brand.border, backgroundColor: Brand.surfaceAlt, padding: 14, gap: 8, alignItems: 'center' },
+  emptyTitle: { ...Typography.body, color: Brand.text, fontWeight: '700', textAlign: 'center' },
+  emptySub: { ...Typography.caption, color: Brand.textSecondary, textAlign: 'center', lineHeight: 17 },
 
-  resultBox: {
-    borderRadius: Radii.md,
-    backgroundColor: Brand.surfaceSoft,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    padding: 14,
-    alignItems: 'center',
-    gap: 10,
-  },
-  resultCal: {
-    ...Typography.title,
-    color: Brand.greenDark,
-    fontSize: 27,
-  },
-  resultMacros: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'center',
-  },
-  resultClear: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
+  saved: { width: 152, borderRadius: Radii.md, borderWidth: 1, borderColor: '#E0EBE1', backgroundColor: '#F9FCF9', padding: 10, gap: 6 },
+  savedImg: { width: '100%', height: 78, borderRadius: 12 },
+  savedFallback: { width: '100%', height: 78, borderRadius: 12, borderWidth: 1, borderColor: Brand.border, backgroundColor: Brand.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  savedTitle: { ...Typography.body, color: Brand.text, fontWeight: '700', minHeight: 38, lineHeight: 18 },
+  savedCal: { ...Typography.caption, color: Brand.greenDark, fontWeight: '800' },
+  savedMacro: { ...Typography.caption, color: Brand.textSecondary, fontSize: 10 },
 
-  analyzerTabRow: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  analyzerTab: {
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: Radii.pill,
-    borderWidth: 1,
-    borderColor: '#D5E6D9',
-    backgroundColor: '#FFFFFF',
-  },
-  analyzerTabActive: {
-    backgroundColor: '#E3F3E8',
-    borderColor: '#BFDCC8',
-  },
-  analyzerTabText: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  analyzerTabTextActive: {
-    color: Brand.greenDeeper,
-  },
-
-  counterText: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-  },
-  mealsList: {
-    gap: 8,
-  },
-  emptyState: {
-    alignItems: 'center',
-    backgroundColor: Brand.surfaceAlt,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    padding: 20,
-    gap: 8,
-  },
-  emptyTitle: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  emptyButtonWrap: {
-    marginTop: 4,
-    width: '100%',
-  },
-
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: Radii.pill,
-  },
-  pillLabel: {
-    ...Typography.caption,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  pillValue: {
-    ...Typography.caption,
-    fontWeight: '700',
-  },
+  link: { ...Typography.caption, color: Brand.greenDark, fontWeight: '700' },
+  disabled: { opacity: 0.56 },
+  pressed: { opacity: 0.82 },
 });
 
