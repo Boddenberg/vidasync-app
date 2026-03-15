@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
@@ -33,6 +34,7 @@ type Props = {
 };
 
 export function EditProfileModal({ visible, onClose }: Props) {
+  const router = useRouter();
   const { user, updateProfile, logout } = useAuth();
 
   const [username, setUsername] = useState('');
@@ -171,6 +173,16 @@ export function EditProfileModal({ visible, onClose }: Props) {
     ]);
   }
 
+  function handleOpenFeedback() {
+    handleClose();
+    router.push('/feedback' as any);
+  }
+
+  function handleOpenBmi() {
+    handleClose();
+    router.push('/tools/imc' as any);
+  }
+
   // Foto exibida: nova > atual do perfil
   const displayPhoto = photoChanged ? photoUri : (user?.profileImageUrl ?? null);
 
@@ -281,6 +293,20 @@ export function EditProfileModal({ visible, onClose }: Props) {
             title="Salvar alteracoes"
             onPress={handleSave}
             loading={loading}
+          />
+
+          <AppButton
+            title="Enviar feedback"
+            onPress={handleOpenFeedback}
+            variant="secondary"
+            disabled={loading}
+          />
+
+          <AppButton
+            title="Calculadora de IMC"
+            onPress={handleOpenBmi}
+            variant="secondary"
+            disabled={loading}
           />
 
           {/* Logout */}
