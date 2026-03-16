@@ -22,7 +22,12 @@ export function useMeals() {
   const [totals, setTotals] = useState<NutritionData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [date, setDate] = useState(todayStr);
+  const [date, setDateState] = useState(todayStr);
+
+  const setDate = useCallback((nextDate: string) => {
+    const safeDate = nextDate > todayStr() ? todayStr() : nextDate;
+    setDateState(safeDate);
+  }, []);
 
   /** Carrega o resumo do dia (refeições ordenadas + totais) */
   const refresh = useCallback(async () => {

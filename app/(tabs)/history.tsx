@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
@@ -5,52 +6,27 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalendarPickerModal } from '@/components/calendar-picker-modal';
 import { MealCard } from '@/components/meal-card';
-import { NutritionGoalsModal } from '@/components/nutrition-goals-modal';
 import { RegisterMealModal } from '@/components/register-meal-modal';
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import { deleteMeal, getDaySummary, getMealsByRange, updateMeal } from '@/services/meals';
-import {
-  getNutritionGoals,
-  saveNutritionGoals,
-  type NutritionGoalsStatus,
-} from '@/services/nutrition-goals';
-import { getWaterHistory, getWaterStatus, type WaterHistory, type WaterStatus } from '@/services/water';
+import { getWaterHistory, getWaterStatus, type WaterEvent, type WaterStatus } from '@/services/water';
 import type { Meal, MealType, NutritionData } from '@/types/nutrition';
-import { extractNum, monthRange, MONTHS, todayStr, toDateStr, WEEKDAYS } from '@/utils/helpers';
-
-type PeriodWindow = 7 | 15 | 30;
-
-type PeriodSnapshot = {
-  avgCalories: number;
-  avgProtein: number;
-  avgConsumedMl: number;
-  mealDays: number;
-  waterDays: number;
-  coveredDays: number;
-};
-
-type GoalProgress = {
-  label: string;
-  consumed: number;
-  goal: number;
-  progress: number;
-  remaining: number;
-  color: string;
-  bg: string;
-  unit: string;
-};
+import { extractNum, monthRange, MONTHS, todayStr, WEEKDAYS } from '@/utils/helpers';
 
 function getCalendarRows(year: number, month: number): (number | null)[][] {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells: (number | null)[] = [];
 
-  for (let i = 0; i < firstDay; i++) cells.push(null);
-  for (let day = 1; day <= daysInMonth; day++) cells.push(day);
+  for (let i = 0; i < firstDay; i += 1) cells.push(null);
+  for (let day = 1; day <= daysInMonth; day += 1) cells.push(day);
   while (cells.length % 7 !== 0) cells.push(null);
 
   const rows: (number | null)[][] = [];
-  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+  for (let i = 0; i < cells.length; i += 7) {
+    rows.push(cells.slice(i, i + 7));
+  }
+
   return rows;
 }
 
@@ -59,74 +35,26 @@ function dayHeading(date: string): string {
   return `${day} de ${MONTHS[month - 1]} de ${year}`;
 }
 
-function shortDayHeading(date: string): string {
-  const [year, month, day] = date.split('-').map((item) => parseInt(item, 10));
-  return new Date(year, month - 1, day, 12).toLocaleDateString('pt-BR', {
-    day: 'numeric',
-    month: 'short',
-  });
+function formatWaterLiters(valueMl: number): string {
+  return `${(valueMl / 1000).toFixed(1)}L`;
 }
 
-function buildPeriodSnapshot(meals: Meal[], history: WaterHistory | null): PeriodSnapshot | null {
-  const mealTotalsByDate = new Map<string, { calories: number; protein: number }>();
+function formatWaterEventTime(event: WaterEvent) {
+  if (!event.createdAt) return 'Horario nao informado';
 
-  meals.forEach((meal) => {
-    const current = mealTotalsByDate.get(meal.date) ?? { calories: 0, protein: 0 };
-    current.calories += extractNum(meal.nutrition?.calories ?? '0');
-    current.protein += extractNum(meal.nutrition?.protein ?? '0');
-    mealTotalsByDate.set(meal.date, current);
+  const parsed = new Date(event.createdAt);
+  if (Number.isNaN(parsed.getTime())) return 'Horario nao informado';
+
+  return parsed.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
   });
-
-  const mealDays = mealTotalsByDate.size;
-  const mealTotals = Array.from(mealTotalsByDate.values());
-  const sumCalories = mealTotals.reduce((acc, day) => acc + day.calories, 0);
-  const sumProtein = mealTotals.reduce((acc, day) => acc + day.protein, 0);
-
-  const trackedWaterDays = history?.days.filter((day) => day.goalMl > 0 || day.consumedMl > 0) ?? [];
-  const waterDays = trackedWaterDays.length;
-  const sumConsumedMl = trackedWaterDays.reduce((sum, day) => sum + day.consumedMl, 0);
-
-  if (mealDays === 0 && waterDays === 0) return null;
-
-  const coveredDates = new Set<string>();
-  mealTotalsByDate.forEach((_, date) => coveredDates.add(date));
-  trackedWaterDays.forEach((day) => coveredDates.add(day.date));
-
-  return {
-    avgCalories: mealDays > 0 ? Math.round(sumCalories / mealDays) : 0,
-    avgProtein: mealDays > 0 ? Math.round(sumProtein / mealDays) : 0,
-    avgConsumedMl: waterDays > 0 ? Math.round(sumConsumedMl / waterDays) : 0,
-    mealDays,
-    waterDays,
-    coveredDays: coveredDates.size,
-  };
-}
-
-function buildGoalProgress(
-  label: string,
-  consumed: number,
-  goal: number | null,
-  color: string,
-  bg: string,
-  unit: string,
-): GoalProgress | null {
-  if (goal === null || goal <= 0) return null;
-
-  return {
-    label,
-    consumed,
-    goal,
-    progress: Math.max(0, Math.min(consumed / goal, 1)),
-    remaining: Math.max(0, goal - consumed),
-    color,
-    bg,
-    unit,
-  };
 }
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const today = todayStr();
+  const currentMonthKey = today.slice(0, 7);
 
   const [selectedDate, setSelectedDate] = useState(today);
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
@@ -135,31 +63,30 @@ export default function HistoryScreen() {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [totals, setTotals] = useState<NutritionData | null>(null);
   const [waterStatus, setWaterStatus] = useState<WaterStatus | null>(null);
-  const [nutritionGoals, setNutritionGoals] = useState<NutritionGoalsStatus | null>(null);
   const [loading, setLoading] = useState(false);
 
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
   const [editVisible, setEditVisible] = useState(false);
-  const [goalsVisible, setGoalsVisible] = useState(false);
-  const [goalsSaving, setGoalsSaving] = useState(false);
   const [movingMeal, setMovingMeal] = useState<Meal | null>(null);
   const [datesWithData, setDatesWithData] = useState<Set<string>>(new Set());
   const [waterDatesWithData, setWaterDatesWithData] = useState<Set<string>>(new Set());
-  const [periodWindow, setPeriodWindow] = useState<PeriodWindow>(7);
-  const [periodSnapshot, setPeriodSnapshot] = useState<PeriodSnapshot | null>(null);
-  const [periodLoading, setPeriodLoading] = useState(false);
 
   const calendarRows = getCalendarRows(viewYear, viewMonth);
+  const viewedMonthKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
+  const canGoToNextMonth = viewedMonthKey < currentMonthKey;
 
   useEffect(() => {
     const { startDate, endDate } = monthRange(viewYear, viewMonth);
+
     Promise.all([getMealsByRange(startDate, endDate), getWaterHistory(startDate, endDate)])
       .then(([rangeMeals, rangeWater]) => {
-        setDatesWithData(new Set(rangeMeals.map((item) => item.date)));
+        setDatesWithData(
+          new Set(rangeMeals.filter((item) => item.date <= today).map((item) => item.date)),
+        );
         setWaterDatesWithData(
           new Set(
             rangeWater.days
-              .filter((item) => item.goalMl > 0 || item.consumedMl > 0)
+              .filter((item) => (item.goalMl > 0 || item.consumedMl > 0) && item.date <= today)
               .map((item) => item.date),
           ),
         );
@@ -168,100 +95,72 @@ export default function HistoryScreen() {
         setDatesWithData(new Set());
         setWaterDatesWithData(new Set());
       });
-  }, [viewMonth, viewYear]);
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadPeriodSnapshot() {
-      setPeriodLoading(true);
-      try {
-        const end = new Date(`${selectedDate}T12:00:00`);
-        const start = new Date(end);
-        start.setDate(end.getDate() - (periodWindow - 1));
-
-        const startDate = toDateStr(start);
-        const [rangeMeals, rangeWater] = await Promise.all([
-          getMealsByRange(startDate, selectedDate),
-          getWaterHistory(startDate, selectedDate),
-        ]);
-
-        if (!active) return;
-        setPeriodSnapshot(buildPeriodSnapshot(rangeMeals, rangeWater));
-      } catch {
-        if (!active) return;
-        setPeriodSnapshot(null);
-      } finally {
-        if (active) {
-          setPeriodLoading(false);
-        }
-      }
-    }
-
-    loadPeriodSnapshot();
-
-    return () => {
-      active = false;
-    };
-  }, [periodWindow, selectedDate]);
+  }, [today, viewMonth, viewYear]);
 
   const loadDay = useCallback(async (date: string) => {
-    setSelectedDate(date);
+    const safeDate = date > today ? today : date;
+
+    setSelectedDate(safeDate);
     setLoading(true);
+
     try {
-      const [summary, water, goals] = await Promise.all([
-        getDaySummary(date),
-        getWaterStatus(date),
-        getNutritionGoals(date),
+      const [summary, water] = await Promise.all([
+        getDaySummary(safeDate),
+        getWaterStatus(safeDate),
       ]);
+
       setMeals(summary.meals ?? []);
       setTotals(summary.totals ?? null);
       setWaterStatus(water);
-      setNutritionGoals(goals);
 
-      setDatesWithData((prev) => {
-        const next = new Set(prev);
-        if ((summary.meals ?? []).length > 0) next.add(date);
-        else next.delete(date);
+      setDatesWithData((current) => {
+        const next = new Set(current);
+        if ((summary.meals ?? []).length > 0) next.add(safeDate);
+        else next.delete(safeDate);
         return next;
       });
     } catch {
       setMeals([]);
       setTotals(null);
       setWaterStatus(null);
-      setNutritionGoals(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [today]);
 
   const refreshMonthMarks = useCallback(async () => {
     const { startDate, endDate } = monthRange(viewYear, viewMonth);
+
     try {
       const [rangeMeals, rangeWater] = await Promise.all([
         getMealsByRange(startDate, endDate),
         getWaterHistory(startDate, endDate),
       ]);
-      setDatesWithData(new Set(rangeMeals.map((item) => item.date)));
+
+      setDatesWithData(
+        new Set(rangeMeals.filter((item) => item.date <= today).map((item) => item.date)),
+      );
       setWaterDatesWithData(
         new Set(
           rangeWater.days
-            .filter((item) => item.goalMl > 0 || item.consumedMl > 0)
+            .filter((item) => (item.goalMl > 0 || item.consumedMl > 0) && item.date <= today)
             .map((item) => item.date),
         ),
       );
     } catch {
       // no-op
     }
-  }, [viewMonth, viewYear]);
+  }, [today, viewMonth, viewYear]);
 
   async function doMoveMeal(mealId: string, newDate: string) {
+    if (newDate > today) return;
+
     try {
       await updateMeal(mealId, { date: newDate });
       await loadDay(selectedDate);
       await refreshMonthMarks();
     } catch {
-      Alert.alert('Erro', 'Não foi possível mover a refeição.');
+      Alert.alert('Erro', 'Nao foi possivel mover a refeicao.');
     }
   }
 
@@ -287,29 +186,7 @@ export default function HistoryScreen() {
       setEditVisible(false);
       await loadDay(selectedDate);
     } catch {
-      Alert.alert('Erro', 'Não foi possível editar a refeição.');
-    }
-  }
-
-  async function handleSaveGoals(
-    updates: Partial<{
-      caloriesGoal: number;
-      proteinGoal: number;
-      carbsGoal: number;
-      fatGoal: number;
-    }>,
-  ) {
-    if (goalsSaving) return;
-
-    setGoalsSaving(true);
-    try {
-      const nextGoals = await saveNutritionGoals({ date: selectedDate, ...updates });
-      setNutritionGoals(nextGoals);
-      setGoalsVisible(false);
-    } catch {
-      Alert.alert('Erro', 'Não foi possível salvar as metas deste dia.');
-    } finally {
-      setGoalsSaving(false);
+      Alert.alert('Erro', 'Nao foi possivel editar a refeicao.');
     }
   }
 
@@ -326,15 +203,19 @@ export default function HistoryScreen() {
       setViewYear((prev) => prev - 1);
       return;
     }
+
     setViewMonth((prev) => prev - 1);
   }
 
   function nextMonth() {
+    if (!canGoToNextMonth) return;
+
     if (viewMonth === 11) {
       setViewMonth(0);
       setViewYear((prev) => prev + 1);
       return;
     }
+
     setViewMonth((prev) => prev + 1);
   }
 
@@ -342,6 +223,8 @@ export default function HistoryScreen() {
     const month = String(viewMonth + 1).padStart(2, '0');
     const dayPad = String(day).padStart(2, '0');
     const date = `${viewYear}-${month}-${dayPad}`;
+
+    if (date > today) return;
     loadDay(date);
   }
 
@@ -350,14 +233,31 @@ export default function HistoryScreen() {
   const carbs = totals ? Math.round(extractNum(totals.carbs)) : 0;
   const fat = totals ? Math.round(extractNum(totals.fat)) : 0;
   const sortedMeals = [...meals].sort((a, b) => (b.time ?? '').localeCompare(a.time ?? ''));
-  const goalProgressItems = [
-    buildGoalProgress('Calorias', calories, nutritionGoals?.goals.calories ?? null, Brand.greenDark, '#E7F6EC', ' kcal'),
-    buildGoalProgress('Proteína', protein, nutritionGoals?.goals.protein ?? null, Brand.macroProtein, Brand.macroProteinBg, 'g'),
-    buildGoalProgress('Carboidrato', carbs, nutritionGoals?.goals.carbs ?? null, Brand.macroCarb, Brand.macroCarbBg, 'g'),
-    buildGoalProgress('Gordura', fat, nutritionGoals?.goals.fat ?? null, Brand.macroFat, Brand.macroFatBg, 'g'),
-  ].filter((item): item is GoalProgress => item !== null);
-
-  const periodCoverageLabel = `${periodWindow} dias`;
+  const waterEvents = [...(waterStatus?.events ?? [])].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTime - aTime;
+  });
+  const totalEntries = sortedMeals.length + waterEvents.length;
+  const hydrationProgress =
+    waterStatus && waterStatus.goalMl > 0
+      ? Math.max(0, Math.min(waterStatus.consumedMl / waterStatus.goalMl, 1))
+      : 0;
+  const hydrationHeadline = !waterStatus
+    ? 'Sem agua registrada'
+    : waterStatus.goalMl > 0
+      ? `${formatWaterLiters(waterStatus.consumedMl)} / ${formatWaterLiters(waterStatus.goalMl)}`
+      : `${formatWaterLiters(waterStatus.consumedMl)} registrados`;
+  const hydrationHint = !waterStatus || waterEvents.length === 0
+    ? 'Nenhum ajuste de agua nesta data.'
+    : waterStatus.goalMl > 0
+      ? waterStatus.goalReached
+        ? 'Meta de agua concluida.'
+        : `${Math.round(waterStatus.remainingMl)} ml para fechar a meta.`
+      : `${waterEvents.length} ${waterEvents.length === 1 ? 'ajuste' : 'ajustes'} de agua registrados.`;
+  const dayHeroHint = totalEntries > 0
+    ? 'Um panorama rapido do que entrou no seu dia.'
+    : 'Quando voce registrar pratos e agua, o resumo aparece aqui.';
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -365,71 +265,35 @@ export default function HistoryScreen() {
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <Text style={s.title}>Progresso</Text>
-        <Text style={s.subtitle}>Escolha um dia no calendário para ver refeições, água e metas com mais clareza.</Text>
+        <Text style={s.subtitle}>Escolha um dia no calendario para revisar refeicoes e agua com mais clareza.</Text>
 
         <View style={s.calendarCard}>
-          <View style={s.periodHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.weeklyTitle}>Calendário e panorama</Text>
-              <Text style={s.weeklyHint}>Médias do período até {shortDayHeading(selectedDate)}.</Text>
-            </View>
-            <Text style={s.weeklyLabel}>{periodCoverageLabel}</Text>
+          <View style={s.calendarIntro}>
+            <Text style={s.calendarEyebrow}>Seu historico</Text>
+            <Text style={s.calendarTitle}>Historico do dia</Text>
+            <Text style={s.calendarHint}>Selecione uma data para rever o que entrou no seu dia.</Text>
           </View>
-
-          <View style={s.periodSelector}>
-            {([7, 15, 30] as PeriodWindow[]).map((days) => (
-              <Pressable
-                key={days}
-                onPress={() => setPeriodWindow(days)}
-                style={({ pressed }) => [
-                  s.periodChip,
-                  periodWindow === days && s.periodChipActive,
-                  pressed && s.periodChipPressed,
-                ]}>
-                <Text style={[s.periodChipText, periodWindow === days && s.periodChipTextActive]}>{days} dias</Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {periodLoading ? (
-            <Text style={s.weeklyHint}>Carregando panorama do período...</Text>
-          ) : periodSnapshot ? (
-            <>
-              <View style={s.periodMetricsRow}>
-                <View style={[s.periodMetricCard, s.periodMetricCalories]}>
-                  <Text style={s.periodMetricLabel}>Calorias médias</Text>
-                  <Text style={s.periodMetricValue}>{periodSnapshot.avgCalories} kcal</Text>
-                </View>
-                <View style={[s.periodMetricCard, s.periodMetricProtein]}>
-                  <Text style={s.periodMetricLabel}>Proteína média</Text>
-                  <Text style={s.periodMetricValue}>{periodSnapshot.avgProtein}g</Text>
-                </View>
-                <View style={[s.periodMetricCard, s.periodMetricWater]}>
-                  <Text style={s.periodMetricLabel}>Água média</Text>
-                  <Text style={s.periodMetricValue}>{(periodSnapshot.avgConsumedMl / 1000).toFixed(1)}L</Text>
-                </View>
-              </View>
-              <Text style={s.periodSummary}>
-                {periodSnapshot.coveredDays} de {periodWindow} dias com registros. Refeições em {periodSnapshot.mealDays} dias e água em {periodSnapshot.waterDays} dias.
-              </Text>
-            </>
-          ) : (
-            <Text style={s.weeklyHint}>Sem dados suficientes neste período. Selecione outro intervalo ou registre novas informações.</Text>
-          )}
 
           <View style={s.calendarDivider} />
 
           <View style={s.calNav}>
             <Pressable onPress={prevMonth} style={({ pressed }) => [s.calNavBtn, pressed && s.calNavBtnPressed]}>
-              <Text style={s.calNavIcon}>‹</Text>
+              <Text style={s.calNavIcon}>{'<'}</Text>
             </Pressable>
 
             <Text style={s.calMonthLabel}>
               {MONTHS[viewMonth]} {viewYear}
             </Text>
 
-            <Pressable onPress={nextMonth} style={({ pressed }) => [s.calNavBtn, pressed && s.calNavBtnPressed]}>
-              <Text style={s.calNavIcon}>›</Text>
+            <Pressable
+              onPress={nextMonth}
+              disabled={!canGoToNextMonth}
+              style={({ pressed }) => [
+                s.calNavBtn,
+                !canGoToNextMonth && s.calNavBtnDisabled,
+                pressed && canGoToNextMonth && s.calNavBtnPressed,
+              ]}>
+              <Text style={s.calNavIcon}>{'>'}</Text>
             </Pressable>
           </View>
 
@@ -454,20 +318,31 @@ export default function HistoryScreen() {
                   const date = `${viewYear}-${month}-${dayPad}`;
                   const isSelected = date === selectedDate;
                   const isToday = date === today;
-                  const hasData = datesWithData.has(date);
-                  const hasWater = waterDatesWithData.has(date);
+                  const isFuture = date > today;
+                  const hasData = !isFuture && datesWithData.has(date);
+                  const hasWater = !isFuture && waterDatesWithData.has(date);
 
                   return (
                     <Pressable
                       key={date}
+                      disabled={isFuture}
                       onPress={() => handleDayPress(day)}
                       style={({ pressed }) => [
                         s.dayCell,
                         isSelected && s.dayCellSelected,
                         isToday && !isSelected && s.dayCellToday,
-                        pressed && !isSelected && s.dayCellPressed,
+                        isFuture && s.dayCellDisabled,
+                        pressed && !isSelected && !isFuture && s.dayCellPressed,
                       ]}>
-                      <Text style={[s.dayText, isSelected && s.dayTextSelected, isToday && !isSelected && s.dayTextToday]}>{day}</Text>
+                      <Text
+                        style={[
+                          s.dayText,
+                          isSelected && s.dayTextSelected,
+                          isToday && !isSelected && s.dayTextToday,
+                          isFuture && s.dayTextDisabled,
+                        ]}>
+                        {day}
+                      </Text>
                       {!isSelected && (hasData || hasWater) ? (
                         <View style={s.dayMarkers}>
                           {hasData ? <View style={s.dayDot} /> : null}
@@ -480,134 +355,170 @@ export default function HistoryScreen() {
               </View>
             ))}
           </View>
-
-          <View style={s.legendRow}>
-            <View style={s.legendItem}>
-              <View style={s.legendDotMeal} />
-              <Text style={s.legendText}>Refeições</Text>
-            </View>
-            <View style={s.legendItem}>
-              <View style={s.legendDotWater} />
-              <Text style={s.legendText}>Água</Text>
-            </View>
-          </View>
         </View>
 
-        <View style={s.dayDetailsCard}>
-          <View style={s.dayDetailsTop}>
-            <Text style={s.dayLabel}>{dayHeading(selectedDate)}</Text>
-            <Pressable onPress={() => setGoalsVisible(true)}>
-              <Text style={s.editGoalsLink}>{goalProgressItems.length > 0 ? 'Editar metas' : 'Criar metas'}</Text>
-            </Pressable>
+        <View style={s.dayHero}>
+          <View pointerEvents="none" style={s.dayHeroGlowTop} />
+          <View pointerEvents="none" style={s.dayHeroGlowBottom} />
+
+          <View style={s.dayHeroHeader}>
+            <View style={s.dayHeroCopy}>
+              <Text style={s.dayHeroEyebrow}>Panorama do dia</Text>
+              <Text style={s.dayHeroTitle}>{dayHeading(selectedDate)}</Text>
+              <Text style={s.dayHeroHint}>{dayHeroHint}</Text>
+            </View>
+            <View style={s.dayHeroBadge}>
+              <Text style={s.dayHeroBadgeValue}>{totalEntries}</Text>
+              <Text style={s.dayHeroBadgeLabel}>{totalEntries === 1 ? 'registro' : 'registros'}</Text>
+            </View>
           </View>
 
-          {loading ? <Text style={s.hint}>Carregando dados do dia...</Text> : null}
-
-          {!loading ? (
+          {loading ? (
+            <Text style={s.hint}>Carregando dados do dia...</Text>
+          ) : (
             <>
-              <View style={s.overviewRow}>
-                <View style={s.overviewCard}>
-                  <Text style={s.overviewLabel}>Hidratação</Text>
-                  <Text style={s.overviewValue}>
-                    {waterStatus ? `${(waterStatus.consumedMl / 1000).toFixed(1)} / ${(waterStatus.goalMl / 1000).toFixed(1)}L` : 'Sem meta'}
-                  </Text>
-                  <Text style={s.overviewHint}>
-                    {waterStatus
-                      ? waterStatus.goalInherited
-                        ? 'Meta herdada nesta data'
-                        : waterStatus.goalReached
-                          ? 'Meta batida'
-                          : `${Math.round(waterStatus.remainingMl)}ml restantes`
-                      : 'Cadastre a meta pela home'}
-                  </Text>
+              <View style={s.dayHeroTopRow}>
+                <View style={s.calorieCard}>
+                  <Text style={s.calorieLabel}>Calorias totais</Text>
+                  <View style={s.kcalRow}>
+                    <Text style={s.kcalValue}>{calories}</Text>
+                    <Text style={s.kcalUnit}>kcal</Text>
+                  </View>
                 </View>
-                <View style={s.overviewCard}>
-                  <Text style={s.overviewLabel}>Metas do dia</Text>
-                  <Text style={s.overviewValue}>
-                    {goalProgressItems.length > 0 ? `${goalProgressItems.length} comparativos` : 'Sem metas'}
-                  </Text>
-                  <Text style={s.overviewHint}>
-                    {nutritionGoals
-                      ? nutritionGoals.goalInherited
-                        ? 'Valores herdados da última configuração'
-                        : 'Valores próprios desta data'
-                      : 'Defina calorias e macros para comparar'}
-                  </Text>
+
+                <View style={s.hydrationCard}>
+                  <View style={s.hydrationCardIcon}>
+                    <Ionicons name="water-outline" size={18} color="#0B6B94" />
+                  </View>
+                  <Text style={s.hydrationCardLabel}>Agua</Text>
+                  <Text style={s.hydrationCardValue}>{hydrationHeadline}</Text>
                 </View>
               </View>
 
-              <View style={s.totalsCard}>
-                <View style={s.kcalRow}>
-                  <Text style={s.kcalValue}>{calories}</Text>
-                  <Text style={s.kcalUnit}>kcal</Text>
+              {waterStatus?.goalMl ? (
+                <View style={s.hydrationTrack}>
+                  <View style={[s.hydrationFill, { width: `${Math.round(hydrationProgress * 100)}%` }]} />
                 </View>
-                <View style={s.macroRow}>
-                  <MacroChip label="Proteína" value={`${protein}g`} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
-                  <MacroChip label="Carboidrato" value={`${carbs}g`} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
-                  <MacroChip label="Gordura" value={`${fat}g`} color={Brand.macroFat} bg={Brand.macroFatBg} />
+              ) : null}
+
+              <Text style={s.hydrationHint}>{hydrationHint}</Text>
+
+              <View style={s.statsRow}>
+                <View style={[s.statCard, s.statCardMeals]}>
+                  <Text style={s.statLabel}>Pratos</Text>
+                  <Text style={s.statValue}>{sortedMeals.length}</Text>
+                  <Text style={s.statHint}>{sortedMeals.length === 1 ? 'registro no dia' : 'registros no dia'}</Text>
                 </View>
-                {goalProgressItems.length > 0 ? (
-                  <View style={s.goalList}>
-                    {goalProgressItems.map((item) => (
-                      <View key={item.label} style={s.goalItem}>
-                        <View style={s.weeklyHeaderRow}>
-                          <Text style={s.goalItemLabel}>{item.label}</Text>
-                          <Text style={s.goalItemValue}>{item.consumed}{item.unit} / {item.goal}{item.unit}</Text>
-                        </View>
-                        <View style={[s.goalTrack, { backgroundColor: item.bg }]}>
-                          <View style={[s.goalFill, { backgroundColor: item.color, width: `${Math.round(item.progress * 100)}%` }]} />
-                        </View>
-                        <Text style={s.goalItemHint}>
-                          {item.consumed >= item.goal ? 'Meta concluída.' : `${Math.round(item.remaining)}${item.unit} restantes.`}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={s.emptyHint}>Nenhuma meta cadastrada para esta data.</Text>
-                )}
+
+                <View style={[s.statCard, s.statCardWater]}>
+                  <Text style={s.statLabel}>Agua</Text>
+                  <Text style={s.statValue}>{waterStatus ? formatWaterLiters(waterStatus.consumedMl) : '0.0L'}</Text>
+                  <Text style={s.statHint}>consumidos no dia</Text>
+                </View>
+
+                <View style={[s.statCard, s.statCardEvents]}>
+                  <Text style={s.statLabel}>Ajustes</Text>
+                  <Text style={s.statValue}>{waterEvents.length}</Text>
+                  <Text style={s.statHint}>{waterEvents.length === 1 ? 'movimento' : 'movimentos'}</Text>
+                </View>
+              </View>
+
+              <View style={s.macroRow}>
+                <MacroChip label="Proteina" value={`${protein}g`} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
+                <MacroChip label="Carboidrato" value={`${carbs}g`} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
+                <MacroChip label="Gordura" value={`${fat}g`} color={Brand.macroFat} bg={Brand.macroFatBg} />
+              </View>
+            </>
+          )}
+        </View>
+
+        {!loading ? (
+          <>
+            <View style={s.sectionCard}>
+              <View style={s.sectionHeader}>
+                <Text style={s.sectionTitle}>Pratos do dia</Text>
+                <Text style={s.sectionCount}>{sortedMeals.length} {sortedMeals.length === 1 ? 'item' : 'itens'}</Text>
               </View>
 
               {sortedMeals.length > 0 ? (
-                <View style={s.mealsSection}>
-                  <View style={s.weeklyHeaderRow}>
-                    <Text style={s.weeklyTitle}>Pratos do dia</Text>
-                    <Text style={s.weeklyLabel}>{sortedMeals.length} itens</Text>
-                  </View>
-                  <View style={s.mealsList}>
-                    {sortedMeals.map((meal) => (
-                      <MealCard
-                        key={meal.id}
-                        meal={meal}
-                        onEdit={handleEdit}
-                        onDelete={async () => {
-                          try {
-                            await deleteMeal(meal.id);
-                            await loadDay(selectedDate);
-                            await refreshMonthMarks();
-                          } catch {
-                            // no-op
-                          }
-                        }}
-                        onMoveDate={() => setMovingMeal(meal)}
-                      />
-                    ))}
-                  </View>
+                <View style={s.mealsList}>
+                  {sortedMeals.map((meal) => (
+                    <MealCard
+                      key={meal.id}
+                      meal={meal}
+                      onEdit={handleEdit}
+                      onDelete={async () => {
+                        try {
+                          await deleteMeal(meal.id);
+                          await loadDay(selectedDate);
+                          await refreshMonthMarks();
+                        } catch {
+                          // no-op
+                        }
+                      }}
+                      onMoveDate={() => setMovingMeal(meal)}
+                    />
+                  ))}
                 </View>
               ) : (
                 <View style={s.emptyState}>
-                  <Text style={s.emptyTitle}>Nenhuma refeição neste dia</Text>
-                  <Text style={s.emptyHint}>Escolha outra data no calendário ou registre uma nova refeição no Início.</Text>
+                  <Text style={s.emptyTitle}>Nenhum prato registrado neste dia</Text>
+                  <Text style={s.emptyHint}>Escolha outra data no calendario ou registre uma refeicao no Inicio.</Text>
                 </View>
               )}
-            </>
-          ) : null}
-        </View>
+            </View>
+
+            <View style={s.sectionCard}>
+              <View style={s.sectionHeader}>
+                <Text style={s.sectionTitle}>Agua do dia</Text>
+                <Text style={s.sectionCount}>{waterEvents.length} {waterEvents.length === 1 ? 'ajuste' : 'ajustes'}</Text>
+              </View>
+
+              {waterEvents.length > 0 ? (
+                <View style={s.waterList}>
+                  {waterEvents.map((event, index) => {
+                    const positive = event.deltaMl >= 0;
+                    const deltaLabel = `${positive ? '+' : ''}${Math.round(event.deltaMl)} ml`;
+
+                    return (
+                      <View key={`${event.id ?? 'water'}-${event.createdAt ?? index}-${index}`} style={s.waterItem}>
+                        <View style={[s.waterItemIcon, positive ? s.waterItemIconPositive : s.waterItemIconNegative]}>
+                          <Ionicons
+                            name={positive ? 'water-outline' : 'remove-outline'}
+                            size={18}
+                            color={positive ? '#0B6B94' : Brand.danger}
+                          />
+                        </View>
+
+                        <View style={s.waterItemCopy}>
+                          <Text style={s.waterItemValue}>{deltaLabel}</Text>
+                          <Text style={s.waterItemHint}>{formatWaterEventTime(event)}</Text>
+                        </View>
+
+                        <View style={[s.waterTag, positive ? s.waterTagPositive : s.waterTagNegative]}>
+                          <Text style={[s.waterTagText, positive ? s.waterTagTextPositive : s.waterTagTextNegative]}>
+                            {positive ? 'Entrada' : 'Ajuste'}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={s.emptyState}>
+                  <Text style={s.emptyTitle}>Nenhum ajuste de agua neste dia</Text>
+                  <Text style={s.emptyHint}>Quando voce registrar a hidratacao, os movimentos aparecem aqui em ordem.</Text>
+                </View>
+              )}
+            </View>
+          </>
+        ) : null}
       </ScrollView>
 
       <CalendarPickerModal
         visible={!!movingMeal}
         currentDate={selectedDate}
+        maxDate={today}
         title={`Mover: ${movingMeal?.foods ?? ''}`}
         onSelect={(date) => {
           if (movingMeal) doMoveMeal(movingMeal.id, date);
@@ -625,16 +536,6 @@ export default function HistoryScreen() {
           setEditingMeal(null);
           setEditVisible(false);
         }}
-      />
-
-      <NutritionGoalsModal
-        visible={goalsVisible}
-        dateLabel={dayHeading(selectedDate)}
-        currentGoals={nutritionGoals?.goals ?? null}
-        goalInherited={nutritionGoals?.goalInherited}
-        saving={goalsSaving}
-        onSave={handleSaveGoals}
-        onClose={() => setGoalsVisible(false)}
       />
     </View>
   );
@@ -682,186 +583,33 @@ const s = StyleSheet.create({
     color: Brand.textSecondary,
     marginTop: -8,
   },
-  weeklyCard: {
-    backgroundColor: Brand.card,
-    borderRadius: Radii.xl,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    padding: 16,
-    gap: 12,
-    ...Shadows.card,
-  },
-  waterCard: {
-    backgroundColor: Brand.card,
-    borderRadius: Radii.xl,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    padding: 16,
-    gap: 12,
-    ...Shadows.card,
-  },
-  weeklyHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  weeklyTitle: {
-    ...Typography.subtitle,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  weeklyLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    textTransform: 'uppercase',
-  },
-  weeklyHint: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    lineHeight: 18,
-  },
-  weeklyGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  weeklyProgressWrap: {
-    marginTop: 2,
-    gap: 6,
-  },
-  weeklyProgressTrack: {
-    width: '100%',
-    height: 9,
-    borderRadius: Radii.pill,
-    backgroundColor: '#DDEADD',
-    overflow: 'hidden',
-  },
-  weeklyProgressFill: {
-    height: '100%',
-    borderRadius: Radii.pill,
-    backgroundColor: Brand.green,
-  },
-  waterProgressTrack: {
-    width: '100%',
-    height: 9,
-    borderRadius: Radii.pill,
-    backgroundColor: '#D8EDFA',
-    overflow: 'hidden',
-  },
-  waterProgressFill: {
-    height: '100%',
-    borderRadius: Radii.pill,
-    backgroundColor: Brand.hydration,
-  },
-  weeklyProgressHint: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  weeklyMetric: {
-    flexGrow: 1,
-    minWidth: '31%',
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    backgroundColor: Brand.surfaceAlt,
-    padding: 10,
-    gap: 4,
-  },
-  weeklyMetricLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  weeklyMetricValue: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  periodHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  periodSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  periodChip: {
-    borderRadius: Radii.pill,
-    borderWidth: 1,
-    borderColor: '#D9E6DD',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  periodChipActive: {
-    backgroundColor: '#EAF7EE',
-    borderColor: '#B8DCC2',
-  },
-  periodChipPressed: {
-    opacity: 0.82,
-  },
-  periodChipText: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  periodChipTextActive: {
-    color: Brand.greenDark,
-  },
-  periodMetricsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  periodMetricCard: {
-    flexGrow: 1,
-    minWidth: '31%',
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    padding: 12,
-    gap: 4,
-  },
-  periodMetricCalories: {
-    backgroundColor: '#F3FAF5',
-    borderColor: '#D7EBDD',
-  },
-  periodMetricProtein: {
-    backgroundColor: Brand.macroProteinBg,
-    borderColor: '#D5E3FF',
-  },
-  periodMetricWater: {
-    backgroundColor: Brand.hydrationBg,
-    borderColor: '#CFEAF9',
-  },
-  periodMetricLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  periodMetricValue: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  periodSummary: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    lineHeight: 18,
-    fontWeight: '700',
-  },
   calendarCard: {
     backgroundColor: Brand.card,
     borderRadius: Radii.xl,
     borderWidth: 1,
     borderColor: Brand.border,
-    padding: 16,
+    padding: 18,
     gap: 14,
     ...Shadows.card,
+  },
+  calendarIntro: {
+    gap: 4,
+  },
+  calendarEyebrow: {
+    ...Typography.caption,
+    color: Brand.greenDark,
+    textTransform: 'uppercase',
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  calendarTitle: {
+    ...Typography.subtitle,
+    color: Brand.text,
+    fontWeight: '800',
+  },
+  calendarHint: {
+    ...Typography.helper,
+    color: Brand.textSecondary,
   },
   calendarDivider: {
     height: 1,
@@ -884,6 +632,9 @@ const s = StyleSheet.create({
   },
   calNavBtnPressed: {
     opacity: 0.8,
+  },
+  calNavBtnDisabled: {
+    opacity: 0.35,
   },
   calNavIcon: {
     ...Typography.subtitle,
@@ -927,6 +678,9 @@ const s = StyleSheet.create({
   dayCellPressed: {
     opacity: 0.8,
   },
+  dayCellDisabled: {
+    opacity: 0.34,
+  },
   dayText: {
     ...Typography.body,
     color: Brand.text,
@@ -938,6 +692,9 @@ const s = StyleSheet.create({
   dayTextToday: {
     color: Brand.greenDark,
     fontWeight: '800',
+  },
+  dayTextDisabled: {
+    color: Brand.textSecondary,
   },
   dayDot: {
     width: 5,
@@ -959,34 +716,228 @@ const s = StyleSheet.create({
     borderRadius: Radii.pill,
     backgroundColor: Brand.hydration,
   },
-  legendRow: {
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'center',
-    paddingTop: 4,
+  dayHero: {
+    backgroundColor: '#FCFDFC',
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: '#DCEADD',
+    padding: 18,
+    gap: 14,
+    overflow: 'hidden',
+    position: 'relative',
+    ...Shadows.soft,
   },
-  legendItem: {
+  dayHeroGlowTop: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(198, 239, 214, 0.4)',
+    top: -86,
+    right: -36,
+  },
+  dayHeroGlowBottom: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(56, 189, 248, 0.14)',
+    bottom: -50,
+    left: -24,
+  },
+  dayHeroHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  dayHeroCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  dayHeroEyebrow: {
+    ...Typography.caption,
+    color: Brand.greenDark,
+    textTransform: 'uppercase',
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  dayHeroTitle: {
+    ...Typography.title,
+    color: Brand.text,
+    fontSize: 24,
+    lineHeight: 28,
+  },
+  dayHeroHint: {
+    ...Typography.helper,
+    color: Brand.textSecondary,
+  },
+  dayHeroBadge: {
+    minWidth: 86,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#D9EBDD',
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     alignItems: 'center',
+  },
+  dayHeroBadgeValue: {
+    ...Typography.subtitle,
+    color: Brand.greenDark,
+    fontWeight: '800',
+  },
+  dayHeroBadgeLabel: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  dayHeroTopRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  calorieCard: {
+    flexGrow: 1,
+    minWidth: 180,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#E2ECE5',
+    backgroundColor: 'rgba(255,255,255,0.86)',
+    padding: 14,
     gap: 6,
   },
-  legendDotMeal: {
-    width: 7,
-    height: 7,
-    borderRadius: Radii.pill,
-    backgroundColor: Brand.green,
+  calorieLabel: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    textTransform: 'uppercase',
+    fontWeight: '700',
   },
-  legendDotWater: {
-    width: 7,
-    height: 7,
-    borderRadius: Radii.pill,
-    backgroundColor: Brand.hydration,
+  kcalRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 5,
   },
-  legendText: {
+  kcalValue: {
+    ...Typography.title,
+    color: Brand.text,
+    fontSize: 34,
+    lineHeight: 40,
+  },
+  kcalUnit: {
+    ...Typography.body,
+    color: Brand.textSecondary,
+    fontWeight: '600',
+  },
+  hydrationCard: {
+    flexGrow: 1,
+    minWidth: 150,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#D6ECFA',
+    backgroundColor: '#F6FBFF',
+    padding: 14,
+    gap: 6,
+  },
+  hydrationCardIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EAF8FF',
+  },
+  hydrationCardLabel: {
+    ...Typography.caption,
+    color: '#4C7892',
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  hydrationCardValue: {
+    ...Typography.subtitle,
+    color: '#0D5F8E',
+    fontWeight: '800',
+  },
+  hydrationTrack: {
+    height: 9,
+    borderRadius: Radii.pill,
+    backgroundColor: '#D8EEF8',
+    overflow: 'hidden',
+  },
+  hydrationFill: {
+    height: '100%',
+    borderRadius: Radii.pill,
+    backgroundColor: '#1AA6E8',
+  },
+  hydrationHint: {
+    ...Typography.body,
+    color: '#134B6A',
+    fontWeight: '600',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  statCard: {
+    flexGrow: 1,
+    minWidth: '30%',
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 12,
+    gap: 4,
+  },
+  statCardMeals: {
+    backgroundColor: '#F4FBF5',
+    borderColor: '#D7EBDD',
+  },
+  statCardWater: {
+    backgroundColor: '#F5FBFF',
+    borderColor: '#D6ECFA',
+  },
+  statCardEvents: {
+    backgroundColor: '#FFF8ED',
+    borderColor: '#F1E2BE',
+  },
+  statLabel: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  statValue: {
+    ...Typography.subtitle,
+    color: Brand.text,
+    fontWeight: '800',
+  },
+  statHint: {
     ...Typography.caption,
     color: Brand.textSecondary,
   },
-  dayDetailsCard: {
+  macroRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  macroChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: Radii.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  macroLabel: {
+    ...Typography.caption,
+    color: Brand.text,
+    fontWeight: '700',
+  },
+  macroValue: {
+    ...Typography.caption,
+    fontWeight: '800',
+  },
+  sectionCard: {
     backgroundColor: Brand.card,
     borderRadius: Radii.xl,
     borderWidth: 1,
@@ -995,58 +946,86 @@ const s = StyleSheet.create({
     gap: 12,
     ...Shadows.card,
   },
-  dayDetailsTop: {
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
-  dayLabel: {
+  sectionTitle: {
     ...Typography.subtitle,
     color: Brand.text,
     fontWeight: '800',
-    flex: 1,
   },
-  editGoalsLink: {
-    ...Typography.caption,
-    color: Brand.greenDark,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  dayCount: {
+  sectionCount: {
     ...Typography.caption,
     color: Brand.textSecondary,
     textTransform: 'uppercase',
+    fontWeight: '700',
   },
-  overviewRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  mealsList: {
     gap: 8,
   },
-  overviewCard: {
-    flex: 1,
-    minWidth: '47%',
+  waterList: {
+    gap: 8,
+  },
+  waterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     borderRadius: Radii.md,
     borderWidth: 1,
     borderColor: Brand.border,
     backgroundColor: Brand.surfaceAlt,
-    padding: 12,
-    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
   },
-  overviewLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    textTransform: 'uppercase',
-    fontWeight: '700',
+  waterItemIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  overviewValue: {
+  waterItemIconPositive: {
+    backgroundColor: '#EAF8FF',
+  },
+  waterItemIconNegative: {
+    backgroundColor: '#FFF0F0',
+  },
+  waterItemCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  waterItemValue: {
     ...Typography.body,
     color: Brand.text,
-    fontWeight: '800',
+    fontWeight: '700',
   },
-  overviewHint: {
+  waterItemHint: {
     ...Typography.caption,
     color: Brand.textSecondary,
+  },
+  waterTag: {
+    borderRadius: Radii.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  waterTagPositive: {
+    backgroundColor: '#DFF4FF',
+  },
+  waterTagNegative: {
+    backgroundColor: '#FFE7E9',
+  },
+  waterTagText: {
+    ...Typography.caption,
+    fontWeight: '800',
+  },
+  waterTagTextPositive: {
+    color: '#0B6B94',
+  },
+  waterTagTextNegative: {
+    color: Brand.danger,
   },
   hint: {
     ...Typography.body,
@@ -1074,87 +1053,5 @@ const s = StyleSheet.create({
     color: Brand.textSecondary,
     textAlign: 'center',
     lineHeight: 17,
-  },
-  totalsCard: {
-    backgroundColor: Brand.surfaceSoft,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    padding: 14,
-    gap: 10,
-  },
-  kcalRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 5,
-  },
-  kcalValue: {
-    ...Typography.title,
-    color: Brand.text,
-    fontSize: 34,
-    lineHeight: 40,
-  },
-  kcalUnit: {
-    ...Typography.body,
-    color: Brand.textSecondary,
-    fontWeight: '600',
-  },
-  macroRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  macroChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: Radii.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  goalList: {
-    gap: 10,
-  },
-  goalItem: {
-    gap: 6,
-  },
-  goalItemLabel: {
-    ...Typography.caption,
-    color: Brand.text,
-    fontWeight: '700',
-  },
-  goalItemValue: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  goalTrack: {
-    height: 8,
-    borderRadius: Radii.pill,
-    overflow: 'hidden',
-  },
-  goalFill: {
-    height: '100%',
-    borderRadius: Radii.pill,
-  },
-  goalItemHint: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-  },
-  mealsSection: {
-    gap: 10,
-  },
-  macroLabel: {
-    ...Typography.caption,
-    textTransform: 'uppercase',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  macroValue: {
-    ...Typography.caption,
-    fontWeight: '800',
-  },
-  mealsList: {
-    gap: 8,
   },
 });

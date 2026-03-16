@@ -1,23 +1,17 @@
 /**
- * Modal com calendário para selecionar uma data.
- * Reutiliza o visual do calendário do Histórico.
+ * Modal com calendario para selecionar uma data.
+ * Reutiliza o visual do calendario do historico.
  */
 
-import { useState } from 'react';
-import {
-    Modal,
-    Pressable,
-    StyleSheet,
-    Text,
-    View
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { Brand } from '@/constants/theme';
 
-const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
 const MONTHS = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
@@ -25,13 +19,16 @@ function getCalendarRows(year: number, month: number): (number | null)[][] {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells: (number | null)[] = [];
-  for (let i = 0; i < firstDay; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  for (let i = 0; i < firstDay; i += 1) cells.push(null);
+  for (let day = 1; day <= daysInMonth; day += 1) cells.push(day);
   while (cells.length % 7 !== 0) cells.push(null);
+
   const rows: (number | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) {
     rows.push(cells.slice(i, i + 7));
   }
+
   return rows;
 }
 
@@ -43,11 +40,15 @@ function todayStr(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function clampDateToMax(date: string, maxDate?: string): string {
+  if (!maxDate) return date;
+  return date > maxDate ? maxDate : date;
+}
+
 type Props = {
   visible: boolean;
-  /** Data atual selecionada no formato YYYY-MM-DD (opcional, para highlight) */
   currentDate?: string;
-  /** Título do modal */
+  maxDate?: string;
   title?: string;
   onSelect: (date: string) => void;
   onClose: () => void;
@@ -56,40 +57,60 @@ type Props = {
 export function CalendarPickerModal({
   visible,
   currentDate,
+  maxDate,
   title = 'Selecionar data',
   onSelect,
   onClose,
 }: Props) {
   const today = todayStr();
-  const initDate = currentDate || today;
-  const [viewYear, setViewYear] = useState(() => parseInt(initDate.split('-')[0]));
-  const [viewMonth, setViewMonth] = useState(() => parseInt(initDate.split('-')[1]) - 1);
-  const [selected, setSelected] = useState(initDate);
+  const initialDate = clampDateToMax(currentDate || today, maxDate);
+  const [viewYear, setViewYear] = useState(() => parseInt(initialDate.slice(0, 4), 10));
+  const [viewMonth, setViewMonth] = useState(() => parseInt(initialDate.slice(5, 7), 10) - 1);
+  const [selected, setSelected] = useState(initialDate);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    const nextDate = clampDateToMax(currentDate || todayStr(), maxDate);
+    setSelected(nextDate);
+    setViewYear(parseInt(nextDate.slice(0, 4), 10));
+    setViewMonth(parseInt(nextDate.slice(5, 7), 10) - 1);
+  }, [visible, currentDate, maxDate]);
 
   const calendarRows = getCalendarRows(viewYear, viewMonth);
+  const maxMonthKey = maxDate ? maxDate.slice(0, 7) : null;
+  const currentMonthKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
+  const canGoNextMonth = !maxMonthKey || currentMonthKey < maxMonthKey;
 
   function prevMonth() {
     if (viewMonth === 0) {
       setViewMonth(11);
-      setViewYear(viewYear - 1);
-    } else {
-      setViewMonth(viewMonth - 1);
+      setViewYear((prev) => prev - 1);
+      return;
     }
+
+    setViewMonth((prev) => prev - 1);
   }
 
   function nextMonth() {
+    if (!canGoNextMonth) return;
+
     if (viewMonth === 11) {
       setViewMonth(0);
-      setViewYear(viewYear + 1);
-    } else {
-      setViewMonth(viewMonth + 1);
+      setViewYear((prev) => prev + 1);
+      return;
     }
+
+    setViewMonth((prev) => prev + 1);
   }
 
   function handleDayPress(day: number) {
     const mm = String(viewMonth + 1).padStart(2, '0');
     const dd = String(day).padStart(2, '0');
-    setSelected(`${viewYear}-${mm}-${dd}`);
+    const nextDate = `${viewYear}-${mm}-${dd}`;
+
+    if (maxDate && nextDate > maxDate) return;
+    setSelected(nextDate);
   }
 
   function handleConfirm() {
@@ -97,57 +118,57 @@ export function CalendarPickerModal({
     onClose();
   }
 
-  // Format selected for display
-  const selParts = selected.split('-');
-  const selLabel = `${parseInt(selParts[2])} de ${MONTHS[parseInt(selParts[1]) - 1]} de ${selParts[0]}`;
+  const selYear = parseInt(selected.slice(0, 4), 10);
+  const selMonth = parseInt(selected.slice(5, 7), 10);
+  const selDay = parseInt(selected.slice(8, 10), 10);
+  const selLabel = `${selDay} de ${MONTHS[selMonth - 1]} de ${selYear}`;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      transparent
-      onRequestClose={onClose}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={s.overlay}>
         <Pressable style={s.backdrop} onPress={onClose} />
 
         <View style={s.card}>
           <Text style={s.title}>{title}</Text>
 
-          {/* Calendar */}
           <View style={s.calendar}>
-            {/* Month nav */}
             <View style={s.calNav}>
               <Pressable onPress={prevMonth} style={s.calNavBtn}>
-                <Text style={s.calNavIcon}>‹</Text>
+                <Text style={s.calNavIcon}>{'<'}</Text>
               </Pressable>
               <Text style={s.calMonthLabel}>
                 {MONTHS[viewMonth]} {viewYear}
               </Text>
-              <Pressable onPress={nextMonth} style={s.calNavBtn}>
-                <Text style={s.calNavIcon}>›</Text>
+              <Pressable
+                onPress={nextMonth}
+                style={[s.calNavBtn, !canGoNextMonth && s.calNavBtnDisabled]}
+                disabled={!canGoNextMonth}>
+                <Text style={s.calNavIcon}>{'>'}</Text>
               </Pressable>
             </View>
 
-            {/* Weekday headers */}
             <View style={s.weekRow}>
-              {WEEKDAYS.map((w) => (
-                <Text key={w} style={s.weekDay}>{w}</Text>
+              {WEEKDAYS.map((weekday) => (
+                <Text key={weekday} style={s.weekDay}>
+                  {weekday}
+                </Text>
               ))}
             </View>
 
-            {/* Days */}
             <View style={s.daysGrid}>
-              {calendarRows.map((row, rowIdx) => (
-                <View key={`row-${rowIdx}`} style={s.weekRow}>
-                  {row.map((day, colIdx) => {
+              {calendarRows.map((row, rowIndex) => (
+                <View key={`row-${rowIndex}`} style={s.weekRow}>
+                  {row.map((day, colIndex) => {
                     if (day === null) {
-                      return <View key={`empty-${rowIdx}-${colIdx}`} style={s.dayCell} />;
+                      return <View key={`empty-${rowIndex}-${colIndex}`} style={s.dayCell} />;
                     }
+
                     const mm = String(viewMonth + 1).padStart(2, '0');
                     const dd = String(day).padStart(2, '0');
                     const dateStr = `${viewYear}-${mm}-${dd}`;
                     const isSelected = dateStr === selected;
                     const isToday = dateStr === today;
+                    const isDisabled = !!maxDate && dateStr > maxDate;
 
                     return (
                       <Pressable
@@ -156,13 +177,16 @@ export function CalendarPickerModal({
                           s.dayCell,
                           isSelected && s.dayCellSelected,
                           isToday && !isSelected && s.dayCellToday,
+                          isDisabled && s.dayCellDisabled,
                         ]}
-                        onPress={() => handleDayPress(day)}>
+                        onPress={() => handleDayPress(day)}
+                        disabled={isDisabled}>
                         <Text
                           style={[
                             s.dayText,
                             isSelected && s.dayTextSelected,
                             isToday && !isSelected && s.dayTextToday,
+                            isDisabled && s.dayTextDisabled,
                           ]}>
                           {day}
                         </Text>
@@ -174,15 +198,13 @@ export function CalendarPickerModal({
             </View>
           </View>
 
-          {/* Selected date display */}
           <Text style={s.selectedLabel}>{selLabel}</Text>
 
-          {/* Actions */}
           <View style={s.actions}>
-            <View style={{ flex: 2 }}>
+            <View style={s.actionItemWide}>
               <AppButton title="Confirmar" onPress={handleConfirm} />
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={s.actionItem}>
               <AppButton title="Cancelar" onPress={onClose} variant="secondary" />
             </View>
           </View>
@@ -191,8 +213,6 @@ export function CalendarPickerModal({
     </Modal>
   );
 }
-
-// ─── Estilos ─────────────────────────────────────────────
 
 const CELL_SIZE = 40;
 
@@ -225,8 +245,6 @@ const s = StyleSheet.create({
     color: Brand.text,
     textAlign: 'center',
   },
-
-  // Calendar
   calendar: {
     backgroundColor: Brand.card,
     borderRadius: 16,
@@ -245,6 +263,9 @@ const s = StyleSheet.create({
     backgroundColor: Brand.bg,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  calNavBtnDisabled: {
+    opacity: 0.35,
   },
   calNavIcon: {
     fontSize: 22,
@@ -288,6 +309,9 @@ const s = StyleSheet.create({
     borderColor: Brand.green,
     borderRadius: 14,
   },
+  dayCellDisabled: {
+    opacity: 0.38,
+  },
   dayText: {
     fontSize: 14,
     fontWeight: '500',
@@ -301,18 +325,26 @@ const s = StyleSheet.create({
     color: Brand.greenDark,
     fontWeight: '700',
   },
-
-  // Selected display
+  dayTextDisabled: {
+    color: Brand.textSecondary,
+  },
   selectedLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: Brand.textSecondary,
     textAlign: 'center',
   },
-
-  // Actions
   actions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
+  },
+  actionItemWide: {
+    flex: 2,
+    minWidth: 160,
+  },
+  actionItem: {
+    flex: 1,
+    minWidth: 120,
   },
 });

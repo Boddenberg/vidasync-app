@@ -1,23 +1,16 @@
 /**
- * Seletor de data
+ * Seletor de data.
  *
- * Duas opções mutuamente exclusivas:
- *   - Checkbox "Hoje" → usa data atual
- *   - Seletor de dia/mês/ano via scroll
+ * Mantem a opcao "Hoje" e corrige selecoes futuras no proprio front.
  */
 
-import { Brand } from '@/constants/theme';
 import { useEffect, useRef, useState } from 'react';
-import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { Brand } from '@/constants/theme';
 
 type Props = {
-  value: string;        // "YYYY-MM-DD" ou ""
+  value: string;
   useToday: boolean;
   onChangeDate: (date: string) => void;
   onToggleToday: (useToday: boolean) => void;
@@ -28,69 +21,117 @@ const MONTHS_LABELS = [
   'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
 ];
 
-function pad(n: number) { return String(n).padStart(2, '0'); }
+const ITEM_H = 38;
+const DAYS = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, '0'));
+const MONTHS = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0'));
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 3 }, (_, index) => String(currentYear - 2 + index));
+
+function pad(value: number) {
+  return String(value).padStart(2, '0');
+}
+
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-const ITEM_H = 38;
+function splitDate(date: string) {
+  return {
+    year: date.slice(0, 4),
+    month: date.slice(5, 7),
+    day: date.slice(8, 10),
+  };
+}
 
-// Generate arrays
-const DAYS = Array.from({ length: 31 }, (_, i) => pad(i + 1));
-const MONTHS = Array.from({ length: 12 }, (_, i) => pad(i + 1));
-const currentYear = new Date().getFullYear();
-const YEARS = Array.from({ length: 3 }, (_, i) => String(currentYear - 1 + i));
+function getDaysInMonth(year: string, month: string) {
+  return new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
+}
+
+function normalizeDateSelection(year: string, month: string, day: string, maxDate: string) {
+  const safeYear = YEARS.includes(year) ? year : maxDate.slice(0, 4);
+  const safeMonth = MONTHS.includes(month) ? month : maxDate.slice(5, 7);
+  const maxDayInMonth = getDaysInMonth(safeYear, safeMonth);
+  const requestedDay = Math.max(1, parseInt(day, 10) || 1);
+  const safeDay = pad(Math.min(requestedDay, maxDayInMonth));
+  const candidate = `${safeYear}-${safeMonth}-${safeDay}`;
+  const clampedDate = candidate > maxDate ? maxDate : candidate;
+
+  return {
+    ...splitDate(clampedDate),
+    date: clampedDate,
+  };
+}
 
 export function DatePicker({ value, useToday, onChangeDate, onToggleToday }: Props) {
-  const today = todayStr();
+  const maxDate = todayStr();
+  const initialDate = normalizeDateSelection(
+    value ? value.slice(0, 4) : maxDate.slice(0, 4),
+    value ? value.slice(5, 7) : maxDate.slice(5, 7),
+    value ? value.slice(8, 10) : maxDate.slice(8, 10),
+    maxDate,
+  );
 
-  const [day, setDay] = useState(() => {
-    if (value) return value.split('-')[2] ?? pad(new Date().getDate());
-    return pad(new Date().getDate());
-  });
-  const [month, setMonth] = useState(() => {
-    if (value) return value.split('-')[1] ?? pad(new Date().getMonth() + 1);
-    return pad(new Date().getMonth() + 1);
-  });
-  const [year, setYear] = useState(() => {
-    if (value) return value.split('-')[0] ?? String(new Date().getFullYear());
-    return String(new Date().getFullYear());
-  });
+  const [day, setDay] = useState(initialDate.day);
+  const [month, setMonth] = useState(initialDate.month);
+  const [year, setYear] = useState(initialDate.year);
 
   useEffect(() => {
-    if (!useToday) {
-      onChangeDate(`${year}-${month}-${day}`);
-    }
-  }, [day, month, year, useToday]);
+    if (!value) return;
+
+    const normalized = normalizeDateSelection(
+      value.slice(0, 4),
+      value.slice(5, 7),
+      value.slice(8, 10),
+      maxDate,
+    );
+
+    if (normalized.year !== year) setYear(normalized.year);
+    if (normalized.month !== month) setMonth(normalized.month);
+    if (normalized.day !== day) setDay(normalized.day);
+  }, [value, year, month, day, maxDate]);
+
+  useEffect(() => {
+    if (useToday) return;
+
+    const normalized = normalizeDateSelection(year, month, day, maxDate);
+
+    if (normalized.year !== year) setYear(normalized.year);
+    if (normalized.month !== month) setMonth(normalized.month);
+    if (normalized.day !== day) setDay(normalized.day);
+
+    onChangeDate(normalized.date);
+  }, [day, month, year, useToday, onChangeDate, maxDate]);
 
   function handleToggleToday() {
     if (!useToday) {
       onToggleToday(true);
-      onChangeDate(todayStr());
-    } else {
-      onToggleToday(false);
-      onChangeDate(`${year}-${month}-${day}`);
+      onChangeDate(maxDate);
+      return;
     }
+
+    const normalized = normalizeDateSelection(year, month, day, maxDate);
+    setYear(normalized.year);
+    setMonth(normalized.month);
+    setDay(normalized.day);
+    onToggleToday(false);
+    onChangeDate(normalized.date);
   }
 
-  // Format today for display
   const todayDate = new Date();
   const todayLabel = `${pad(todayDate.getDate())}/${pad(todayDate.getMonth() + 1)}/${todayDate.getFullYear()}`;
 
   return (
     <View style={s.root}>
-      {/* Checkbox "Hoje" */}
       <Pressable style={s.nowRow} onPress={handleToggleToday}>
         <View style={[s.checkbox, useToday && s.checkboxActive]}>
-          {useToday && <Text style={s.checkmark}>✓</Text>}
+          {useToday ? <Text style={s.checkmark}>v</Text> : null}
         </View>
         <Text style={s.nowLabel}>Hoje</Text>
-        {useToday && <Text style={s.nowTime}>{todayLabel}</Text>}
+        {useToday ? <Text style={s.nowTime}>{todayLabel}</Text> : null}
       </Pressable>
 
-      {/* Seletores */}
-      {!useToday && (
+      {!useToday ? (
         <View style={s.pickerRow}>
           <View style={s.pickerCol}>
             <Text style={s.pickerLabel}>Dia</Text>
@@ -99,7 +140,7 @@ export function DatePicker({ value, useToday, onChangeDate, onToggleToday }: Pro
             </View>
           </View>
           <View style={s.pickerColMonth}>
-            <Text style={s.pickerLabel}>Mês</Text>
+            <Text style={s.pickerLabel}>Mes</Text>
             <View style={s.scrollWrapMonth}>
               <ScrollPickerMonth data={MONTHS} selected={month} onSelect={setMonth} />
             </View>
@@ -111,28 +152,32 @@ export function DatePicker({ value, useToday, onChangeDate, onToggleToday }: Pro
             </View>
           </View>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
 
-// ─── ScrollPicker simples (ScrollView, sem FlatList) ─────
-
-function ScrollPicker({ data, selected, onSelect }: {
+function ScrollPicker({
+  data,
+  selected,
+  onSelect,
+}: {
   data: string[];
   selected: string;
-  onSelect: (val: string) => void;
+  onSelect: (value: string) => void;
 }) {
   const scrollRef = useRef<ScrollView>(null);
-  const initialIdx = data.indexOf(selected);
 
   useEffect(() => {
-    if (scrollRef.current && initialIdx >= 0) {
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({ y: initialIdx * ITEM_H, animated: false });
-      }, 100);
-    }
-  }, []);
+    const index = data.indexOf(selected);
+    if (!scrollRef.current || index < 0) return;
+
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: index * ITEM_H, animated: false });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [data, selected]);
 
   return (
     <ScrollView
@@ -142,8 +187,7 @@ function ScrollPicker({ data, selected, onSelect }: {
       decelerationRate="fast"
       nestedScrollEnabled
       style={s.flatList}
-      contentContainerStyle={{ paddingVertical: ITEM_H }}
-    >
+      contentContainerStyle={s.scrollContent}>
       {data.map((item) => {
         const active = item === selected;
         return (
@@ -151,9 +195,7 @@ function ScrollPicker({ data, selected, onSelect }: {
             key={item}
             style={[s.pickItem, active && s.pickItemActive]}
             onPress={() => onSelect(item)}>
-            <Text style={[s.pickItemText, active && s.pickItemTextActive]}>
-              {item}
-            </Text>
+            <Text style={[s.pickItemText, active && s.pickItemTextActive]}>{item}</Text>
           </Pressable>
         );
       })}
@@ -161,21 +203,27 @@ function ScrollPicker({ data, selected, onSelect }: {
   );
 }
 
-function ScrollPickerMonth({ data, selected, onSelect }: {
+function ScrollPickerMonth({
+  data,
+  selected,
+  onSelect,
+}: {
   data: string[];
   selected: string;
-  onSelect: (val: string) => void;
+  onSelect: (value: string) => void;
 }) {
   const scrollRef = useRef<ScrollView>(null);
-  const initialIdx = data.indexOf(selected);
 
   useEffect(() => {
-    if (scrollRef.current && initialIdx >= 0) {
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({ y: initialIdx * ITEM_H, animated: false });
-      }, 100);
-    }
-  }, []);
+    const index = data.indexOf(selected);
+    if (!scrollRef.current || index < 0) return;
+
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: index * ITEM_H, animated: false });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [data, selected]);
 
   return (
     <ScrollView
@@ -185,18 +233,18 @@ function ScrollPickerMonth({ data, selected, onSelect }: {
       decelerationRate="fast"
       nestedScrollEnabled
       style={s.flatListMonth}
-      contentContainerStyle={{ paddingVertical: ITEM_H }}
-    >
+      contentContainerStyle={s.scrollContent}>
       {data.map((item) => {
         const active = item === selected;
-        const idx = parseInt(item, 10) - 1;
+        const monthIndex = parseInt(item, 10) - 1;
+
         return (
           <Pressable
             key={item}
             style={[s.pickItem, active && s.pickItemActive]}
             onPress={() => onSelect(item)}>
             <Text style={[s.pickItemText, active && s.pickItemTextActive]}>
-              {MONTHS_LABELS[idx]}
+              {MONTHS_LABELS[monthIndex]}
             </Text>
           </Pressable>
         );
@@ -204,8 +252,6 @@ function ScrollPickerMonth({ data, selected, onSelect }: {
     </ScrollView>
   );
 }
-
-// ─── Estilos ─────────────────────────────────────────────
 
 const s = StyleSheet.create({
   root: {
@@ -246,8 +292,6 @@ const s = StyleSheet.create({
     color: Brand.greenDark,
     marginLeft: 4,
   },
-
-  // Picker
   pickerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -290,6 +334,9 @@ const s = StyleSheet.create({
   },
   flatListMonth: {
     width: 72,
+  },
+  scrollContent: {
+    paddingVertical: ITEM_H,
   },
   pickItem: {
     height: ITEM_H,

@@ -258,6 +258,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user } = useAuth();
+  const today = todayStr();
 
   const [registerVisible, setRegisterVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
@@ -289,6 +290,7 @@ export default function HomeScreen() {
   const [notificationsMarkingAll, setNotificationsMarkingAll] = useState(false);
 
   const { meals, totals, add, refresh, date: selectedDate, setDate } = useMeals();
+  const canAdvanceDate = selectedDate < today;
 
   const dayAnim = useRef(new Animated.Value(0)).current;
   const hydrationAnim = useRef(new Animated.Value(0)).current;
@@ -616,7 +618,10 @@ export default function HomeScreen() {
               </View>
               <Text style={s.dateCenterValue}>{formatCompactSelectedDate(selectedDate)}</Text>
             </Pressable>
-            <Pressable style={({ pressed }) => [s.dateArrow, pressed && s.pressed]} onPress={() => setDate(shiftDate(selectedDate, 1))}>
+            <Pressable
+              style={({ pressed }) => [s.dateArrow, !canAdvanceDate && s.disabled, pressed && canAdvanceDate && s.pressed]}
+              onPress={() => setDate(shiftDate(selectedDate, 1))}
+              disabled={!canAdvanceDate}>
               <Ionicons name="chevron-forward" size={18} color={Brand.greenDark} />
             </Pressable>
           </View>
@@ -862,7 +867,14 @@ export default function HomeScreen() {
         onPressNotification={handlePressNotification}
         onMarkAllRead={handleMarkAllNotificationsRead}
       />
-      <CalendarPickerModal visible={calendarVisible} currentDate={selectedDate} title="Selecionar dia do painel" onSelect={(date) => setDate(date)} onClose={() => setCalendarVisible(false)} />
+      <CalendarPickerModal
+        visible={calendarVisible}
+        currentDate={selectedDate}
+        maxDate={today}
+        title="Selecionar dia do painel"
+        onSelect={(date) => setDate(date)}
+        onClose={() => setCalendarVisible(false)}
+      />
       <NutritionGoalsModal visible={goalsModalVisible} dateLabel={formatDateForModal(selectedDate)} currentGoals={nutritionGoals?.goals ?? null} goalInherited={nutritionGoals?.goalInherited} saving={goalsSaving} onSave={handleSaveGoals} onClose={() => setGoalsModalVisible(false)} />
     </View>
   );
