@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Brand, Radii, Typography } from '@/constants/theme';
+import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import type { Meal } from '@/types/nutrition';
 import { MEAL_TYPE_LABELS } from '@/types/nutrition';
 
@@ -60,7 +60,9 @@ export function MealCard({ meal, onEdit, onDuplicate, onDelete, onMoveDate }: Pr
               {MEAL_TYPE_LABELS[meal.mealType]}
               {meal.time ? ` • ${meal.time}` : ''}
             </Text>
-            <Text style={s.cal}>{meal.nutrition.calories}</Text>
+            <View style={s.calBadge}>
+              <Text style={s.cal}>{meal.nutrition.calories} kcal</Text>
+            </View>
           </View>
 
           <Text style={s.foods} numberOfLines={2}>
@@ -109,55 +111,61 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     backgroundColor: Brand.card,
-    borderRadius: Radii.md,
+    borderRadius: Radii.xl,
     borderWidth: 1,
     borderColor: Brand.border,
     overflow: 'hidden',
+    ...Shadows.card,
   },
   rowPressed: {
-    opacity: 0.92,
+    opacity: 0.95,
     transform: [{ scale: 0.995 }],
   },
   accent: {
-    width: 4,
-    backgroundColor: Brand.green,
+    width: 6,
+    backgroundColor: Brand.greenDark,
   },
   thumb: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    marginLeft: 12,
+    width: 68,
+    height: 68,
+    borderRadius: 22,
+    marginLeft: 14,
     alignSelf: 'center',
   },
   thumbPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    marginLeft: 12,
+    width: 68,
+    height: 68,
+    borderRadius: 22,
+    marginLeft: 14,
     alignSelf: 'center',
     backgroundColor: Brand.surfaceAlt,
-    borderWidth: 1,
-    borderColor: Brand.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   content: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    gap: 5,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    gap: 8,
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
+    alignItems: 'flex-start',
+    gap: 10,
   },
   type: {
     ...Typography.caption,
     color: Brand.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.7,
+    flex: 1,
+  },
+  calBadge: {
+    borderRadius: Radii.pill,
+    backgroundColor: Brand.surfaceSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   cal: {
     ...Typography.caption,
@@ -167,8 +175,8 @@ const s = StyleSheet.create({
   foods: {
     ...Typography.body,
     color: Brand.text,
-    fontWeight: '600',
-    lineHeight: 20,
+    fontWeight: '700',
+    lineHeight: 22,
   },
   macroRow: {
     flexDirection: 'row',
@@ -180,19 +188,19 @@ const s = StyleSheet.create({
   macroPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: Radii.pill,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   macroPillLabel: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
   macroPillValue: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

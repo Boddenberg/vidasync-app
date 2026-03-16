@@ -9,15 +9,15 @@ export const s = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: 18,
-    gap: 14,
+    gap: 16,
   },
   actionCard: {
     backgroundColor: Brand.card,
     borderRadius: Radii.xl,
     borderWidth: 1,
     borderColor: Brand.border,
-    padding: 18,
-    gap: 12,
+    padding: 20,
+    gap: 14,
     ...Shadows.card,
   },
   sectionTitle: {
@@ -28,28 +28,5 @@ export const s = StyleSheet.create({
   sectionSub: {
     ...Typography.body,
     color: Brand.textSecondary,
-  },
-  quickRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  shortcut: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 16,
-    backgroundColor: '#E7F6EC',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-  },
-  shortcutText: {
-    ...Typography.body,
-    color: Brand.greenDark,
-    fontWeight: '700',
-  },
-  pressed: {
-    opacity: 0.9,
   },
 });

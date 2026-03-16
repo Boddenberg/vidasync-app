@@ -1,38 +1,28 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Brand, Radii, Typography } from '@/constants/theme';
-import { formatCompactSelectedDate, greeting } from '@/features/home/home-utils';
+import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
+import { greeting } from '@/features/home/home-utils';
 import type { AuthUser } from '@/types/nutrition';
 
 type Props = {
   user: AuthUser | null;
-  dashboardDateLabel: string;
-  dashboardSupportText: string;
-  selectedDate: string;
-  canAdvanceDate: boolean;
+  dashboardDateText: string;
   unreadNotificationsCount: number;
   onOpenProfile: () => void;
   onOpenHistory: () => void;
   onOpenNotifications: () => void;
   onOpenCalendar: () => void;
-  onPreviousDate: () => void;
-  onNextDate: () => void;
 };
 
 export function HomeHeader({
   user,
-  dashboardDateLabel,
-  dashboardSupportText,
-  selectedDate,
-  canAdvanceDate,
+  dashboardDateText,
   unreadNotificationsCount,
   onOpenProfile,
   onOpenHistory,
   onOpenNotifications,
   onOpenCalendar,
-  onPreviousDate,
-  onNextDate,
 }: Props) {
   return (
     <View style={s.header}>
@@ -53,19 +43,24 @@ export function HomeHeader({
               {greeting()}
               {user ? `, ${user.username}` : ''}
             </Text>
-            <Text style={s.date}>{dashboardSupportText}</Text>
+            <Text style={s.subGreeting}>Seu resumo está pronto.</Text>
+
+            <Pressable style={({ pressed }) => [s.dateChip, pressed && s.pressed]} onPress={onOpenCalendar}>
+              <Ionicons name="calendar-outline" size={15} color={Brand.greenDark} />
+              <Text style={s.dateChipText}>{dashboardDateText}</Text>
+            </Pressable>
           </View>
         </View>
 
         <View style={s.actions}>
           <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} onPress={onOpenHistory}>
-            <Ionicons name="stats-chart-outline" size={18} color={Brand.text} />
+            <Ionicons name="stats-chart" size={20} color={Brand.greenDark} />
           </Pressable>
 
           <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} onPress={onOpenNotifications}>
             <Ionicons
               name={unreadNotificationsCount > 0 ? 'notifications' : 'notifications-outline'}
-              size={18}
+              size={20}
               color={Brand.text}
             />
             {unreadNotificationsCount > 0 ? (
@@ -78,27 +73,6 @@ export function HomeHeader({
           </Pressable>
         </View>
       </View>
-
-      <View style={s.dateRail}>
-        <Pressable style={({ pressed }) => [s.dateArrow, pressed && s.pressed]} onPress={onPreviousDate}>
-          <Ionicons name="chevron-back" size={18} color={Brand.greenDark} />
-        </Pressable>
-
-        <Pressable style={({ pressed }) => [s.dateCenter, pressed && s.pressed]} onPress={onOpenCalendar}>
-          <View style={s.dateCenterHeader}>
-            <Ionicons name="calendar-outline" size={14} color={Brand.greenDark} />
-            <Text style={s.dateCenterLabel}>{dashboardDateLabel}</Text>
-          </View>
-          <Text style={s.dateCenterValue}>{formatCompactSelectedDate(selectedDate)}</Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [s.dateArrow, !canAdvanceDate && s.disabled, pressed && canAdvanceDate && s.pressed]}
-          onPress={onNextDate}
-          disabled={!canAdvanceDate}>
-          <Ionicons name="chevron-forward" size={18} color={Brand.greenDark} />
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -110,30 +84,33 @@ const s = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
+    alignItems: 'flex-start',
+    gap: 14,
   },
   profile: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    alignItems: 'flex-start',
+    gap: 14,
   },
   profileCopy: {
     flex: 1,
+    gap: 4,
+    paddingTop: 2,
   },
   avatarButton: {
-    borderRadius: 22,
+    borderRadius: Radii.xl,
+    ...Shadows.card,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
   },
   avatarFallback: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: Brand.greenDark,
     alignItems: 'center',
     justifyContent: 'center',
@@ -144,36 +121,40 @@ const s = StyleSheet.create({
     fontWeight: '800',
   },
   greeting: {
-    ...Typography.subtitle,
+    ...Typography.title,
     color: Brand.text,
     fontWeight: '800',
+    lineHeight: 34,
   },
-  date: {
+  subGreeting: {
     ...Typography.body,
     color: Brand.textSecondary,
+    fontWeight: '500',
   },
   actions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
+    paddingTop: 2,
   },
   iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 16,
+    width: 54,
+    height: 54,
+    borderRadius: 22,
     backgroundColor: Brand.card,
     borderWidth: 1,
     borderColor: Brand.border,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    ...Shadows.card,
   },
   notificationBadge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    top: 7,
+    right: 7,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
     paddingHorizontal: 4,
     backgroundColor: Brand.danger,
     alignItems: 'center',
@@ -183,53 +164,26 @@ const s = StyleSheet.create({
     ...Typography.caption,
     color: '#FFFFFF',
     fontWeight: '800',
+    fontSize: 10,
+    lineHeight: 12,
   },
-  dateRail: {
+  dateChip: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  dateArrow: {
-    width: 42,
-    height: 42,
-    borderRadius: 16,
-    backgroundColor: Brand.card,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dateCenter: {
-    flex: 1,
-    borderRadius: 18,
-    backgroundColor: Brand.card,
-    borderWidth: 1,
-    borderColor: Brand.border,
+    gap: 8,
+    borderRadius: Radii.pill,
+    backgroundColor: Brand.surfaceSoft,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 4,
+    paddingVertical: 10,
   },
-  dateCenterHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  dateCenterLabel: {
-    ...Typography.caption,
+  dateChipText: {
+    ...Typography.body,
     color: Brand.greenDark,
     fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  dateCenterValue: {
-    ...Typography.subtitle,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  disabled: {
-    opacity: 0.45,
   },
   pressed: {
-    opacity: 0.9,
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
 });

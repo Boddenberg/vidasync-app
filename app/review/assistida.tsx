@@ -141,8 +141,8 @@ export default function AssistedReviewScreen() {
     return (
       <View style={s.root}>
         <View style={s.emptyWrap}>
-          <Text style={s.title}>Resultado da analise</Text>
-          <Text style={s.emptyText}>Nenhum dado disponivel para revisao.</Text>
+          <Text style={s.title}>Resultado da análise</Text>
+          <Text style={s.emptyText}>Nenhum dado disponível para revisão.</Text>
           <AppButton title="Voltar" onPress={closeReview} />
         </View>
       </View>
@@ -232,7 +232,7 @@ export default function AssistedReviewScreen() {
           <TextInput
             value={draft.observation}
             onChangeText={updateObservation}
-            placeholder="Escreva observacoes opcionais sobre esta analise..."
+            placeholder="Escreva observações opcionais sobre esta análise..."
             placeholderTextColor={Brand.textSecondary}
             multiline
             style={s.multiInput}
@@ -252,18 +252,18 @@ export default function AssistedReviewScreen() {
           <View style={s.successCard}>
             <Text style={s.successTitle}>Ajustes enviados</Text>
             <Text style={s.successText}>
-              Recebemos suas observacoes. Obrigado por ajudar a melhorar seus registros.
+              Recebemos suas observações. Obrigado por ajudar a melhorar seus registros.
             </Text>
           </View>
         ) : null}
 
         {draft.kind === 'nutrition' ? (
           <View style={s.card}>
-            <Text style={s.sectionTitle}>Quer guardar essa refeicao?</Text>
+            <Text style={s.sectionTitle}>Quer guardar essa refeição?</Text>
             <AppButton title="Salvar em Meus pratos" onPress={handleSaveToFavorites} loading={saveFavorite.loading} />
             {saveFavorite.error ? <Text style={s.errorText}>{saveFavorite.error}</Text> : null}
             {saveFavorite.data ? (
-              <Text style={s.successText}>Pronto! Essa refeicao foi salva em Meus pratos.</Text>
+              <Text style={s.successText}>Pronto! Essa refeição foi salva em Meus pratos.</Text>
             ) : null}
           </View>
         ) : null}

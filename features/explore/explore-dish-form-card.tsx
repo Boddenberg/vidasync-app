@@ -140,7 +140,7 @@ export function ExploreDishFormCard({
 
       {canIncrementallyCalculate ? (
         <Text style={s.pendingHint}>
-          {pendingIngredientCount} {pendingIngredientCount === 1 ? 'ingrediente novo ainda nao entrou' : 'ingredientes novos ainda nao entraram'} no total. Calcule antes de salvar.
+          {pendingIngredientCount} {pendingIngredientCount === 1 ? 'ingrediente novo ainda não entrou' : 'ingredientes novos ainda não entraram'} no total. Calcule antes de salvar.
         </Text>
       ) : null}
 
@@ -165,7 +165,7 @@ export function ExploreDishFormCard({
 
           <View style={s.stepDivider} />
           <Text style={s.stepLabel}>3. Nome do prato</Text>
-          <AppInput placeholder="Ex: Marmita fit, Cafe da manha..." value={dishName} onChangeText={onChangeDishName} />
+          <AppInput placeholder="Ex.: Marmita fit, Café da manhã..." value={dishName} onChangeText={onChangeDishName} />
 
           <View style={s.formActions}>
             <View style={s.formActionItem}>

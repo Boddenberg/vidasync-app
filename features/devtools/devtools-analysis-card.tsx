@@ -41,8 +41,8 @@ export function DevtoolsAnalysisCard({
       <View style={s.analysisGlowTop} />
       <View style={s.sectionHeader}>
         <View>
-          <Text style={s.sectionTitle}>Analisar refeicao</Text>
-          <Text style={s.analysisSubtitle}>Envie uma foto para estimar calorias e macros da refeicao.</Text>
+          <Text style={s.sectionTitle}>Analisar refeição</Text>
+          <Text style={s.analysisSubtitle}>Envie uma foto para estimar calorias e macros da refeição.</Text>
         </View>
         <View style={s.analysisBadge}>
           <Ionicons name="sparkles-outline" size={14} color={Brand.greenDark} />

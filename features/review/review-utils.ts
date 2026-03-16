@@ -6,21 +6,21 @@ import type { NutritionReviewDraft } from '@/types/review';
 
 export function sourceLabel(source: 'photo' | 'audio' | 'pdf'): string {
   if (source === 'photo') return 'Foto';
-  if (source === 'audio') return 'Audio';
+  if (source === 'audio') return 'Áudio';
   return 'PDF';
 }
 
 export function screenCopy(kind: 'nutrition' | 'plan') {
   if (kind === 'nutrition') {
     return {
-      title: 'Resumo da refeicao',
+      title: 'Resumo da refeição',
       subtitle: 'Confira os alimentos identificados e ajuste os macros se quiser.',
     };
   }
 
   return {
-    title: 'Revisao do plano',
-    subtitle: 'Organizamos o conteudo extraido para voce revisar e ajustar se quiser.',
+    title: 'Revisão do plano',
+    subtitle: 'Organizamos o conteúdo extraído para você revisar e ajustar se quiser.',
   };
 }
 

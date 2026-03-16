@@ -97,7 +97,7 @@ export function DevtoolsSearchCard({
         <View style={s.resultBox}>
           <Text style={s.resultCal}>{result.calories}</Text>
           <View style={s.resultMacros}>
-            <MacroPill label="proteina" value={result.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
+            <MacroPill label="proteína" value={result.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
             <MacroPill label="carboidrato" value={result.carbs} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
             <MacroPill label="gordura" value={result.fat} color={Brand.macroFat} bg={Brand.macroFatBg} />
           </View>

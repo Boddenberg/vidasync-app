@@ -23,8 +23,8 @@ export function MealAttachmentField({ value, onChange, maxItems = 1 }: DomainFie
       value={value}
       onChange={onChange}
       maxItems={maxItems}
-      title="Anexo da refeicao"
-      subtitle="Use uma foto para salvar junto com a refeicao."
+      title="Anexo da refeição"
+      subtitle="Use uma foto para salvar junto com a refeição."
     />
   );
 }
@@ -52,7 +52,7 @@ export function PlanAttachmentField({ value, onChange, maxItems = 5 }: DomainFie
       onChange={onChange}
       maxItems={maxItems}
       title="Arquivos do plano"
-      subtitle="Adicione imagem, PDF ou audio para analisar seu plano alimentar."
+      subtitle="Adicione imagem, PDF ou áudio para analisar seu plano alimentar."
     />
   );
 }

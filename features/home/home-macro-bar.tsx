@@ -31,7 +31,7 @@ export function HomeMacroBar({ label, consumed, goal, color, bg, unit, remaining
         <View style={[s.trackFill, { width: `${Math.round(progress * 100)}%`, backgroundColor: color }]} />
       </View>
       <Text style={s.macroRemaining}>
-        {remaining > 0 ? `${formatMetricValue(remaining, unit)} restantes` : 'Meta concluida'}
+        {remaining > 0 ? `${formatMetricValue(remaining, unit)} restantes` : 'Meta concluída'}
       </Text>
     </View>
   );

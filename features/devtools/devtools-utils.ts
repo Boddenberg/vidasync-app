@@ -10,9 +10,9 @@ export const UNITS: Unit[] = ['g', 'ml', 'un'];
 export const FOOD_CATEGORIES = [
   { id: 'frutas', label: 'Frutas', icon: 'nutrition-outline', tint: '#EAF8EE', query: 'banana' },
   { id: 'carnes', label: 'Carnes', icon: 'barbell-outline', tint: '#FFF0EB', query: 'frango grelhado' },
-  { id: 'laticinios', label: 'Laticinios', icon: 'cafe-outline', tint: '#EEF4FF', query: 'iogurte natural' },
-  { id: 'vegetais', label: 'Vegetais', icon: 'leaf-outline', tint: '#EAF7EA', query: 'brocolis cozido' },
-  { id: 'graos', label: 'Graos', icon: 'flower-outline', tint: '#FFF6E1', query: 'arroz integral' },
+  { id: 'laticinios', label: 'Laticínios', icon: 'cafe-outline', tint: '#EEF4FF', query: 'iogurte natural' },
+  { id: 'vegetais', label: 'Vegetais', icon: 'leaf-outline', tint: '#EAF7EA', query: 'brócolis cozido' },
+  { id: 'graos', label: 'Grãos', icon: 'flower-outline', tint: '#FFF6E1', query: 'arroz integral' },
   { id: 'snacks', label: 'Snacks', icon: 'fast-food-outline', tint: '#F8EFE4', query: 'mix de castanhas' },
 ] as const;
 

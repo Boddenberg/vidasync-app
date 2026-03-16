@@ -17,7 +17,7 @@ type Props = {
   onSelectDay: (day: number) => void;
 };
 
-const CELL_SIZE = 42;
+const CELL_SIZE = 44;
 
 export function HistoryCalendarCard({
   calendarRows,
@@ -35,12 +35,10 @@ export function HistoryCalendarCard({
   return (
     <View style={s.calendarCard}>
       <View style={s.calendarIntro}>
-        <Text style={s.calendarEyebrow}>Seu historico</Text>
-        <Text style={s.calendarTitle}>Historico do dia</Text>
-        <Text style={s.calendarHint}>Selecione uma data para rever o que entrou no seu dia.</Text>
+        <Text style={s.calendarEyebrow}>Calendário</Text>
+        <Text style={s.calendarTitle}>Seus registros</Text>
+        <Text style={s.calendarHint}>Escolha um dia para revisar refeições, água e consistência.</Text>
       </View>
-
-      <View style={s.calendarDivider} />
 
       <View style={s.calNav}>
         <Pressable onPress={onPrevMonth} style={({ pressed }) => [s.calNavBtn, pressed && s.calNavBtnPressed]}>
@@ -121,6 +119,17 @@ export function HistoryCalendarCard({
           </View>
         ))}
       </View>
+
+      <View style={s.legendRow}>
+        <View style={s.legendItem}>
+          <View style={s.dayDot} />
+          <Text style={s.legendText}>Refeições</Text>
+        </View>
+        <View style={s.legendItem}>
+          <View style={s.dayWaterDot} />
+          <Text style={s.legendText}>Água</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -131,8 +140,8 @@ const s = StyleSheet.create({
     borderRadius: Radii.xl,
     borderWidth: 1,
     borderColor: Brand.border,
-    padding: 18,
-    gap: 14,
+    padding: 20,
+    gap: 16,
     ...Shadows.card,
   },
   calendarIntro: {
@@ -141,9 +150,9 @@ const s = StyleSheet.create({
   calendarEyebrow: {
     ...Typography.caption,
     color: Brand.greenDark,
-    fontWeight: '700',
+    fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.7,
   },
   calendarTitle: {
     ...Typography.title,
@@ -154,22 +163,16 @@ const s = StyleSheet.create({
     ...Typography.body,
     color: Brand.textSecondary,
   },
-  calendarDivider: {
-    height: 1,
-    backgroundColor: Brand.border,
-  },
   calNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   calNavBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Brand.bg,
-    borderWidth: 1,
-    borderColor: Brand.border,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: Brand.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -187,7 +190,7 @@ const s = StyleSheet.create({
   calMonthLabel: {
     ...Typography.subtitle,
     color: Brand.text,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   weekRow: {
     flexDirection: 'row',
@@ -206,7 +209,7 @@ const s = StyleSheet.create({
   dayCell: {
     width: CELL_SIZE,
     height: CELL_SIZE,
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -215,15 +218,13 @@ const s = StyleSheet.create({
     backgroundColor: Brand.greenDark,
   },
   dayCellToday: {
-    backgroundColor: '#EAF7EE',
-    borderWidth: 1,
-    borderColor: '#C8E7D1',
+    backgroundColor: Brand.surfaceSoft,
   },
   dayCellDisabled: {
     opacity: 0.36,
   },
   dayCellPressed: {
-    backgroundColor: '#EEF6F0',
+    backgroundColor: Brand.surfaceAlt,
   },
   dayText: {
     ...Typography.body,
@@ -249,12 +250,27 @@ const s = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Brand.greenDark,
+    backgroundColor: Brand.positive,
   },
   dayWaterDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#0B6B94',
+    backgroundColor: Brand.hydration,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    gap: 14,
+    alignItems: 'center',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendText: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '700',
   },
 });

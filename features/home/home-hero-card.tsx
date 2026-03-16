@@ -1,11 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Animated, Pressable, Text, View } from 'react-native';
 
-import { AppButton } from '@/components/app-button';
+import { Brand } from '@/constants/theme';
 import { HomeMacroBar } from '@/features/home/home-macro-bar';
 import { s } from '@/features/home/home-hero-card.styles';
-import type { GoalProgress, MealSummary } from '@/features/home/home-utils';
-import { Brand } from '@/constants/theme';
+import { formatMetricValue, type GoalProgress, type MealSummary } from '@/features/home/home-utils';
 
 type Props = {
   mealsCount: number;
@@ -13,6 +12,9 @@ type Props = {
   goalsLoading: boolean;
   hasAnyGoals: boolean;
   calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
   calorieBadgeValue: string;
   calorieBadgeLabel: string;
   calorieSummaryText: string;
@@ -31,6 +33,9 @@ export function HomeHeroCard({
   goalsLoading,
   hasAnyGoals,
   calories,
+  protein,
+  carbs,
+  fat,
   calorieBadgeValue,
   calorieBadgeLabel,
   calorieSummaryText,
@@ -42,7 +47,14 @@ export function HomeHeroCard({
   onOpenGoals,
   onOpenCalendar,
 }: Props) {
-  const heroBadgeLabel = mealsCount === 1 ? 'refeicao' : 'refeicoes';
+  const heroBadgeLabel = mealsCount === 1 ? 'refeição' : 'refeições';
+  const hasConsumedMetrics = mealsCount > 0;
+  const consumedMetrics = [
+    { label: 'Calorias', value: calories, unit: ' kcal', color: Brand.greenDark, bg: Brand.surfaceSoft },
+    { label: 'Proteína', value: protein, unit: 'g', color: Brand.macroProtein, bg: Brand.macroProteinBg },
+    { label: 'Carboidrato', value: carbs, unit: 'g', color: Brand.macroCarb, bg: Brand.macroCarbBg },
+    { label: 'Gordura', value: fat, unit: 'g', color: Brand.macroFat, bg: Brand.macroFatBg },
+  ];
 
   return (
     <View style={s.hero}>
@@ -51,12 +63,12 @@ export function HomeHeroCard({
 
       <View style={s.heroTop}>
         <View style={s.heroCopy}>
-          <Text style={s.heroLabel}>Nutricao</Text>
+          <Text style={s.heroLabel}>Resumo nutricional</Text>
           <Text style={s.heroTitle}>{heroTitle}</Text>
           <Text style={s.heroSubtitle}>
             {mealsCount > 0
-              ? 'Calorias e macros organizados para leitura mais rapida.'
-              : 'Quando voce registrar as refeicoes, o resumo vai ficar bem mais claro aqui.'}
+              ? 'Calorias, metas e períodos do dia prontos para bater o olho.'
+              : 'Assim que você registrar refeições, este bloco vira o centro do seu dia.'}
           </Text>
         </View>
 
@@ -74,14 +86,18 @@ export function HomeHeroCard({
         <>
           <View style={s.calorieSpotlight}>
             <View style={s.calorieSpotlightCopy}>
-              <Text style={s.calorieSpotlightLabel}>Calorias</Text>
+              <Text style={s.calorieSpotlightLabel}>Você consumiu</Text>
               <View style={s.calorieSpotlightRow}>
                 <Text style={s.calorieSpotlightValue}>{calories}</Text>
                 <Text style={s.calorieSpotlightUnit}>kcal</Text>
               </View>
+              <Text style={s.calorieSpotlightHint}>{calorieSecondaryText}</Text>
             </View>
 
             <View style={s.calorieBadge}>
+              <View style={s.calorieBadgeIcon}>
+                <Ionicons name="sparkles-outline" size={16} color={Brand.greenDark} />
+              </View>
               <Text style={s.calorieBadgeValue}>{calorieBadgeValue}</Text>
               <Text style={s.calorieBadgeLabel}>{calorieBadgeLabel}</Text>
             </View>
@@ -102,7 +118,7 @@ export function HomeHeroCard({
 
           <View style={s.macroSection}>
             <View style={s.rowBetween}>
-              <Text style={s.sectionMiniTitle}>Macros</Text>
+              <Text style={s.sectionMiniTitle}>Macros do dia</Text>
               {macroGoalItems.length > 0 ? <Text style={s.counter}>{macroGoalItems.length} ativos</Text> : null}
             </View>
 
@@ -121,24 +137,40 @@ export function HomeHeroCard({
               ))
             ) : (
               <Text style={s.sectionSub}>
-                Cadastre proteina, carboidrato e gordura para acompanhar os macros com mais clareza.
+                Cadastre proteína, carboidrato e gordura para acompanhar os macros com mais clareza.
               </Text>
             )}
           </View>
         </>
       ) : (
-        <View style={s.emptyGoalState}>
-          <Text style={s.emptyGoalTitle}>Nenhuma meta cadastrada para este dia</Text>
-          <Text style={s.emptyGoalText}>
-            Cadastre calorias e macros por data para acompanhar a evolucao com a meta correta.
-          </Text>
-          <AppButton title="Configurar metas do dia" onPress={onOpenGoals} />
-        </View>
+        <>
+          <View style={s.emptyGoalState}>
+            <Text style={s.emptyGoalTitle}>Consumo do dia</Text>
+            <Text style={s.emptyGoalText}>
+              {hasConsumedMetrics
+                ? 'Sem meta cadastrada para esta data. Ainda assim, o resumo do que já entrou fica visível aqui.'
+                : 'Sem meta e sem registros ainda. Assim que você lançar uma refeição, o panorama aparece aqui.'}
+            </Text>
+          </View>
+
+          {hasConsumedMetrics ? (
+            <View style={s.consumedMetricsGrid}>
+              {consumedMetrics.map((item) => (
+                <View key={item.label} style={[s.consumedMetricCard, { backgroundColor: item.bg }]}>
+                  <Text style={s.consumedMetricLabel}>{item.label}</Text>
+                  <Text style={[s.consumedMetricValue, { color: item.color }]}>
+                    {formatMetricValue(item.value, item.unit)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </>
       )}
 
       <View style={s.mealSummarySection}>
         <View style={s.rowBetween}>
-          <Text style={s.sectionMiniTitle}>Periodos registrados</Text>
+          <Text style={s.sectionMiniTitle}>Períodos registrados</Text>
           <Text style={s.counter}>
             {mealsCount > 0 ? `${mealsCount} ${mealsCount === 1 ? 'item' : 'itens'}` : 'Sem registros'}
           </Text>
@@ -160,14 +192,17 @@ export function HomeHeroCard({
                   </View>
                   <Text style={s.mealSummaryCalories}>{Math.round(item.calories)} kcal</Text>
                 </View>
-                <Text style={s.mealSummaryMacros}>
-                  P {Math.round(item.protein)}g - C {Math.round(item.carbs)}g - G {Math.round(item.fat)}g
-                </Text>
+
+                <View style={s.mealSummaryMacroRow}>
+                  <MealMacroChip label="Prot" value={Math.round(item.protein)} unit="g" color={Brand.macroProtein} bg={Brand.macroProteinBg} />
+                  <MealMacroChip label="Carb" value={Math.round(item.carbs)} unit="g" color={Brand.macroCarb} bg={Brand.macroCarbBg} />
+                  <MealMacroChip label="Gord" value={Math.round(item.fat)} unit="g" color={Brand.macroFat} bg={Brand.macroFatBg} />
+                </View>
               </View>
             ))}
           </View>
         ) : (
-          <Text style={s.sectionSub}>Os periodos so aparecem aqui quando houver pratos registrados no dia.</Text>
+          <Text style={s.sectionSub}>Os períodos aparecem aqui quando houver pratos registrados no dia.</Text>
         )}
       </View>
 
@@ -183,6 +218,30 @@ export function HomeHeroCard({
       </View>
 
       {goalsError ? <Text style={s.error}>{goalsError}</Text> : null}
+    </View>
+  );
+}
+
+function MealMacroChip({
+  label,
+  value,
+  unit,
+  color,
+  bg,
+}: {
+  label: string;
+  value: number;
+  unit: string;
+  color: string;
+  bg: string;
+}) {
+  return (
+    <View style={[s.mealSummaryMacroChip, { backgroundColor: bg }]}>
+      <Text style={[s.mealSummaryMacroLabel, { color }]}>{label}</Text>
+      <Text style={[s.mealSummaryMacroValue, { color }]}>
+        {value}
+        {unit}
+      </Text>
     </View>
   );
 }

@@ -84,11 +84,11 @@ export function NutritionReviewEditor({
         <Text style={s.heroTitle}>{title}</Text>
         <Text style={s.heroCalories}>{draft.summary.calories}</Text>
         <Text style={s.heroSubtitle}>
-          Estimativa total da analise por {sourceLabel(source).toLowerCase()}.
+          Estimativa total da análise por {sourceLabel(source).toLowerCase()}.
         </Text>
 
         <View style={s.heroMacroRow}>
-          <MacroChip label="Proteina" value={draft.summary.protein} color="#2D89C6" bg="#E8F4FC" />
+          <MacroChip label="Proteína" value={draft.summary.protein} color="#2D89C6" bg="#E8F4FC" />
           <MacroChip label="Carbo" value={draft.summary.carbs} color="#D98A32" bg="#FFF2E4" />
           <MacroChip label="Gordura" value={draft.summary.fat} color="#D24E40" bg="#FEEDEA" />
         </View>
@@ -96,7 +96,7 @@ export function NutritionReviewEditor({
 
       {corrections.length > 0 ? (
         <Animated.View style={[s.card, buildRevealStyle(correctionAnim)]}>
-          <Text style={s.sectionTitle}>Ajustes automaticos</Text>
+          <Text style={s.sectionTitle}>Ajustes automáticos</Text>
           {corrections.map((entry, index) => (
             <View key={`${entry.original}-${entry.corrected}-${index}`} style={s.correctionRow}>
               <Text style={s.correctionFrom}>{entry.original}</Text>
@@ -129,7 +129,7 @@ export function NutritionReviewEditor({
           </View>
         ) : (
           <Text style={s.emptyInlineText}>
-            Nesta leitura recebemos apenas o resumo geral, sem separacao por itens.
+            Nesta leitura recebemos apenas o resumo geral, sem separação por itens.
           </Text>
         )}
       </Animated.View>
@@ -154,7 +154,7 @@ export function NutritionReviewEditor({
                 />
               </View>
               <View style={s.gridCell}>
-                <Text style={s.inputLabel}>Proteina</Text>
+                <Text style={s.inputLabel}>Proteína</Text>
                 <AppInput
                   value={draft.summary.protein}
                   onChangeText={(value) => onChangeSummary('protein', value)}
@@ -185,7 +185,7 @@ export function NutritionReviewEditor({
             <Text style={s.inputLabel}>Itens</Text>
             {draft.items.length === 0 ? (
               <Text style={s.emptyInlineText}>
-                Nenhum item separado. Voce pode adicionar manualmente.
+                Nenhum item separado. Você pode adicionar manualmente.
               </Text>
             ) : null}
 
@@ -208,7 +208,7 @@ export function NutritionReviewEditor({
                     />
                   </View>
                   <View style={s.gridCell}>
-                    <Text style={s.inputLabel}>Proteina</Text>
+                    <Text style={s.inputLabel}>Proteína</Text>
                     <AppInput
                       value={item.protein}
                       onChangeText={(value) => onChangeItem(item.id, 'protein', value)}
@@ -248,7 +248,7 @@ export function NutritionReviewEditor({
           </View>
         ) : (
           <Text style={s.manualHint}>
-            Use esta opcao apenas se quiser corrigir nomes ou macros antes do reenvio.
+            Use esta opção apenas se quiser corrigir nomes ou macros antes do reenvio.
           </Text>
         )}
       </Animated.View>

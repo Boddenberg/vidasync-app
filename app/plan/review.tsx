@@ -26,21 +26,21 @@ export default function PlanReviewScreen() {
   return (
     <View style={s.root}>
       <ScrollView contentContainerStyle={s.scroll}>
-        <Text style={s.title}>Revisao do plano alimentar</Text>
+        <Text style={s.title}>Revisão do plano alimentar</Text>
         <Text style={s.subtitle}>
           Validar os dados antes de usar no fluxo final.
         </Text>
 
         {!session ? (
           <View style={s.emptyBox}>
-            <Text style={s.emptyText}>Nenhum dado de revisao disponivel.</Text>
+            <Text style={s.emptyText}>Nenhum dado de revisão disponível.</Text>
           </View>
         ) : (
           <>
             <View style={s.summaryCard}>
               <Text style={s.summaryTitle}>{session.result.fileName}</Text>
               <Text style={s.summaryMeta}>
-                Secoes detectadas: {session.result.sections.length}
+                Seções detectadas: {session.result.sections.length}
               </Text>
               {session.result.traceId ? (
                 <Text style={s.summaryMeta}>trace_id: {session.result.traceId}</Text>
@@ -59,7 +59,7 @@ export default function PlanReviewScreen() {
             ) : null}
 
             <View style={s.sectionCard}>
-              <Text style={s.sectionTitle}>Secoes extraidas</Text>
+              <Text style={s.sectionTitle}>Seções extraídas</Text>
               {session.result.sections.map((section, index) => (
                 <View key={`${section.title}-${index}`} style={s.sectionRow}>
                   <Text style={s.sectionName}>{section.title}</Text>

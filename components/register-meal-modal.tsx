@@ -222,7 +222,7 @@ export function RegisterMealModal({
             <View style={s.handle} />
           </View>
 
-          <Text style={s.title}>{isEditing ? 'Editar refeicao' : 'Registrar refeicao'}</Text>
+          <Text style={s.title}>{isEditing ? 'Editar refeição' : 'Registrar refeição'}</Text>
 
           <ScrollView
             ref={scrollRef}

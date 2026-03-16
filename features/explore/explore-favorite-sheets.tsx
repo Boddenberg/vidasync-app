@@ -38,7 +38,7 @@ export function ExploreMealTypeModal({ favorite, onClose, onConfirm }: MealTypeM
           <View style={s.handleWrap}>
             <View style={s.handle} />
           </View>
-          <Text style={s.sheetTitle}>Adicionar em qual refeicao?</Text>
+          <Text style={s.sheetTitle}>Adicionar em qual refeição?</Text>
           {favorite ? <Text style={s.sheetSubtitle}>{favorite.foods}</Text> : null}
 
           <View style={s.sheetActions}>
@@ -100,7 +100,7 @@ export function ExploreFavoriteActionsModal({
 
           <View style={s.sheetActions}>
             <SheetAction
-              label="Usar como refeicao"
+              label="Usar como refeição"
               icon="add-circle-outline"
               iconColor={Brand.greenDark}
               iconBg="#E8F5E9"

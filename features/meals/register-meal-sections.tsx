@@ -209,10 +209,10 @@ export function RegisterMealResultStep({
         </>
       ) : null}
 
-      <Text style={s.label}>Horario</Text>
+      <Text style={s.label}>Horário</Text>
       <TimePicker value={time} useNow={useNow} onChangeTime={onChangeTime} onToggleNow={onToggleNow} />
 
-      <Text style={s.label}>Tipo de refeicao</Text>
+      <Text style={s.label}>Tipo de refeição</Text>
       <MealTypeSelector selected={mealType} onSelect={onSelectMealType} />
     </>
   );
@@ -231,7 +231,7 @@ export function RegisterMealActionButtons({ calculated, isEditing, canSave, onSa
     <View style={s.actionRow}>
       <View style={s.primaryActionWrap}>
         <AppButton
-          title={isEditing ? 'Salvar alteracoes' : 'Salvar refeicao'}
+          title={isEditing ? 'Salvar alterações' : 'Salvar refeição'}
           onPress={onSave}
           disabled={!canSave}
         />

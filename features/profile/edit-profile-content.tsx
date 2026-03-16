@@ -114,9 +114,9 @@ export function EditProfileOverviewStep({
     <>
       <Pressable style={({ pressed }) => [s.infoCard, pressed && s.cardPressed]} onPress={onOpenUsername}>
         <View style={s.infoCopy}>
-          <Text style={s.currentLabel}>Usuario atual</Text>
+          <Text style={s.currentLabel}>Usuário atual</Text>
           <Text style={s.currentValue}>{currentUsername}</Text>
-          <Text style={s.infoHint}>Toque para alterar o nome de usuario</Text>
+          <Text style={s.infoHint}>Toque para alterar o nome de usuário</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={Brand.textSecondary} />
       </Pressable>
@@ -133,7 +133,7 @@ export function EditProfileOverviewStep({
       </Pressable>
 
       {photoChanged ? (
-        <AppButton title="Salvar alteracao da foto" onPress={onSavePhoto} loading={loading} />
+        <AppButton title="Salvar alteração da foto" onPress={onSavePhoto} loading={loading} />
       ) : null}
 
       <View style={s.utilityGroup}>
@@ -166,20 +166,20 @@ export function EditProfileUsernameStep({
 }: UsernameStepProps) {
   return (
     <View style={s.formCard}>
-      <Text style={s.sectionTitle}>Alterar nome de usuario</Text>
+      <Text style={s.sectionTitle}>Alterar nome de usuário</Text>
       <Text style={s.sectionSubtitle}>
         Escolha um nome novo e confirme com sua senha atual antes de salvar.
       </Text>
 
       <View style={s.currentInfo}>
-        <Text style={s.currentLabel}>Usuario atual</Text>
+        <Text style={s.currentLabel}>Usuário atual</Text>
         <Text style={s.currentValue}>{currentUsername}</Text>
       </View>
 
       <View style={s.fieldGroup}>
-        <Text style={s.fieldLabel}>Novo nome de usuario</Text>
+        <Text style={s.fieldLabel}>Novo nome de usuário</Text>
         <AppInput
-          placeholder="Digite o novo usuario"
+          placeholder="Digite o novo usuário"
           value={usernameDraft}
           onChangeText={onChangeUsername}
           autoCapitalize="none"
@@ -215,7 +215,7 @@ export function EditProfileUsernameStep({
       </View>
 
       <AppButton
-        title="Confirmar nome de usuario"
+        title="Confirmar nome de usuário"
         onPress={onSubmit}
         loading={loading}
         disabled={!canSubmitUsername}

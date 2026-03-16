@@ -29,23 +29,23 @@ export default function NutritionReviewScreen() {
   return (
     <View style={s.root}>
       <ScrollView contentContainerStyle={s.scroll}>
-        <Text style={s.title}>Revisao nutricional</Text>
+        <Text style={s.title}>Revisão nutricional</Text>
         <Text style={s.subtitle}>
-          Encontramos pontos que precisam de confirmacao antes do uso final.
+          Encontramos pontos que precisam de confirmação antes do uso final.
         </Text>
 
         {!session ? (
           <View style={s.emptyBox}>
-            <Text style={s.emptyText}>Nenhum dado de revisao disponivel.</Text>
+            <Text style={s.emptyText}>Nenhum dado de revisão disponível.</Text>
           </View>
         ) : (
           <>
             <View style={s.summaryCard}>
               <Text style={s.summaryDishName}>{session.result.detectedDishName}</Text>
               <Text style={s.summaryCalories}>{session.result.nutrition.calories}</Text>
-              <Text style={s.summaryMacro}>Proteina: {session.result.nutrition.protein}</Text>
+              <Text style={s.summaryMacro}>Proteína: {session.result.nutrition.protein}</Text>
               <Text style={s.summaryMacro}>Carboidratos: {session.result.nutrition.carbs}</Text>
-              <Text style={s.summaryMacro}>Lipidios: {session.result.nutrition.fat}</Text>
+              <Text style={s.summaryMacro}>Lipídios: {session.result.nutrition.fat}</Text>
               {session.result.traceId ? (
                 <Text style={s.traceText}>trace_id: {session.result.traceId}</Text>
               ) : null}
@@ -71,7 +71,7 @@ export default function NutritionReviewScreen() {
                     {ingredient.nutrition.calories} | {ingredient.nutrition.protein} | {ingredient.nutrition.carbs} | {ingredient.nutrition.fat}
                   </Text>
                   {ingredient.precisaRevisao ? (
-                    <Text style={s.reviewBadge}>Precisa revisao</Text>
+                    <Text style={s.reviewBadge}>Precisa revisão</Text>
                   ) : null}
                   {ingredient.warnings.length > 0 ? (
                     <Text style={s.ingredientWarning}>{ingredient.warnings.join(' | ')}</Text>

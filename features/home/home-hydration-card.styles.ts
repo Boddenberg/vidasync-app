@@ -9,7 +9,7 @@ export const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D8EEF6',
     padding: 18,
-    gap: 14,
+    gap: 16,
     overflow: 'hidden',
     ...Shadows.card,
   },
@@ -34,6 +34,7 @@ export const s = StyleSheet.create({
   hydrationHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     gap: 12,
   },
   hydrationHeaderCopy: {
@@ -44,6 +45,7 @@ export const s = StyleSheet.create({
   },
   hydrationHeaderText: {
     flex: 1,
+    gap: 2,
   },
   hydrationIconWrap: {
     width: 38,
@@ -63,10 +65,12 @@ export const s = StyleSheet.create({
     color: Brand.textSecondary,
   },
   hydrationSettingsButton: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 14,
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D8EEF6',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -83,10 +87,18 @@ export const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   hydrationMetricGroup: {
+    flex: 1,
     gap: 4,
+  },
+  hydrationEyebrow: {
+    ...Typography.caption,
+    color: '#0B6B94',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    fontWeight: '800',
   },
   hydrationHeroValue: {
     fontSize: 40,
@@ -98,17 +110,25 @@ export const s = StyleSheet.create({
     ...Typography.body,
     color: Brand.textSecondary,
   },
+  hydrationProgressColumn: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
   hydrationProgressBadge: {
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D8EEF6',
     paddingHorizontal: 14,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
+    minWidth: 88,
   },
   hydrationProgressBadgeDone: {
     backgroundColor: '#E7F6EC',
+    borderColor: '#D3EBD9',
   },
   hydrationProgressValue: {
     ...Typography.subtitle,
@@ -126,8 +146,28 @@ export const s = StyleSheet.create({
   hydrationProgressLabelDone: {
     color: Brand.greenDark,
   },
+  hydrationSummaryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: '#E9F7FB',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  hydrationSummaryChipDone: {
+    backgroundColor: '#E7F6EC',
+  },
+  hydrationSummaryChipText: {
+    ...Typography.caption,
+    color: '#0B6B94',
+    fontWeight: '800',
+  },
+  hydrationSummaryChipTextDone: {
+    color: Brand.greenDark,
+  },
   hydrationTrackShell: {
-    height: 10,
+    height: 12,
     borderRadius: 999,
     overflow: 'hidden',
     backgroundColor: '#D7EFF7',
@@ -137,45 +177,157 @@ export const s = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#0B6B94',
   },
+  hydrationStatusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#D8EEF6',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  hydrationStatusCardDone: {
+    backgroundColor: '#E7F6EC',
+    borderColor: '#D3EBD9',
+  },
   hydrationStatus: {
     ...Typography.body,
     color: Brand.textSecondary,
+    flex: 1,
   },
-  hydrationActionsGrid: {
+  hydrationStatusDone: {
+    color: Brand.greenDark,
+  },
+  hydrationActionsSection: {
+    gap: 10,
+  },
+  hydrationSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  hydrationSectionTitle: {
+    ...Typography.caption,
+    color: Brand.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    fontWeight: '800',
+  },
+  hydrationSectionHint: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+  },
+  hydrationPrimaryActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  hydrationSecondaryActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
   waterBtn: {
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  waterBtnPrimary: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 84,
+    backgroundColor: '#0B6B94',
+    borderColor: '#0B6B94',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    justifyContent: 'center',
+    ...Shadows.soft,
+  },
+  waterBtnSecondary: {
     flex: 1,
     minWidth: 120,
-    borderRadius: 16,
-    paddingVertical: 14,
+    minHeight: 50,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#F3D5DB',
     paddingHorizontal: 14,
+    paddingVertical: 12,
+    justifyContent: 'center',
+  },
+  waterBtnPrimaryContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  waterBtnSecondaryContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  waterBtnIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  waterBtnPositive: {
-    backgroundColor: '#DDF1F8',
+  waterBtnIconWrapPositive: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
-  waterBtnNegative: {
-    backgroundColor: '#FFF0F0',
+  waterBtnIconWrapNegative: {
+    backgroundColor: '#FFF4F6',
+  },
+  waterBtnTextBlock: {
+    flex: 1,
+    gap: 2,
+  },
+  waterBtnEyebrow: {
+    ...Typography.caption,
+    color: 'rgba(255,255,255,0.76)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    fontWeight: '800',
+  },
+  waterBtnEyebrowNegative: {
+    color: Brand.danger,
   },
   waterBtnText: {
-    ...Typography.body,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+  waterBtnTextPrimary: {
+    ...Typography.subtitle,
+    color: '#FFFFFF',
   },
   waterBtnTextPositive: {
+    ...Typography.body,
     color: '#0B6B94',
   },
   waterBtnTextNegative: {
+    ...Typography.subtitle,
     color: Brand.danger,
   },
+  waterBtnTextSecondary: {
+    ...Typography.body,
+    color: Brand.danger,
+  },
+  hydrationGoalModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  hydrationGoalModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(16, 35, 26, 0.30)',
+  },
   hydrationGoalMenu: {
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    gap: 12,
+    borderRadius: 24,
+    backgroundColor: '#F6FCFE',
+    borderWidth: 1,
+    borderColor: '#D8EEF6',
+    padding: 18,
+    gap: 14,
+    ...Shadows.floating,
   },
   hydrationGoalMenuTitle: {
     ...Typography.subtitle,
@@ -184,23 +336,25 @@ export const s = StyleSheet.create({
   },
   hydrationGoalMenuHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
   },
   hydrationGoalMenuCopy: {
     flex: 1,
+    gap: 4,
   },
   hydrationGoalMenuHint: {
     ...Typography.body,
     color: Brand.textSecondary,
   },
   hydrationGoalValueBadge: {
-    borderRadius: 16,
+    borderRadius: 18,
     backgroundColor: '#E9F7FB',
     paddingHorizontal: 12,
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 96,
   },
   hydrationGoalValue: {
     ...Typography.subtitle,
@@ -213,12 +367,15 @@ export const s = StyleSheet.create({
     fontWeight: '700',
   },
   sliderWrap: {
-    paddingVertical: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 2,
   },
   sliderTrack: {
-    height: 24,
+    height: 32,
     borderRadius: 999,
     backgroundColor: '#D7EFF7',
+    borderWidth: 1,
+    borderColor: '#C7E5F0',
     justifyContent: 'center',
     overflow: 'hidden',
   },
@@ -232,13 +389,14 @@ export const s = StyleSheet.create({
   },
   sliderThumb: {
     position: 'absolute',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: '#0B6B94',
-    top: -2,
+    top: 1,
+    ...Shadows.card,
   },
   hydrationGoalScale: {
     flexDirection: 'row',
@@ -254,10 +412,6 @@ export const s = StyleSheet.create({
     ...Typography.caption,
     color: Brand.textSecondary,
   },
-  hydrationFootnote: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-  },
   error: {
     ...Typography.body,
     color: Brand.danger,
@@ -267,5 +421,6 @@ export const s = StyleSheet.create({
   },
   pressed: {
     opacity: 0.9,
+    transform: [{ scale: 0.99 }],
   },
 });

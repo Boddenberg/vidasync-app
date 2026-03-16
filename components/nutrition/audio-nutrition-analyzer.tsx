@@ -41,7 +41,7 @@ export function AudioNutritionAnalyzer({ onRequiresReview }: Props) {
     if (capture.captureState === 'recording') return `Gravando ${formatDuration(capture.recordDurationMs)}`;
     if (capture.captureState === 'paused') return `Pausado ${formatDuration(capture.recordDurationMs)}`;
     if (capture.captureState === 'ready' && capture.draft) return `Pronto ${formatDuration(capture.draft.durationMs)}`;
-    return 'Nenhum audio gravado';
+    return 'Nenhum áudio gravado';
   }, [capture.captureState, capture.draft, capture.recordDurationMs]);
 
   useEffect(() => {
@@ -65,11 +65,11 @@ export function AudioNutritionAnalyzer({ onRequiresReview }: Props) {
   return (
     <View style={s.wrapper}>
       <Text style={s.title}>Voz</Text>
-      <Text style={s.subtitle}>Grave sua refeicao e envie para análise automática.</Text>
+      <Text style={s.subtitle}>Grave sua refeição e envie para análise automática.</Text>
 
       <View style={s.stateRow}>
         <Text style={s.stateText}>{recordingLabel}</Text>
-        {capture.permissionGranted === false ? <Text style={s.permissionWarning}>Microfone sem permissao</Text> : null}
+        {capture.permissionGranted === false ? <Text style={s.permissionWarning}>Microfone sem permissão</Text> : null}
       </View>
 
       <View style={s.controlsRow}>

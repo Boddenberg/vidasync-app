@@ -16,7 +16,7 @@ export function PlanReviewEditor({ draft, onChangeSection, onAddSection, onRemov
   return (
     <>
       <View style={s.card}>
-        <Text style={s.sectionTitle}>Texto extraido</Text>
+        <Text style={s.sectionTitle}>Texto extraído</Text>
         <TextInput
           value={draft.extractedText}
           onChangeText={() => null}
@@ -27,31 +27,31 @@ export function PlanReviewEditor({ draft, onChangeSection, onAddSection, onRemov
       </View>
 
       <View style={s.card}>
-        <Text style={s.sectionTitle}>Secoes</Text>
+        <Text style={s.sectionTitle}>Seções</Text>
         {draft.sections.map((section) => (
           <View key={section.id} style={s.itemCard}>
-            <Text style={s.inputLabel}>Titulo</Text>
+            <Text style={s.inputLabel}>Título</Text>
             <AppInput
               value={section.title}
               onChangeText={(value) => onChangeSection(section.id, 'title', value)}
-              placeholder="Titulo da secao"
+              placeholder="Título da seção"
             />
 
             <Text style={s.inputLabel}>Texto</Text>
             <TextInput
               value={section.text}
               onChangeText={(value) => onChangeSection(section.id, 'text', value)}
-              placeholder="Conteudo da secao"
+              placeholder="Conteúdo da seção"
               placeholderTextColor={Brand.textSecondary}
               multiline
               style={s.multiInput}
             />
 
-            <PressableButton label="Remover secao" onPress={() => onRemoveSection(section.id)} tone="danger" />
+            <PressableButton label="Remover seção" onPress={() => onRemoveSection(section.id)} tone="danger" />
           </View>
         ))}
 
-        <PressableButton label="+ Adicionar secao" onPress={onAddSection} tone="positive" />
+        <PressableButton label="+ Adicionar seção" onPress={onAddSection} tone="positive" />
       </View>
     </>
   );

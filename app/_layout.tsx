@@ -72,7 +72,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="review/assistida"
             options={{
-              title: 'Resultado da analise',
+              title: 'Resultado da análise',
               headerBackTitle: '',
               headerBackButtonDisplayMode: 'minimal',
               headerTintColor: Brand.greenDark,
@@ -94,8 +94,8 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen name="tools/imc" options={{ title: 'Calculadora de IMC' }} />
-          <Stack.Screen name="nutrition/review" options={{ title: 'Revisao nutricional' }} />
-          <Stack.Screen name="plan/review" options={{ title: 'Revisao do plano' }} />
+          <Stack.Screen name="nutrition/review" options={{ title: 'Revisão nutricional' }} />
+          <Stack.Screen name="plan/review" options={{ title: 'Revisão do plano' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="dark" />

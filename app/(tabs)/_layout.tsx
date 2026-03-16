@@ -18,12 +18,12 @@ export default function TabLayout() {
         tabBarStyle: s.tabBar,
         tabBarItemStyle: s.tabBarItem,
         tabBarLabelStyle: s.tabBarLabel,
-        tabBarActiveBackgroundColor: 'transparent',
+        tabBarActiveBackgroundColor: Brand.surfaceSoft,
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Inicio',
+          title: 'Início',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons size={21} name={focused ? 'home' : 'home-outline'} color={color} />
           ),
@@ -62,15 +62,16 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Brand.border,
     backgroundColor: Brand.card,
-    minHeight: 66,
-    paddingTop: 8,
-    paddingBottom: 10,
-    ...Shadows.card,
+    minHeight: 78,
+    paddingTop: 10,
+    paddingBottom: 12,
+    paddingHorizontal: 10,
+    ...Shadows.floating,
   },
   tabBarItem: {
-    borderRadius: Radii.md,
-    marginHorizontal: 2,
-    marginVertical: 2,
+    borderRadius: Radii.lg,
+    marginHorizontal: 6,
+    marginVertical: 4,
   },
   tabBarLabel: {
     ...Typography.caption,
@@ -79,4 +80,3 @@ const s = StyleSheet.create({
     letterSpacing: 0.2,
   },
 });
-

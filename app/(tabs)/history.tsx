@@ -117,7 +117,7 @@ export default function HistoryScreen() {
       await loadDay(selectedDate);
       await refreshMonthMarks();
     } catch {
-      Alert.alert('Erro', 'Nao foi possivel mover a refeicao.');
+      Alert.alert('Erro', 'Não foi possível mover a refeição.');
     }
   }
 
@@ -143,7 +143,7 @@ export default function HistoryScreen() {
       setEditVisible(false);
       await loadDay(selectedDate);
     } catch {
-      Alert.alert('Erro', 'Nao foi possivel editar a refeicao.');
+      Alert.alert('Erro', 'Não foi possível editar a refeição.');
     }
   }
 
@@ -153,7 +153,7 @@ export default function HistoryScreen() {
       await loadDay(selectedDate);
       await refreshMonthMarks();
     } catch {
-      Alert.alert('Erro', 'Nao foi possivel remover a refeicao.');
+      Alert.alert('Erro', 'Não foi possível remover a refeição.');
     }
   }
 
@@ -213,7 +213,7 @@ export default function HistoryScreen() {
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <Text style={s.title}>Progresso</Text>
         <Text style={s.subtitle}>
-          Escolha um dia no calendario para revisar refeicoes e agua com mais clareza.
+          Consistência, refeições e hidratação organizadas em um painel diário.
         </Text>
 
         <HistoryCalendarCard
@@ -291,7 +291,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 18,
     paddingTop: 14,
     paddingBottom: 160,
-    gap: 14,
+    gap: 16,
   },
   title: {
     ...Typography.title,

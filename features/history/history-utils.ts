@@ -34,10 +34,10 @@ export function formatWaterLiters(valueMl: number): string {
 }
 
 export function formatWaterEventTime(event: WaterEvent): string {
-  if (!event.createdAt) return 'Horario nao informado';
+  if (!event.createdAt) return 'Horário não informado';
 
   const parsed = new Date(event.createdAt);
-  if (Number.isNaN(parsed.getTime())) return 'Horario nao informado';
+  if (Number.isNaN(parsed.getTime())) return 'Horário não informado';
 
   return parsed.toLocaleTimeString('pt-BR', {
     hour: '2-digit',

@@ -24,9 +24,10 @@ import {
   buildMealSummaries,
   clamp,
   formatDateChip,
+  formatHomeDateLabel,
   formatLiters,
-  formatWaterEventTime,
   isTodayDate,
+  shiftDate,
   sortNotifications,
 } from '@/features/home/home-utils';
 
@@ -111,7 +112,7 @@ export function useHomeScreen({ onNavigate }: Props) {
       applyHydration(await getWaterStatus(date));
       setHydrationError(null);
     } catch (error) {
-      setHydrationError(error instanceof Error ? error.message : 'Falha ao carregar hidratacao.');
+      setHydrationError(error instanceof Error ? error.message : 'Falha ao carregar hidratação.');
     } finally {
       setHydrationLoading(false);
     }
@@ -144,7 +145,7 @@ export function useHomeScreen({ onNavigate }: Props) {
       applyNotifications(await getNotifications());
       setNotificationsError(null);
     } catch (error) {
-      setNotificationsError(error instanceof Error ? error.message : 'Falha ao carregar notificacoes.');
+      setNotificationsError(error instanceof Error ? error.message : 'Falha ao carregar notificações.');
     } finally {
       setNotificationsLoading(false);
     }
@@ -197,7 +198,7 @@ export function useHomeScreen({ onNavigate }: Props) {
         ]).start();
       }
     } catch (error) {
-      setHydrationError(error instanceof Error ? error.message : 'Falha ao atualizar hidratacao.');
+      setHydrationError(error instanceof Error ? error.message : 'Falha ao atualizar hidratação.');
     } finally {
       setHydrationSaving(false);
     }
@@ -265,7 +266,7 @@ export function useHomeScreen({ onNavigate }: Props) {
         }
         setNotificationsError(null);
       } catch (error) {
-        setNotificationsError(error instanceof Error ? error.message : 'Falha ao atualizar a notificacao.');
+        setNotificationsError(error instanceof Error ? error.message : 'Falha ao atualizar a notificação.');
         await loadNotifications();
       } finally {
         setNotificationBusyIds((current) => {
@@ -295,7 +296,7 @@ export function useHomeScreen({ onNavigate }: Props) {
       }
       setNotificationsError(null);
     } catch (error) {
-      setNotificationsError(error instanceof Error ? error.message : 'Falha ao marcar as notificacoes.');
+      setNotificationsError(error instanceof Error ? error.message : 'Falha ao marcar as notificações.');
       await loadNotifications();
     } finally {
       setNotificationsMarkingAll(false);
@@ -313,16 +314,22 @@ export function useHomeScreen({ onNavigate }: Props) {
   const hasAnyGoals = goalItems.length > 0;
   const progress = hasAnyGoals ? goalItems.reduce((sum, item) => sum + item.progress, 0) / goalItems.length : 0;
 
-  const dashboardDateLabel = isTodayDate(selectedDate) ? 'Hoje' : 'Dia selecionado';
-  const dashboardSupportText = isTodayDate(selectedDate)
-    ? 'Tudo importante do seu dia em um so lugar.'
-    : 'Revise outra data sem perder o contexto.';
-  const heroTitle = hasAnyGoals ? 'Metas e macros' : 'Nutricao do dia';
+  function handlePreviousDate() {
+    setDate(shiftDate(selectedDate, -1));
+  }
+
+  function handleNextDate() {
+    if (!canAdvanceDate) return;
+    setDate(shiftDate(selectedDate, 1));
+  }
+
+  const dashboardDateText = formatHomeDateLabel(selectedDate);
+  const heroTitle = hasAnyGoals ? 'Metas e macros' : 'Resumo do dia';
   const calorieBadgeValue = calorieGoal ? `${Math.round(calorieGoal.progress * 100)}%` : `${Math.round(progress * 100)}%`;
   const calorieBadgeLabel = calorieGoal ? 'da meta' : 'do plano';
   const calorieSummaryText = calorieGoal
     ? calorieGoal.reached
-      ? 'Meta calorica concluida.'
+      ? 'Meta calórica concluída.'
       : `${Math.round(calorieGoal.remaining)} kcal restantes.`
     : hasAnyGoals
       ? `${goalItems.length} metas ativas para esta data.`
@@ -336,18 +343,13 @@ export function useHomeScreen({ onNavigate }: Props) {
   const hydrationGoal = hydrationGoalMl > 0 ? hydrationGoalMl : null;
   const hydrationProgress = hydrationGoal ? clamp(hydrationMl / hydrationGoal, 0, 1) : 0;
   const hydrationRemaining = waterStatus ? Math.max(0, waterStatus.remainingMl) : null;
-  const lastWaterEvent =
-    waterStatus && waterStatus.events.length > 0 ? waterStatus.events[waterStatus.events.length - 1] : null;
   const hydrationStatusText = hydrationGoal
     ? waterStatus?.goalReached
-      ? 'Meta de agua concluida hoje.'
+      ? 'Meta de água concluída.'
       : hydrationRemaining !== null
         ? `Faltam ${Math.round(hydrationRemaining)} ml para fechar a meta.`
         : `Meta de ${formatLiters(hydrationGoal)} pronta para acompanhar.`
     : 'Defina uma meta na engrenagem para acompanhar seu progresso.';
-  const hydrationEventText = lastWaterEvent
-    ? `Ultimo ajuste ${lastWaterEvent.deltaMl >= 0 ? '+' : ''}${Math.round(lastWaterEvent.deltaMl)} ml as ${formatWaterEventTime(lastWaterEvent)}.`
-    : 'Ajuste a agua com um toque nos botoes abaixo.';
 
   const mealSummaries = buildMealSummaries(meals);
   const unreadNotificationsCount = notificationsSnapshot.unreadCount;
@@ -380,12 +382,14 @@ export function useHomeScreen({ onNavigate }: Props) {
     setCalendarVisible,
     goalsModalVisible,
     setGoalsModalVisible,
-    dashboardDateLabel,
-    dashboardSupportText,
+    dashboardDateText,
     heroTitle,
     goalsLoading,
     hasAnyGoals,
     calories,
+    protein,
+    carbs,
+    fat,
     calorieBadgeValue,
     calorieBadgeLabel,
     calorieSummaryText,
@@ -401,7 +405,6 @@ export function useHomeScreen({ onNavigate }: Props) {
     hydrationProgress,
     waterStatus,
     hydrationStatusText,
-    hydrationEventText,
     hydrationGoalMenuOpen,
     setHydrationGoalMenuOpen,
     hydrationGoalDraftMl,
@@ -416,6 +419,8 @@ export function useHomeScreen({ onNavigate }: Props) {
     nutritionGoals,
     goalsSaving,
     unreadNotificationsCount,
+    handlePreviousDate,
+    handleNextDate,
     handleSaveNew,
     handleOpenNotifications,
     handlePressNotification,

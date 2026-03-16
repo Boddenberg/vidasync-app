@@ -32,7 +32,7 @@ export function ExploreFavoritesList({
         <View style={s.emptyState}>
           <Text style={s.emptyTitle}>Nenhum prato cadastrado</Text>
           <Text style={s.emptyHint}>
-            Use o botao Novo prato para montar sua primeira receita favorita.
+            Use o botão Novo prato para montar sua primeira receita favorita.
           </Text>
         </View>
       ) : null}
@@ -59,16 +59,22 @@ export function ExploreFavoritesList({
                   <Image source={{ uri: favorite.imageUrl }} style={s.cardThumb} />
                 ) : (
                   <View style={s.cardThumbPlaceholder}>
-                    <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
+                    <Ionicons name="restaurant-outline" size={20} color={Brand.textSecondary} />
                   </View>
                 )}
+
                 <View style={s.cardContent}>
                   <View style={s.cardTop}>
-                    <Text style={s.cardFoods} numberOfLines={1}>
+                    <Text style={s.cardFoods} numberOfLines={2}>
                       {favorite.foods}
                     </Text>
-                    <Text style={s.cardCal}>{favorite.nutrition.calories}</Text>
+                    <View style={s.cardCalBadge}>
+                      <Text style={s.cardCal}>{favorite.nutrition.calories} kcal</Text>
+                    </View>
                   </View>
+
+                  <Text style={s.cardHint}>Toque para usar, editar ou apagar.</Text>
+
                   <View style={s.cardMacros}>
                     <ExploreMacroChip label="prot" value={favorite.nutrition.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
                     <ExploreMacroChip label="carb" value={favorite.nutrition.carbs} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
@@ -84,7 +90,7 @@ export function ExploreFavoritesList({
   );
 }
 
-const THUMB_SIZE = 56;
+const THUMB_SIZE = 72;
 
 const s = StyleSheet.create({
   hint: {
@@ -96,14 +102,14 @@ const s = StyleSheet.create({
     backgroundColor: Brand.card,
     borderWidth: 1,
     borderColor: Brand.border,
-    padding: 18,
-    gap: 6,
+    padding: 20,
+    gap: 8,
     ...Shadows.card,
   },
   emptyTitle: {
     ...Typography.subtitle,
     color: Brand.text,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   emptyHint: {
     ...Typography.body,
@@ -111,7 +117,7 @@ const s = StyleSheet.create({
   },
   errorBox: {
     borderRadius: Radii.lg,
-    backgroundColor: '#FFF0F0',
+    backgroundColor: Brand.fatBg,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
@@ -140,7 +146,7 @@ const s = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     borderRadius: Radii.xl,
     backgroundColor: Brand.card,
     borderWidth: 1,
@@ -149,18 +155,19 @@ const s = StyleSheet.create({
     ...Shadows.card,
   },
   cardPressed: {
-    opacity: 0.92,
+    opacity: 0.94,
+    transform: [{ scale: 0.995 }],
   },
   cardThumb: {
     width: THUMB_SIZE,
     height: THUMB_SIZE,
-    borderRadius: 18,
+    borderRadius: 22,
   },
   cardThumbPlaceholder: {
     width: THUMB_SIZE,
     height: THUMB_SIZE,
-    borderRadius: 18,
-    backgroundColor: Brand.bg,
+    borderRadius: 22,
+    backgroundColor: Brand.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -171,18 +178,29 @@ const s = StyleSheet.create({
   cardTop: {
     flexDirection: 'row',
     gap: 12,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   cardFoods: {
     flex: 1,
-    ...Typography.body,
+    ...Typography.subtitle,
     color: Brand.text,
-    fontWeight: '700',
+    fontWeight: '800',
+    lineHeight: 25,
+  },
+  cardCalBadge: {
+    borderRadius: Radii.pill,
+    backgroundColor: Brand.surfaceSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   cardCal: {
     ...Typography.caption,
     color: Brand.greenDark,
     fontWeight: '800',
+  },
+  cardHint: {
+    ...Typography.helper,
+    color: Brand.textSecondary,
   },
   cardMacros: {
     flexDirection: 'row',

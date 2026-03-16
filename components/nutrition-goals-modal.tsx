@@ -107,7 +107,7 @@ export function NutritionGoalsModal({
             <Text style={s.eyebrow}>Metas do dia</Text>
             <Text style={s.title}>{dateLabel}</Text>
             <Text style={s.subtitle}>
-              Campos vazios nao sao alterados. {goalInherited ? 'A base atual esta herdada.' : 'Voce pode atualizar so o que mudou.'}
+              Campos vazios não são alterados. {goalInherited ? 'A base atual está herdada.' : 'Você pode atualizar só o que mudou.'}
             </Text>
           </View>
 
@@ -117,7 +117,7 @@ export function NutritionGoalsModal({
             showsVerticalScrollIndicator={false}>
             <View style={s.currentWrap}>
               <GoalChip label="Calorias" value={formatGoalValue(currentGoals?.calories ?? null, ' kcal')} />
-              <GoalChip label="Proteina" value={formatGoalValue(currentGoals?.protein ?? null, 'g')} />
+              <GoalChip label="Proteína" value={formatGoalValue(currentGoals?.protein ?? null, 'g')} />
               <GoalChip label="Carboidrato" value={formatGoalValue(currentGoals?.carbs ?? null, 'g')} />
               <GoalChip label="Gordura" value={formatGoalValue(currentGoals?.fat ?? null, 'g')} />
             </View>
@@ -134,7 +134,7 @@ export function NutritionGoalsModal({
               </View>
 
               <View style={s.field}>
-                <Text style={s.label}>Proteina</Text>
+                <Text style={s.label}>Proteína</Text>
                 <AppInput
                   value={protein}
                   onChangeText={(value) => setProtein(sanitizeGoalInput(value))}

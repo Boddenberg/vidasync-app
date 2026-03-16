@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ReturnHomeButton } from '@/components/return-home-button';
 import { Brand, Shadows, Typography } from '@/constants/theme';
 import { DevtoolsAnalysisCard } from '@/features/devtools/devtools-analysis-card';
 import { DevtoolsSearchCard } from '@/features/devtools/devtools-search-card';
@@ -41,7 +42,7 @@ function useNetworkState() {
 export default function ToolsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const params = useLocalSearchParams<{ tool?: string | string[]; mode?: string | string[] }>();
+  const params = useLocalSearchParams<{ tool?: string | string[]; mode?: string | string[]; from?: string | string[] }>();
   const networkState = useNetworkState();
 
   const [view, setView] = useState<ToolView>('search');
@@ -56,9 +57,11 @@ export default function ToolsScreen() {
   const logs = useMemo(() => networkState.logs, [networkState.logs]);
   const normalizedTool = normalizeToolParam(params.tool);
   const diagnosticsMode = normalizeModeParam(params.mode);
+  const fromParam = Array.isArray(params.from) ? params.from[0] : params.from;
   const hasAppliedInitialParam = useRef(false);
   const showLogsOnly = diagnosticsMode === 'logs';
   const showDeveloperDiagnostics = showLogsOnly || normalizedTool == null;
+  const isFromHome = fromParam === 'home';
 
   useFocusEffect(
     useCallback(() => {
@@ -127,24 +130,33 @@ export default function ToolsScreen() {
     ? 'Logs de rede'
     : showDeveloperDiagnostics
       ? 'Ferramentas internas'
-      : 'Consultas e analise';
+      : isFromHome
+        ? view === 'photo'
+          ? 'Registrar por foto'
+          : 'Buscar alimento'
+        : 'Consultas e análise';
   const screenSubtitle = showLogsOnly
-    ? 'Acompanhe requests, respostas e erros do app em um so lugar.'
+    ? 'Acompanhe requests, respostas e erros do app em um só lugar.'
     : showDeveloperDiagnostics
-      ? 'Use esta area apenas para fluxos internos, diagnostico e analise avancada.'
-      : 'Busque alimentos ou envie uma foto para analisar sua refeicao.';
+      ? 'Use esta área apenas para fluxos internos, diagnóstico e análise avançada.'
+      : isFromHome
+        ? view === 'photo'
+          ? 'Envie uma imagem para analisar a refeição e, se precisar, revise antes de salvar.'
+          : 'Digite o nome do alimento para estimar os macros automaticamente.'
+        : 'Busque alimentos ou envie uma foto para analisar sua refeição.';
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {isFromHome ? <ReturnHomeButton onPress={() => router.replace('/(tabs)' as any)} /> : null}
         <Text style={s.title}>{screenTitle}</Text>
         <Text style={s.subtitle}>{screenSubtitle}</Text>
 
         {!showLogsOnly ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.toolTabs}>
-            <ToolTab label="Consultar" active={view === 'search'} onPress={() => setView('search')} />
+            <ToolTab label={isFromHome ? 'Buscar' : 'Consultar'} active={view === 'search'} onPress={() => setView('search')} />
             <ToolTab label="Foto" active={view === 'photo'} onPress={() => setView('photo')} />
             {showDeveloperDiagnostics ? <ToolTab label="Voz" active={view === 'audio'} onPress={() => setView('audio')} /> : null}
             {showDeveloperDiagnostics ? <ToolTab label="Plano" active={view === 'plan'} onPress={() => setView('plan')} /> : null}
@@ -160,7 +172,7 @@ export default function ToolsScreen() {
             loading={nutrition.loading}
             error={nutrition.error}
             result={nutrition.data}
-            onChangeQuery={(text) => setQuery(text.replace(/[^a-zA-Z\s]/g, ''))}
+            onChangeQuery={(text) => setQuery(text.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
             onChangeWeight={(text) => setQueryWeight(text.replace(/[^0-9.,]/g, ''))}
             onChangeUnit={setQueryUnit}
             onSubmit={handleQuery}
@@ -187,10 +199,10 @@ export default function ToolsScreen() {
             logs={logs}
             enabled={networkState.enabled}
             expandedIds={expandedIds}
-            title={showLogsOnly ? 'Diagnostico de rede' : 'Diagnostico de rede'}
+            title="Diagnóstico de rede"
             subtitle={
               showLogsOnly
-                ? 'Use este bloco para acompanhar o trafego real do app.'
+                ? 'Use este bloco para acompanhar o tráfego real do app.'
                 : 'Use este bloco para depurar requests, respostas e performance.'
             }
             onToggleEnabled={() => setNetworkInspectorEnabled(!networkState.enabled)}

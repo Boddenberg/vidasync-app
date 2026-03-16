@@ -2,16 +2,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Brand } from '@/constants/theme';
 import type { AppNotification } from '@/services/notifications';
-import type { WaterEvent } from '@/services/water';
 import type { Meal, MealType } from '@/types/nutrition';
 import type { NutritionGoalsStatus } from '@/services/nutrition-goals';
 import { extractNum, toDateStr, todayStr } from '@/utils/helpers';
 
 export const HYDRATION_QUICK_ACTIONS = [
-  { label: '-500 ml', deltaMl: -500, tone: 'negative' as const },
-  { label: '-300 ml', deltaMl: -300, tone: 'negative' as const },
   { label: '+200 ml', deltaMl: 200, tone: 'positive' as const },
-  { label: '+1L', deltaMl: 1000, tone: 'positive' as const },
+  { label: '+1 litro', deltaMl: 1000, tone: 'positive' as const },
+  { label: '-300 ml', deltaMl: -300, tone: 'negative' as const },
+  { label: '-500 ml', deltaMl: -500, tone: 'negative' as const },
 ];
 
 export type GoalProgress = {
@@ -49,8 +48,8 @@ const MEAL_SUMMARY_META: Record<
     bg: string;
   }
 > = {
-  breakfast: { label: 'Cafe da manha', icon: 'sunny-outline', color: '#D97706', bg: '#FFF4DE' },
-  lunch: { label: 'Almoco', icon: 'restaurant-outline', color: Brand.greenDark, bg: '#EAF7EE' },
+  breakfast: { label: 'Café da manhã', icon: 'sunny-outline', color: '#D97706', bg: '#FFF4DE' },
+  lunch: { label: 'Almoço', icon: 'restaurant-outline', color: Brand.greenDark, bg: '#EAF7EE' },
   snack: { label: 'Lanche', icon: 'cafe-outline', color: '#C97A1C', bg: '#FFF2E1' },
   dinner: { label: 'Jantar', icon: 'moon-outline', color: '#6D5BD0', bg: '#F1EEFF' },
   supper: { label: 'Ceia', icon: 'bed-outline', color: '#4F46E5', bg: '#EEF2FF' },
@@ -84,6 +83,25 @@ export function formatCompactSelectedDate(date: string): string {
   const month = parsed.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
 
   return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${parsed.getDate()} ${month}`;
+}
+
+export function formatHomeDateLabel(date: string): string {
+  const parsed = parseDateInput(date);
+  const shortDate = parsed.toLocaleDateString('pt-BR', {
+    day: 'numeric',
+    month: 'long',
+  });
+
+  if (isTodayDate(date)) {
+    return `Hoje, ${shortDate}`;
+  }
+
+  if (date === shiftDate(todayStr(), -1)) {
+    return `Ontem, ${shortDate}`;
+  }
+
+  const weekday = parsed.toLocaleDateString('pt-BR', { weekday: 'long' });
+  return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${shortDate}`;
 }
 
 export function formatDateChip(date: string): string {
@@ -150,7 +168,7 @@ export function buildGoalItems(
 ): GoalProgress[] {
   return [
     buildGoalProgress('calories', 'Calorias', ' kcal', calories, goals?.goals.calories ?? null, Brand.greenDark, '#E7F6EC'),
-    buildGoalProgress('protein', 'Proteina', 'g', protein, goals?.goals.protein ?? null, Brand.macroProtein, Brand.macroProteinBg),
+    buildGoalProgress('protein', 'Proteína', 'g', protein, goals?.goals.protein ?? null, Brand.macroProtein, Brand.macroProteinBg),
     buildGoalProgress('carbs', 'Carboidrato', 'g', carbs, goals?.goals.carbs ?? null, Brand.macroCarb, Brand.macroCarbBg),
     buildGoalProgress('fat', 'Gordura', 'g', fat, goals?.goals.fat ?? null, Brand.macroFat, Brand.macroFatBg),
   ].filter((item): item is GoalProgress => item !== null);
@@ -187,18 +205,6 @@ export function buildMealSummaries(meals: Meal[]): MealSummary[] {
   });
 
   return MEAL_SUMMARY_ORDER.map((type) => buckets.get(type)!).filter((item) => item.count > 0);
-}
-
-export function formatWaterEventTime(event: WaterEvent): string {
-  if (!event.createdAt) return 'Movimento registrado';
-
-  const parsed = new Date(event.createdAt);
-  if (Number.isNaN(parsed.getTime())) return 'Movimento registrado';
-
-  return parsed.toLocaleTimeString('pt-BR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 export function sortNotifications(notifications: AppNotification[]): AppNotification[] {

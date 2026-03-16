@@ -21,27 +21,29 @@ type ButtonPalette = {
 function resolvePalette(variant: Props['variant']): ButtonPalette {
   if (variant === 'secondary') {
     return {
-      background: Brand.card,
-      pressed: '#EFF5EE',
-      text: Brand.text,
-      border: Brand.border,
-      shadowed: true,
+      background: Brand.surfaceSoft,
+      pressed: '#DDEFE3',
+      text: Brand.greenDark,
+      border: 'transparent',
+      shadowed: false,
     };
   }
+
   if (variant === 'danger') {
     return {
       background: Brand.danger,
-      pressed: '#B8404A',
+      pressed: '#C64444',
       text: '#FFFFFF',
       border: Brand.danger,
       shadowed: true,
     };
   }
+
   return {
-    background: Brand.green,
-    pressed: '#5AB586',
+    background: Brand.greenDark,
+    pressed: Brand.greenDeeper,
     text: '#FFFFFF',
-    border: Brand.green,
+    border: Brand.greenDark,
     shadowed: true,
   };
 }
@@ -85,7 +87,7 @@ const s = StyleSheet.create({
   },
   text: {
     ...Typography.subtitle,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: 0.1,
   },
 });

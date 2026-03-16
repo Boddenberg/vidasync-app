@@ -70,7 +70,7 @@ export function useEditProfileModal({ onClose }: Props) {
       return 'Escolha uma senha diferente da atual.';
     }
     if (newPassword.trim() !== confirmNewPassword.trim()) {
-      return 'As senhas nao coincidem.';
+      return 'As senhas não coincidem.';
     }
     return null;
   })();
@@ -110,7 +110,7 @@ export function useEditProfileModal({ onClose }: Props) {
 
     if (normalizedUsername.toLowerCase() === normalizedCurrentUsername) {
       setUsernameStatus('same');
-      setUsernameStatusMessage('Esse ja e o seu usuario atual.');
+      setUsernameStatusMessage('Esse já é o seu usuário atual.');
       return;
     }
 
@@ -131,8 +131,8 @@ export function useEditProfileModal({ onClose }: Props) {
           setUsernameStatusMessage(
             result.message ??
               (result.available
-                ? 'Nome de usuario disponivel.'
-                : 'Esse nome de usuario ja esta em uso.'),
+                ? 'Nome de usuário disponível.'
+                : 'Esse nome de usuário já está em uso.'),
           );
         } catch (err: any) {
           if (requestId !== usernameCheckId.current) {
@@ -140,7 +140,7 @@ export function useEditProfileModal({ onClose }: Props) {
           }
 
           setUsernameStatus('error');
-          setUsernameStatusMessage(err?.message ?? 'Nao foi possivel verificar agora.');
+          setUsernameStatusMessage(err?.message ?? 'Não foi possível verificar agora.');
         }
       })();
     }, 450);
@@ -278,7 +278,7 @@ export function useEditProfileModal({ onClose }: Props) {
     }
 
     if (normalizedUsername.toLowerCase() === normalizedCurrentUsername) {
-      setError('Escolha um nome de usuario diferente do atual.');
+      setError('Escolha um nome de usuário diferente do atual.');
       return;
     }
 
@@ -297,13 +297,13 @@ export function useEditProfileModal({ onClose }: Props) {
       });
       resetUsernameFlow();
       setStep('overview');
-      setSuccess('Nome de usuario atualizado com sucesso.');
+      setSuccess('Nome de usuário atualizado com sucesso.');
     } catch (err: any) {
       if (err?.name === 'SessionExpiredError') {
         handleClose();
         return;
       }
-      setError(err?.message ?? 'Erro ao atualizar o nome de usuario.');
+      setError(err?.message ?? 'Erro ao atualizar o nome de usuário.');
     } finally {
       setLoading(false);
     }
@@ -367,7 +367,7 @@ export function useEditProfileModal({ onClose }: Props) {
   }
 
   const title =
-    step === 'overview' ? 'Editar perfil' : step === 'username' ? 'Alterar usuario' : 'Alterar senha';
+    step === 'overview' ? 'Editar perfil' : step === 'username' ? 'Alterar usuário' : 'Alterar senha';
 
   return {
     step,

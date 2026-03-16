@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
-import { ScrollView, StatusBar, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { PanResponder, ScrollView, StatusBar, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalendarPickerModal } from '@/components/calendar-picker-modal';
@@ -12,19 +13,45 @@ import { HomeHeader } from '@/features/home/home-header';
 import { HomeHeroCard } from '@/features/home/home-hero-card';
 import { HomeHydrationCard } from '@/features/home/home-hydration-card';
 import { HomeRegisterCard } from '@/features/home/home-register-card';
+import { HomeRegisterOptionsSheet } from '@/features/home/home-register-options-sheet';
 import { s } from '@/features/home/home-screen.styles';
-import { formatDateForModal, shiftDate } from '@/features/home/home-utils';
+import { formatDateForModal } from '@/features/home/home-utils';
 import { useHomeScreen } from '@/features/home/use-home-screen';
+
+const HOME_SWIPE_THRESHOLD = 56;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const [registerOptionsVisible, setRegisterOptionsVisible] = useState(false);
   const home = useHomeScreen({
     onNavigate: (route) => router.push(route as any),
   });
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_event, gestureState) =>
+        Math.abs(gestureState.dx) > 16 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.35,
+      onPanResponderRelease: (_event, gestureState) => {
+        if (gestureState.dx >= HOME_SWIPE_THRESHOLD) {
+          home.handlePreviousDate();
+          return;
+        }
+
+        if (gestureState.dx <= -HOME_SWIPE_THRESHOLD) {
+          home.handleNextDate();
+        }
+      },
+    }),
+  ).current;
+
+  function openRegisterDestination(action: () => void) {
+    setRegisterOptionsVisible(false);
+    setTimeout(action, 180);
+  }
 
   return (
-    <View style={s.root}>
+    <View style={s.root} {...panResponder.panHandlers}>
       <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
 
       <ScrollView
@@ -33,17 +60,12 @@ export default function HomeScreen() {
         keyboardShouldPersistTaps="handled">
         <HomeHeader
           user={home.user}
-          dashboardDateLabel={home.dashboardDateLabel}
-          dashboardSupportText={home.dashboardSupportText}
-          selectedDate={home.selectedDate}
-          canAdvanceDate={home.canAdvanceDate}
+          dashboardDateText={home.dashboardDateText}
           unreadNotificationsCount={home.unreadNotificationsCount}
           onOpenProfile={() => home.setProfileVisible(true)}
           onOpenHistory={() => router.push('/(tabs)/history' as any)}
           onOpenNotifications={home.handleOpenNotifications}
           onOpenCalendar={() => home.setCalendarVisible(true)}
-          onPreviousDate={() => home.setDate(shiftDate(home.selectedDate, -1))}
-          onNextDate={() => home.setDate(shiftDate(home.selectedDate, 1))}
         />
 
         <HomeHeroCard
@@ -52,6 +74,9 @@ export default function HomeScreen() {
           goalsLoading={home.goalsLoading}
           hasAnyGoals={home.hasAnyGoals}
           calories={home.calories}
+          protein={home.protein}
+          carbs={home.carbs}
+          fat={home.fat}
           calorieBadgeValue={home.calorieBadgeValue}
           calorieBadgeLabel={home.calorieBadgeLabel}
           calorieSummaryText={home.calorieSummaryText}
@@ -66,13 +91,7 @@ export default function HomeScreen() {
 
         <HomeRegisterCard
           selectedDate={home.selectedDate}
-          onOpenRegister={() => home.setRegisterVisible(true)}
-          onOpenPhotoTool={() =>
-            router.push({ pathname: '/(tabs)/devtools', params: { tool: 'photo' } } as any)
-          }
-          onOpenSearchTool={() =>
-            router.push({ pathname: '/(tabs)/devtools', params: { tool: 'search' } } as any)
-          }
+          onOpenRegisterOptions={() => setRegisterOptionsVisible(true)}
         />
 
         <HomeHydrationCard
@@ -83,18 +102,39 @@ export default function HomeScreen() {
           hydrationProgress={home.hydrationProgress}
           goalReached={Boolean(home.waterStatus?.goalReached)}
           hydrationStatusText={home.hydrationStatusText}
-          hydrationEventText={home.hydrationEventText}
           hydrationGoalMenuOpen={home.hydrationGoalMenuOpen}
           hydrationGoalDraftMl={home.hydrationGoalDraftMl}
           hydrationWidth={home.hydrationWidth}
           hydrationScale={home.hydrationScale}
           hydrationError={home.hydrationError}
           onToggleGoalMenu={() => home.setHydrationGoalMenuOpen((current) => !current)}
+          onCloseGoalMenu={() => home.setHydrationGoalMenuOpen(false)}
           onDraftChange={home.handleHydrationGoalDraftChange}
           onCommitGoal={home.handleHydrationGoalCommit}
           onQuickAction={(deltaMl) => home.sendHydrationUpdate({ deltaMl })}
         />
       </ScrollView>
+
+      <HomeRegisterOptionsSheet
+        visible={registerOptionsVisible}
+        onClose={() => setRegisterOptionsVisible(false)}
+        onOpenSearch={() =>
+          openRegisterDestination(() =>
+            router.push({ pathname: '/(tabs)/devtools', params: { tool: 'search', from: 'home' } } as any),
+          )
+        }
+        onOpenSavedDishes={() =>
+          openRegisterDestination(() =>
+            router.push({ pathname: '/(tabs)/explore', params: { from: 'home' } } as any),
+          )
+        }
+        onOpenPhoto={() =>
+          openRegisterDestination(() =>
+            router.push({ pathname: '/(tabs)/devtools', params: { tool: 'photo', from: 'home' } } as any),
+          )
+        }
+        onOpenManual={() => openRegisterDestination(() => home.setRegisterVisible(true))}
+      />
 
       <RegisterMealModal
         visible={home.registerVisible}

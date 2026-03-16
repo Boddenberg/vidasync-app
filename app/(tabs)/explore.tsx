@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ReturnHomeButton } from '@/components/return-home-button';
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import { ExploreDishFormCard } from '@/features/explore/explore-dish-form-card';
 import { ExploreFavoriteActionsModal, ExploreMealTypeModal } from '@/features/explore/explore-favorite-sheets';
@@ -42,6 +43,7 @@ const UNITS: WeightUnit[] = ['g', 'ml', 'un'];
 export default function MyDishesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ from?: string | string[] }>();
 
   const [showForm, setShowForm] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -63,6 +65,8 @@ export default function MyDishesScreen() {
   const { favorites, loading, error, add, update, remove, refresh } = useFavorites();
   const { add: addMeal } = useMeals();
   const ingNameRef = useRef<TextInput>(null);
+  const fromParam = Array.isArray(params.from) ? params.from[0] : params.from;
+  const isFromHome = fromParam === 'home';
 
   useFocusEffect(
     useCallback(() => {
@@ -222,6 +226,9 @@ export default function MyDishesScreen() {
     const query = searchText.trim().toLowerCase();
     return favorites.filter((favorite) => query.length === 0 || favorite.foods.toLowerCase().includes(query));
   }, [favorites, searchText]);
+  const subtitle = isFromHome
+    ? 'Escolha um prato salvo para usar na refeição ou monte um novo quando precisar.'
+    : 'Busque, cadastre e reutilize suas refeições favoritas.';
 
   return (
     <KeyboardAvoidingView
@@ -232,8 +239,9 @@ export default function MyDishesScreen() {
         <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
 
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {isFromHome ? <ReturnHomeButton onPress={() => router.replace('/(tabs)' as any)} /> : null}
           <Text style={s.title}>Pratos</Text>
-          <Text style={s.subtitle}>Busque, cadastre e reutilize suas refeicoes favoritas.</Text>
+          <Text style={s.subtitle}>{subtitle}</Text>
 
           <View style={s.searchWrap}>
             <Ionicons name="search-outline" size={18} color={Brand.textSecondary} />

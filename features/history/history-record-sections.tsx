@@ -51,7 +51,7 @@ export function HistoryMealsSection({
         <View style={s.emptyState}>
           <Text style={s.emptyTitle}>Nenhum prato registrado neste dia</Text>
           <Text style={s.emptyHint}>
-            Escolha outra data no calendario ou registre uma refeicao no Inicio.
+            Escolha outra data no calendário ou registre uma refeição no Início.
           </Text>
         </View>
       )}
@@ -63,7 +63,7 @@ export function HistoryWaterSection({ waterEvents }: WaterSectionProps) {
   return (
     <View style={s.sectionCard}>
       <View style={s.sectionHeader}>
-        <Text style={s.sectionTitle}>Agua do dia</Text>
+        <Text style={s.sectionTitle}>Água do dia</Text>
         <Text style={s.sectionCount}>
           {waterEvents.length} {waterEvents.length === 1 ? 'ajuste' : 'ajustes'}
         </Text>
@@ -81,7 +81,7 @@ export function HistoryWaterSection({ waterEvents }: WaterSectionProps) {
                   <Ionicons
                     name={positive ? 'water-outline' : 'remove-outline'}
                     size={18}
-                    color={positive ? '#0B6B94' : Brand.danger}
+                    color={positive ? Brand.hydration : Brand.danger}
                   />
                 </View>
 
@@ -92,7 +92,7 @@ export function HistoryWaterSection({ waterEvents }: WaterSectionProps) {
 
                 <View style={[s.waterTag, positive ? s.waterTagPositive : s.waterTagNegative]}>
                   <Text style={[s.waterTagText, positive ? s.waterTagTextPositive : s.waterTagTextNegative]}>
-                    {positive ? 'Entrada' : 'Ajuste'}
+                    {positive ? 'Entrada' : 'Correção'}
                   </Text>
                 </View>
               </View>
@@ -101,9 +101,9 @@ export function HistoryWaterSection({ waterEvents }: WaterSectionProps) {
         </View>
       ) : (
         <View style={s.emptyState}>
-          <Text style={s.emptyTitle}>Nenhum ajuste de agua neste dia</Text>
+          <Text style={s.emptyTitle}>Nenhum ajuste de água neste dia</Text>
           <Text style={s.emptyHint}>
-            Quando voce registrar a hidratacao, os movimentos aparecem aqui em ordem.
+            Quando você registrar a hidratação, os movimentos aparecem aqui em ordem.
           </Text>
         </View>
       )}
@@ -117,7 +117,7 @@ const s = StyleSheet.create({
     borderRadius: Radii.xl,
     borderWidth: 1,
     borderColor: Brand.border,
-    padding: 18,
+    padding: 20,
     gap: 14,
     ...Shadows.card,
   },
@@ -144,8 +144,8 @@ const s = StyleSheet.create({
     gap: 12,
   },
   emptyState: {
-    borderRadius: 18,
-    backgroundColor: Brand.bg,
+    borderRadius: 22,
+    backgroundColor: Brand.surfaceAlt,
     padding: 18,
     gap: 6,
   },
@@ -165,17 +165,17 @@ const s = StyleSheet.create({
     paddingVertical: 4,
   },
   waterItemIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   waterItemIconPositive: {
-    backgroundColor: '#E9F7FB',
+    backgroundColor: Brand.hydrationBg,
   },
   waterItemIconNegative: {
-    backgroundColor: '#FFF0F0',
+    backgroundColor: Brand.fatBg,
   },
   waterItemCopy: {
     flex: 1,
@@ -191,22 +191,22 @@ const s = StyleSheet.create({
     color: Brand.textSecondary,
   },
   waterTag: {
-    borderRadius: 999,
+    borderRadius: Radii.pill,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
   waterTagPositive: {
-    backgroundColor: '#DFF4FA',
+    backgroundColor: Brand.hydrationBg,
   },
   waterTagNegative: {
-    backgroundColor: '#FFE5E7',
+    backgroundColor: Brand.fatBg,
   },
   waterTagText: {
     ...Typography.caption,
     fontWeight: '700',
   },
   waterTagTextPositive: {
-    color: '#0B6B94',
+    color: Brand.hydration,
   },
   waterTagTextNegative: {
     color: Brand.danger,

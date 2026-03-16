@@ -2,8 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
-import type { WaterEvent, WaterStatus } from '@/services/water';
 import { dayHeading, formatWaterLiters } from '@/features/history/history-utils';
+import type { WaterEvent, WaterStatus } from '@/services/water';
 
 type Props = {
   selectedDate: string;
@@ -34,20 +34,20 @@ export function HistoryDayHero({
       ? Math.max(0, Math.min(waterStatus.consumedMl / waterStatus.goalMl, 1))
       : 0;
   const hydrationHeadline = !waterStatus
-    ? 'Sem agua registrada'
+    ? 'Sem água registrada'
     : waterStatus.goalMl > 0
       ? `${formatWaterLiters(waterStatus.consumedMl)} / ${formatWaterLiters(waterStatus.goalMl)}`
       : `${formatWaterLiters(waterStatus.consumedMl)} registrados`;
   const hydrationHint = !waterStatus || waterEvents.length === 0
-    ? 'Nenhum ajuste de agua nesta data.'
+    ? 'Nenhum ajuste de água nesta data.'
     : waterStatus.goalMl > 0
       ? waterStatus.goalReached
-        ? 'Meta de agua concluida.'
+        ? 'Meta de água concluída.'
         : `${Math.round(waterStatus.remainingMl)} ml para fechar a meta.`
-      : `${waterEvents.length} ${waterEvents.length === 1 ? 'ajuste' : 'ajustes'} de agua registrados.`;
+      : `${waterEvents.length} ${waterEvents.length === 1 ? 'ajuste' : 'ajustes'} de água registrados.`;
   const dayHeroHint = totalEntries > 0
-    ? 'Um panorama rapido do que entrou no seu dia.'
-    : 'Quando voce registrar pratos e agua, o resumo aparece aqui.';
+    ? 'Um panorama rápido do que entrou no seu dia.'
+    : 'Quando você registrar pratos e água, o resumo aparece aqui.';
 
   return (
     <View style={s.dayHero}>
@@ -72,7 +72,7 @@ export function HistoryDayHero({
         <>
           <View style={s.dayHeroTopRow}>
             <View style={s.calorieCard}>
-              <Text style={s.calorieLabel}>Calorias totais</Text>
+              <Text style={s.calorieLabel}>Você consumiu</Text>
               <View style={s.kcalRow}>
                 <Text style={s.kcalValue}>{calories}</Text>
                 <Text style={s.kcalUnit}>kcal</Text>
@@ -81,9 +81,9 @@ export function HistoryDayHero({
 
             <View style={s.hydrationCard}>
               <View style={s.hydrationCardIcon}>
-                <Ionicons name="water-outline" size={18} color="#0B6B94" />
+                <Ionicons name="water-outline" size={18} color={Brand.hydration} />
               </View>
-              <Text style={s.hydrationCardLabel}>Agua</Text>
+              <Text style={s.hydrationCardLabel}>Água</Text>
               <Text style={s.hydrationCardValue}>{hydrationHeadline}</Text>
             </View>
           </View>
@@ -104,7 +104,7 @@ export function HistoryDayHero({
               tone="meals"
             />
             <StatCard
-              label="Agua"
+              label="Água"
               value={waterStatus ? formatWaterLiters(waterStatus.consumedMl) : '0.0L'}
               hint="consumidos no dia"
               tone="water"
@@ -118,7 +118,7 @@ export function HistoryDayHero({
           </View>
 
           <View style={s.macroRow}>
-            <MacroChip label="Proteina" value={`${protein}g`} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
+            <MacroChip label="Proteína" value={`${protein}g`} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
             <MacroChip label="Carboidrato" value={`${carbs}g`} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
             <MacroChip label="Gordura" value={`${fat}g`} color={Brand.macroFat} bg={Brand.macroFatBg} />
           </View>
@@ -175,12 +175,12 @@ function MacroChip({
 
 const s = StyleSheet.create({
   dayHero: {
-    backgroundColor: '#F4FBF6',
+    backgroundColor: Brand.sageMist,
     borderRadius: Radii.xl,
     borderWidth: 1,
-    borderColor: '#DDEFE3',
-    padding: 18,
-    gap: 14,
+    borderColor: Brand.border,
+    padding: 20,
+    gap: 16,
     overflow: 'hidden',
     ...Shadows.card,
   },
@@ -188,19 +188,19 @@ const s = StyleSheet.create({
     position: 'absolute',
     top: -70,
     right: -48,
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    backgroundColor: 'rgba(123,196,127,0.18)',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(33, 166, 99, 0.10)',
   },
   dayHeroGlowBottom: {
     position: 'absolute',
-    left: -24,
+    left: -28,
     bottom: -52,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(11,107,148,0.08)',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(89, 184, 255, 0.10)',
   },
   dayHeroHeader: {
     flexDirection: 'row',
@@ -214,9 +214,9 @@ const s = StyleSheet.create({
   dayHeroEyebrow: {
     ...Typography.caption,
     color: Brand.greenDark,
-    fontWeight: '700',
+    fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.7,
   },
   dayHeroTitle: {
     ...Typography.title,
@@ -228,17 +228,18 @@ const s = StyleSheet.create({
     color: Brand.textSecondary,
   },
   dayHeroBadge: {
-    minWidth: 80,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    minWidth: 96,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 24,
+    backgroundColor: Brand.card,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
+    ...Shadows.card,
   },
   dayHeroBadgeValue: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '800',
     color: Brand.greenDark,
   },
@@ -256,18 +257,16 @@ const s = StyleSheet.create({
     gap: 12,
   },
   calorieCard: {
-    flex: 1.1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
+    flex: 1.15,
+    backgroundColor: Brand.card,
+    borderRadius: 24,
+    padding: 18,
     gap: 8,
+    ...Shadows.card,
   },
   calorieLabel: {
-    ...Typography.caption,
+    ...Typography.body,
     color: Brand.textSecondary,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
   },
   kcalRow: {
     flexDirection: 'row',
@@ -275,35 +274,36 @@ const s = StyleSheet.create({
     gap: 6,
   },
   kcalValue: {
-    fontSize: 34,
+    fontSize: 48,
     fontWeight: '800',
     color: Brand.text,
-    lineHeight: 36,
+    lineHeight: 50,
   },
   kcalUnit: {
-    ...Typography.body,
+    ...Typography.subtitle,
     color: Brand.textSecondary,
     fontWeight: '700',
+    marginBottom: 5,
   },
   hydrationCard: {
     flex: 0.9,
-    backgroundColor: '#E9F7FB',
-    borderRadius: 20,
-    padding: 16,
-    gap: 6,
+    backgroundColor: Brand.hydrationBg,
+    borderRadius: 24,
+    padding: 18,
+    gap: 8,
   },
   hydrationCardIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: '#D7F0F7',
+    width: 36,
+    height: 36,
+    borderRadius: 14,
+    backgroundColor: '#D2EBFA',
     alignItems: 'center',
     justifyContent: 'center',
   },
   hydrationCardLabel: {
     ...Typography.caption,
-    color: '#0B6B94',
-    fontWeight: '700',
+    color: Brand.hydration,
+    fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
@@ -313,15 +313,15 @@ const s = StyleSheet.create({
     fontWeight: '800',
   },
   hydrationTrack: {
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: '#D7EFF7',
+    height: 12,
+    borderRadius: Radii.pill,
+    backgroundColor: '#CCE8F7',
     overflow: 'hidden',
   },
   hydrationFill: {
     height: '100%',
-    borderRadius: 999,
-    backgroundColor: '#0B6B94',
+    borderRadius: Radii.pill,
+    backgroundColor: Brand.hydration,
   },
   hydrationHint: {
     ...Typography.body,
@@ -333,23 +333,23 @@ const s = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     gap: 4,
   },
   statCardMeals: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Brand.card,
   },
   statCardWater: {
-    backgroundColor: '#E9F7FB',
+    backgroundColor: Brand.hydrationBg,
   },
   statCardEvents: {
-    backgroundColor: '#F5F1FF',
+    backgroundColor: Brand.warningBg,
   },
   statLabel: {
     ...Typography.caption,
     color: Brand.textSecondary,
-    fontWeight: '700',
+    fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
@@ -370,7 +370,7 @@ const s = StyleSheet.create({
   macroChip: {
     flex: 1,
     minWidth: 96,
-    borderRadius: 16,
+    borderRadius: 18,
     paddingVertical: 12,
     paddingHorizontal: 14,
     gap: 4,

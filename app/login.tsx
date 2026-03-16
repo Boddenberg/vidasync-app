@@ -52,10 +52,10 @@ export default function LoginScreen() {
   function handlePickPhoto() {
     Alert.alert('Foto de perfil', undefined, [
       {
-        text: 'Camera',
+        text: 'Câmera',
         onPress: async () => {
           const uri = await pickDishImage(true);
-          if (uri) setPhotoUri(uri);
+      if (uri) setPhotoUri(uri);
         },
       },
       {
@@ -74,7 +74,7 @@ export default function LoginScreen() {
     const pass = password.trim();
 
     if (!user || !pass) {
-      setError('Preencha usuario e senha');
+      setError('Preencha usuário e senha');
       return;
     }
 
@@ -153,7 +153,7 @@ export default function LoginScreen() {
 
           {/* Campos */}
           <AppInput
-            placeholder="Usuario"
+            placeholder="Usuário"
             value={username}
             onChangeText={(text: string) => setUsername(sanitizeUsernameInput(text))}
             autoCapitalize="none"
@@ -193,8 +193,8 @@ export default function LoginScreen() {
           }}>
             <Text style={s.toggleText}>
               {isLogin
-                ? 'Nao tem conta? '
-                : 'Ja tem conta? '}
+                ? 'Não tem conta? '
+                : 'Já tem conta? '}
             </Text>
             <Text style={s.toggleLink}>
               {isLogin ? 'Criar conta' : 'Entrar'}

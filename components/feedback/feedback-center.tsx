@@ -48,7 +48,7 @@ async function resolveFeedbackImageUrl(attachments: AttachmentItem[]): Promise<s
     });
 
     if (!remoteFile.remoteUrl) {
-      throw new Error('Nao foi possivel obter a URL publica da imagem do feedback.');
+      throw new Error('Não foi possível obter a URL pública da imagem do feedback.');
     }
 
     return remoteFile.remoteUrl;
@@ -149,20 +149,20 @@ export function FeedbackCenter() {
           </View>
         </View>
         <Text style={s.heroText}>
-          Envie o relato do usuario com print opcional e, quando a chave interna estiver configurada, acompanhe a fila admin logo abaixo.
+          Envie o relato do usuário com print opcional e, quando a chave interna estiver configurada, acompanhe a fila admin logo abaixo.
         </Text>
       </View>
 
       <View style={s.card}>
         <Text style={s.sectionTitle}>Enviar feedback</Text>
-        <Text style={s.sectionSubtitle}>Nome e mensagem sao obrigatorios. A imagem e opcional e vai como URL publica.</Text>
+        <Text style={s.sectionSubtitle}>Nome e mensagem são obrigatórios. A imagem é opcional e vai como URL pública.</Text>
 
         <View style={s.field}>
           <Text style={s.label}>Nome</Text>
           <AppInput
             value={userName}
             onChangeText={setUserName}
-            placeholder="Ex.: Joao Silva"
+            placeholder="Ex.: João Silva"
             maxLength={50}
           />
         </View>
@@ -187,7 +187,7 @@ export function FeedbackCenter() {
           value={attachments}
           onChange={setAttachments}
           title="Print opcional"
-          subtitle="Use camera ou galeria para anexar um screenshot do problema."
+          subtitle="Use câmera ou galeria para anexar um screenshot do problema."
         />
 
         {submitError ? (
