@@ -1,34 +1,17 @@
 /**
- * Modal para registrar refeição
- *
- * Duas opções:
- *   1. "Novo prato" — ingrediente + peso separados → calcula → nome + foto + horário + tipo → salva
- *   2. "Selecionar favorito" — lista pratos salvos → escolhe tipo + horário → salva
- *
- * Meus Pratos salva SEM tipo de refeição (tipo só na hora de registrar).
+ * Modal para registrar ou editar refeicao.
  */
 
 import { useEffect, useRef, useState } from 'react';
-import {
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
-} from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { AppButton } from '@/components/app-button';
-import { MealAttachmentField } from '@/components/attachments/domain-attachment-fields';
-import { AppInput } from '@/components/app-input';
-import { DatePicker } from '@/components/date-picker';
-import { MealTypeSelector } from '@/components/meal-type-selector';
+import {
+  RegisterMealActionButtons,
+  RegisterMealIngredientsStep,
+  RegisterMealResultStep,
+} from '@/features/meals/register-meal-sections';
+import { s } from '@/features/meals/register-meal-modal.styles';
 import { NutritionErrorModal } from '@/components/nutrition-error-modal';
-import { TimePicker } from '@/components/time-picker';
-import { Brand } from '@/constants/theme';
 import { useAsync } from '@/hooks/use-async';
 import { createRemotePhotoAttachment } from '@/services/attachments';
 import { getNutrition } from '@/services/nutrition';
@@ -36,20 +19,19 @@ import type { AttachmentItem } from '@/types/attachments';
 import type { Meal, MealType, NutritionData } from '@/types/nutrition';
 import { resolvePrimaryImagePayload } from '@/utils/attachment-rules';
 import {
-    buildFoodsString,
-    formatIngredient,
-    nowTimeStr,
-    parseFoodsToIngredients,
-    randomFoodExample,
-    splitFoodsAndDishName,
-    todayStr,
-    type Ingredient,
-    type WeightUnit,
+  buildFoodsString,
+  formatIngredient,
+  nowTimeStr,
+  parseFoodsToIngredients,
+  randomFoodExample,
+  splitFoodsAndDishName,
+  todayStr,
+  type Ingredient,
+  type WeightUnit,
 } from '@/utils/helpers';
 
 type Props = {
   visible: boolean;
-  /** Refeição a editar (modo edição). Se undefined, é modo criação. */
   editMeal?: Meal | null;
   onSave: (params: {
     foods: string;
@@ -60,7 +42,6 @@ type Props = {
     dishName?: string;
     imageBase64?: string | null;
   }) => void;
-  /** Callback de edição — recebe id + dados parciais */
   onEditSave?: (id: string, params: {
     foods: string;
     mealType: MealType;
@@ -72,10 +53,6 @@ type Props = {
   onClose: () => void;
 };
 
-const TYPES: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner', 'supper'];
-const UNITS: WeightUnit[] = ['g', 'ml', 'un'];
-const THUMB = 44;
-
 export function RegisterMealModal({
   visible,
   editMeal,
@@ -85,8 +62,6 @@ export function RegisterMealModal({
   onClose,
 }: Props) {
   const isEditing = !!editMeal;
-
-  // ── Estado do formulário ──
   const [foodHint] = useState(() => `ex: ${randomFoodExample()}`);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [ingName, setIngName] = useState('');
@@ -100,15 +75,23 @@ export function RegisterMealModal({
   const [mealType, setMealType] = useState<MealType | null>(null);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [editInitialized, setEditInitialized] = useState(false);
-  const nutrition = useAsync(getNutrition);
 
-  // ── Inicializar campos quando entra em modo edição ──
+  const {
+    data: nutritionData,
+    loading: nutritionLoading,
+    error: nutritionError,
+    execute: calculateNutrition,
+    reset: resetNutrition,
+    setData: setNutritionData,
+  } = useAsync(getNutrition);
+
+  const ingNameRef = useRef<import('react-native').TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
+
   useEffect(() => {
     if (visible && editMeal && !editInitialized) {
-      // Recupera dishName e ingredientes da string foods
       const { dishName: recoveredName, ingredientsRaw } = splitFoodsAndDishName(editMeal.foods);
-      const parsed = parseFoodsToIngredients(ingredientsRaw);
-      setIngredients(parsed);
+      setIngredients(parseFoodsToIngredients(ingredientsRaw));
       setDishName(recoveredName);
       setMealType(editMeal.mealType);
       setTime(editMeal.time || '');
@@ -116,23 +99,21 @@ export function RegisterMealModal({
       setAttachments(
         editMeal.imageUrl ? [createRemotePhotoAttachment('meal', editMeal.imageUrl, 'imagem-atual.jpg')] : [],
       );
-      // Pré-calcula a nutrição
-      nutrition.setData(editMeal.nutrition);
+      setNutritionData(editMeal.nutrition);
       setEditInitialized(true);
     }
+
     if (!visible) {
       setEditInitialized(false);
     }
-  }, [visible, editMeal, editInitialized]);
+  }, [editInitialized, editMeal, setNutritionData, visible]);
 
   useEffect(() => {
     if (!visible || isEditing || editInitialized) return;
 
     const initialDate = defaultDate || todayStr();
-    const shouldUseToday = initialDate === todayStr();
-
     setMealDate(initialDate);
-    setUseToday(shouldUseToday);
+    setUseToday(initialDate === todayStr());
   }, [defaultDate, editInitialized, isEditing, visible]);
 
   function reset() {
@@ -147,7 +128,7 @@ export function RegisterMealModal({
     setUseNow(true);
     setMealType(null);
     setAttachments([]);
-    nutrition.reset();
+    resetNutrition();
   }
 
   function handleClose() {
@@ -155,48 +136,41 @@ export function RegisterMealModal({
     onClose();
   }
 
-  // ── Refs ──
-  const ingNameRef = useRef<import('react-native').TextInput>(null);
-  const scrollRef = useRef<ScrollView>(null);
-
-  /** Scroll para baixo quando campo recebe foco (evita teclado cobrir) */
   function scrollToEnd() {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
   }
 
-  // ── Ingredientes ──
   function handleAddIngredient() {
     const name = ingName.trim();
     const weight = ingWeight.trim();
     if (!name) return;
+
     setIngredients((prev) => [...prev, { name, weight, unit: ingUnit }]);
     setIngName('');
     setIngWeight('');
     setIngUnit('g');
-    // Foco volta pro campo de ingrediente
     setTimeout(() => ingNameRef.current?.focus(), 100);
-    // Ingredientes mudaram → macros ficam desatualizados
-    if (nutrition.data) nutrition.reset();
+
+    if (nutritionData) {
+      resetNutrition();
+    }
   }
 
   function handleRemoveIngredient(index: number) {
-    setIngredients((prev) => prev.filter((_, i) => i !== index));
-    // Ingredientes mudaram → macros ficam desatualizados
-    if (nutrition.data) nutrition.reset();
+    setIngredients((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+    if (nutritionData) {
+      resetNutrition();
+    }
   }
 
-  // ── Calcular macros ──
   function handleCalculate() {
     if (ingredients.length === 0) return;
     Keyboard.dismiss();
-    const foodsStr = ingredients.map(formatIngredient).join(', ');
-    nutrition.execute(foodsStr);
+    calculateNutrition(ingredients.map(formatIngredient).join(', '));
   }
 
-
-  // ── Resolver data e horário ──
   function resolveDate(): string | undefined {
-    if (useToday) return undefined; // backend uses today by default
+    if (useToday) return undefined;
     return mealDate || undefined;
   }
 
@@ -205,628 +179,117 @@ export function RegisterMealModal({
     return time || undefined;
   }
 
-  // ── Salvar (novo) ──
   function handleSaveNew() {
-    if (!nutrition.data || !mealType) return;
-    const foodsStr = ingredients.map(formatIngredient).join(', ');
+    if (!nutritionData || !mealType) return;
     onSave({
-      foods: foodsStr,
+      foods: ingredients.map(formatIngredient).join(', '),
       mealType,
       date: resolveDate(),
       time: resolveTime(),
-      nutrition: nutrition.data,
+      nutrition: nutritionData,
       dishName: dishName.trim() || undefined,
       imageBase64: resolvePrimaryImagePayload(attachments),
     });
     reset();
   }
 
-  // ── Salvar (edição) ──
   function handleSaveEdit() {
-    if (!nutrition.data || !mealType || !editMeal || !onEditSave) return;
+    if (!nutritionData || !mealType || !editMeal || !onEditSave) return;
     const ingredientsStr = ingredients.map(formatIngredient).join(', ');
-    const foodsStr = buildFoodsString(dishName, ingredientsStr);
     onEditSave(editMeal.id, {
-      foods: foodsStr,
+      foods: buildFoodsString(dishName, ingredientsStr),
       mealType,
       time: resolveTime(),
-      nutrition: nutrition.data,
+      nutrition: nutritionData,
       imageBase64: resolvePrimaryImagePayload(attachments),
     });
     reset();
   }
 
-  // ── Helpers ──
-  const hasIngredients = ingredients.length > 0;
-  const calculated = !!nutrition.data;
+  const calculated = !!nutritionData;
   const canAddIngredient = ingName.trim().length > 0;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={handleClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={s.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
-        {/* Spacer that pushes the sheet to the bottom + dismiss area */}
         <Pressable style={s.backdrop} onPress={handleClose} />
 
-        {/* Sheet — sizes by content, capped at 90% screen height */}
         <View style={s.sheet}>
-          {/* Handle */}
           <View style={s.handleWrap}>
             <View style={s.handle} />
           </View>
 
-          <Text style={s.title}>{isEditing ? 'Editar refeição' : 'Registrar refeição'}</Text>
+          <Text style={s.title}>{isEditing ? 'Editar refeicao' : 'Registrar refeicao'}</Text>
 
-          {/* ── Scrollable content ── */}
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={s.bodyContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
+            <View style={s.form}>
+              <RegisterMealIngredientsStep
+                ingredients={ingredients}
+                foodHint={foodHint}
+                ingName={ingName}
+                ingWeight={ingWeight}
+                ingUnit={ingUnit}
+                canAddIngredient={canAddIngredient}
+                calculated={calculated}
+                nutritionLoading={nutritionLoading}
+                ingNameRef={ingNameRef}
+                onChangeIngName={(value) => setIngName(value.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
+                onChangeIngWeight={(value) => setIngWeight(value.replace(/[^0-9.,]/g, ''))}
+                onSetIngUnit={setIngUnit}
+                onAddIngredient={handleAddIngredient}
+                onRemoveIngredient={handleRemoveIngredient}
+                onCalculate={handleCalculate}
+                onFieldFocus={scrollToEnd}
+              />
 
-            {/* ══════════ Formulário ══════════ */}
-              <View style={s.form}>
-
-                {/* ── Step 1: Ingredientes ── */}
-                <Text style={s.stepLabel}>1. Ingredientes</Text>
-
-                {/* Lista de ingredientes adicionados */}
-                {ingredients.length > 0 && (
-                  <View style={s.chipList}>
-                    {ingredients.map((ing, idx) => (
-                      <View key={idx} style={s.chip}>
-                        <Text style={s.chipText}>{formatIngredient(ing)}</Text>
-                        <Pressable
-                          onPress={() => handleRemoveIngredient(idx)}
-                          hitSlop={8}>
-                          <Text style={s.chipRemove}>✕</Text>
-                        </Pressable>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {/* Campos para adicionar ingrediente — sempre visíveis */}
-                <AppInput
-                  ref={ingNameRef}
-                  placeholder={ingredients.length === 0 ? foodHint : 'Adicionar ingrediente'}
-                  value={ingName}
-                  onChangeText={(t: string) => setIngName(t.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
-                  maxLength={50}
-                  onFocus={scrollToEnd}
+              {nutritionError ? (
+                <NutritionErrorModal
+                  visible={Boolean(nutritionError)}
+                  message={nutritionError}
+                  onClose={resetNutrition}
                 />
+              ) : null}
 
-                <View style={s.weightRow}>
-                  <View style={{ flex: 1 }}>
-                    <AppInput
-                      placeholder="Peso"
-                      value={ingWeight}
-                      onChangeText={(t: string) => setIngWeight(t.replace(/[^0-9.,]/g, ''))}
-                      keyboardType="numeric"
-                      maxLength={7}
-                      onFocus={scrollToEnd}
-                    />
-                  </View>
-                  {/* Unidade selector */}
-                  <View style={s.unitRow}>
-                    {UNITS.map((u) => (
-                      <Pressable
-                        key={u}
-                        style={[s.unitBtn, ingUnit === u && s.unitBtnActive]}
-                        onPress={() => setIngUnit(u)}>
-                        <Text style={[s.unitText, ingUnit === u && s.unitTextActive]}>{u}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                  {/* Botão + */}
-                  <Pressable
-                    style={[s.addBtn, !canAddIngredient && s.addBtnDisabled]}
-                    onPress={handleAddIngredient}
-                    disabled={!canAddIngredient}>
-                    <Text style={s.addBtnText}>+</Text>
-                  </Pressable>
-                </View>
+              {nutritionData ? (
+                <RegisterMealResultStep
+                  nutritionData={nutritionData}
+                  attachments={attachments}
+                  dishName={dishName}
+                  isEditing={isEditing}
+                  mealDate={mealDate}
+                  useToday={useToday}
+                  time={time}
+                  useNow={useNow}
+                  mealType={mealType}
+                  onChangeAttachments={setAttachments}
+                  onChangeDishName={setDishName}
+                  onFieldFocus={scrollToEnd}
+                  onChangeDate={setMealDate}
+                  onToggleToday={setUseToday}
+                  onChangeTime={setTime}
+                  onToggleNow={setUseNow}
+                  onSelectMealType={setMealType}
+                />
+              ) : null}
 
-                {/* Botão calcular */}
-                {hasIngredients && (
-                  <AppButton
-                    title={calculated ? `Recalcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})` : `Calcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`}
-                    onPress={handleCalculate}
-                    loading={nutrition.loading}
-                  />
-                )}
-
-                {nutrition.error && (
-                  <NutritionErrorModal
-                    visible={!!nutrition.error}
-                    message={nutrition.error}
-                    onClose={() => nutrition.reset()}
-                  />
-                )}
-
-                {/* ── Step 2: Resultado ── */}
-                {calculated && (
-                  <>
-                    <View style={s.divider} />
-                    <Text style={s.stepLabel}>2. Resultado</Text>
-
-                    <View style={s.preview}>
-                      <Text style={s.previewCal}>{nutrition.data!.calories}</Text>
-                      <View style={s.previewMacros}>
-                        <MacroPill label="prot" value={nutrition.data!.protein} color="#5DADE2" bg="#EBF5FB" />
-                        <MacroPill label="carb" value={nutrition.data!.carbs} color={Brand.orange} bg="#FEF5E7" />
-                        <MacroPill label="gord" value={nutrition.data!.fat} color="#E74C3C" bg="#FDEDEC" />
-                      </View>
-                    </View>
-
-
-
-                    {/* ── Step 3: Detalhes ── */}
-                    <View style={s.divider} />
-                    <Text style={s.stepLabel}>3. Detalhes</Text>
-
-                    <MealAttachmentField
-                      value={attachments}
-                      onChange={setAttachments}
-                      maxItems={1}
-                    />
-                    <AppInput
-                      placeholder="Nome do prato (opcional)"
-                      value={dishName}
-                      onChangeText={setDishName}
-                      onFocus={scrollToEnd}
-                    />
-
-                    {/* Data */}
-                    {/* Data (oculta em edição — use "Mover" para trocar data) */}
-                    {!isEditing && (
-                      <>
-                        <Text style={s.label}>Data</Text>
-                        <DatePicker
-                          value={mealDate}
-                          useToday={useToday}
-                          onChangeDate={setMealDate}
-                          onToggleToday={setUseToday}
-                        />
-                      </>
-                    )}
-
-                    {/* Horário */}
-                    <Text style={s.label}>Horário</Text>
-                    <TimePicker
-                      value={time}
-                      useNow={useNow}
-                      onChangeTime={setTime}
-                      onToggleNow={setUseNow}
-                    />
-
-                    {/* Tipo de refeição */}
-                    <Text style={s.label}>Tipo de refeição</Text>
-                    <MealTypeSelector selected={mealType} onSelect={setMealType} />
-
-                  </>
-                )}
-
-                {/* ── Botões (dentro do scroll) ── */}
-                {calculated ? (
-                  <View style={s.actionRow}>
-                    <View style={{ flex: 2 }}>
-                      <AppButton
-                        title={isEditing ? 'Salvar alterações' : 'Salvar refeição'}
-                        onPress={isEditing ? handleSaveEdit : handleSaveNew}
-                        disabled={!mealType}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <AppButton title="Cancelar" onPress={handleClose} variant="secondary" />
-                    </View>
-                  </View>
-                ) : (
-                  <View style={{ marginTop: 8 }}>
-                    <AppButton title="Cancelar" onPress={handleClose} variant="secondary" />
-                  </View>
-                )}
-              </View>
+              <RegisterMealActionButtons
+                calculated={calculated}
+                isEditing={isEditing}
+                canSave={Boolean(mealType)}
+                onSave={isEditing ? handleSaveEdit : handleSaveNew}
+                onCancel={handleClose}
+              />
+            </View>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
-
-// ─── Sub-componente ──────────────────────────────────────
-
-function MacroPill({ label, value, color, bg }: {
-  label: string; value: string; color: string; bg: string;
-}) {
-  return (
-    <View style={[s.pill, { backgroundColor: bg }]}>
-      <Text style={[s.pillLabel, { color }]}>{label}</Text>
-      <Text style={[s.pillValue, { color }]}>{value}</Text>
-    </View>
-  );
-}
-
-// ─── Estilos ─────────────────────────────────────────────
-
-const s = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  backdrop: {
-    flex: 1,
-  },
-  sheet: {
-    backgroundColor: Brand.bg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 20,
-    maxHeight: '90%',
-  },
-  handleWrap: {
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Brand.border,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Brand.text,
-    letterSpacing: -0.3,
-    marginBottom: 12,
-  },
-
-  // Tabs
-  tabs: {
-    flexDirection: 'row',
-    backgroundColor: Brand.card,
-    borderRadius: 12,
-    padding: 3,
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  tabActive: {
-    backgroundColor: Brand.green,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Brand.textSecondary,
-  },
-  tabTextActive: {
-    color: '#FFFFFF',
-  },
-
-  // Body
-  bodyContent: {
-    paddingBottom: 16,
-  },
-
-  // Form
-  form: {
-    gap: 10,
-  },
-  stepLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Brand.green,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginTop: 2,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Brand.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 4,
-  },
-  divider: {
-    width: 32,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: Brand.border,
-    alignSelf: 'center',
-    marginVertical: 8,
-  },
-
-  // Ingredient chips
-  chipList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Brand.card,
-    borderRadius: 10,
-    paddingLeft: 12,
-    paddingRight: 8,
-    paddingVertical: 8,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Brand.border,
-  },
-  chipText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: Brand.text,
-  },
-  chipRemove: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Brand.textSecondary,
-    paddingHorizontal: 4,
-  },
-
-  // Weight row
-  weightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  unitRow: {
-    flexDirection: 'row',
-    gap: 0,
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: Brand.border,
-  },
-  unitBtn: {
-    paddingVertical: 12,
-    minWidth: 40,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    backgroundColor: Brand.card,
-  },
-  unitBtnActive: {
-    backgroundColor: Brand.green,
-  },
-  unitText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Brand.textSecondary,
-  },
-  unitTextActive: {
-    color: '#FFFFFF',
-  },
-
-  // Add ingredient button
-  addBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: Brand.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addBtnDisabled: {
-    backgroundColor: Brand.border,
-  },
-  addBtnText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginTop: -2,
-  },
-
-  // Preview
-  preview: {
-    backgroundColor: Brand.card,
-    borderRadius: 16,
-    padding: 18,
-    alignItems: 'center',
-    gap: 12,
-  },
-  previewCal: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Brand.greenDark,
-  },
-  previewMacros: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-
-  // Recalculate
-  recalcBtn: {
-    alignSelf: 'center',
-    paddingVertical: 4,
-  },
-  recalcText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Brand.textSecondary,
-  },
-
-  // Checkbox
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 4,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: Brand.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxActive: {
-    backgroundColor: Brand.green,
-    borderColor: Brand.green,
-  },
-  checkmark: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  checkLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: Brand.text,
-  },
-
-  // Action row (inside scroll)
-  actionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-
-  // Error
-  errorBox: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFF0F0',
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 13,
-    color: Brand.danger,
-    textAlign: 'center',
-  },
-
-  // Favorites list
-  favList: {
-    gap: 8,
-  },
-  favItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Brand.card,
-    borderRadius: 14,
-    paddingLeft: 12,
-    paddingVertical: 10,
-  },
-  favItemPressed: {
-    opacity: 0.7,
-  },
-  favThumb: {
-    width: THUMB,
-    height: THUMB,
-    borderRadius: 10,
-  },
-  favThumbPlaceholder: {
-    width: THUMB,
-    height: THUMB,
-    borderRadius: 10,
-    backgroundColor: Brand.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  favThumbLetter: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: Brand.textSecondary,
-  },
-  favContent: {
-    flex: 1,
-    paddingHorizontal: 12,
-    gap: 4,
-  },
-  favTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  favFoods: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
-    color: Brand.text,
-    marginRight: 12,
-  },
-  favCal: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Brand.greenDark,
-  },
-  favMacros: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 2,
-  },
-
-  // Empty
-  empty: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    gap: 8,
-  },
-  emptyIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Brand.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  emptyIconLetter: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Brand.textSecondary,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Brand.text,
-  },
-  emptyHint: {
-    fontSize: 13,
-    color: Brand.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 20,
-  },
-
-  // Macro pill
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  pillLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  pillValue: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-});
-
-
