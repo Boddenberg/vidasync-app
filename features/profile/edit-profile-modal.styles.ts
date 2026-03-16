@@ -1,0 +1,308 @@
+import { StyleSheet } from 'react-native';
+
+import { Brand } from '@/constants/theme';
+
+export const s = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: Brand.bg,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Brand.border,
+    backgroundColor: Brand.card,
+  },
+  headerAction: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Brand.textSecondary,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Brand.text,
+  },
+  headerSpacer: {
+    width: 52,
+  },
+  scroll: {
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 48,
+    gap: 16,
+  },
+  avatarWrap: {
+    alignSelf: 'center',
+    position: 'relative',
+  },
+  avatarImg: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+  },
+  avatarPlaceholder: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: Brand.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLetter: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  avatarBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Brand.greenDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Brand.bg,
+  },
+  avatarHint: {
+    fontSize: 12,
+    color: Brand.textSecondary,
+    textAlign: 'center',
+    marginTop: -6,
+  },
+  messageBox: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  messageText: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  errorBox: {
+    backgroundColor: '#FFF0F0',
+    borderColor: '#F2C6CB',
+  },
+  errorText: {
+    color: Brand.danger,
+  },
+  successBox: {
+    backgroundColor: '#F0FFF4',
+    borderColor: '#C7E9D0',
+  },
+  successText: {
+    color: Brand.greenDark,
+    fontWeight: '600',
+  },
+  infoCard: {
+    backgroundColor: Brand.card,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  infoCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  infoHint: {
+    fontSize: 12,
+    color: Brand.textSecondary,
+  },
+  actionCard: {
+    backgroundColor: Brand.card,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  cardPressed: {
+    opacity: 0.9,
+  },
+  actionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  actionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Brand.text,
+  },
+  actionDescription: {
+    fontSize: 13,
+    color: Brand.textSecondary,
+  },
+  utilityGroup: {
+    gap: 12,
+  },
+  formCard: {
+    backgroundColor: Brand.card,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    gap: 14,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Brand.text,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: Brand.textSecondary,
+  },
+  currentInfo: {
+    backgroundColor: Brand.bg,
+    borderRadius: 14,
+    padding: 16,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Brand.border,
+  },
+  currentLabel: {
+    fontSize: 13,
+    color: Brand.textSecondary,
+    fontWeight: '500',
+  },
+  currentValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Brand.text,
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Brand.text,
+    marginLeft: 4,
+  },
+  statusBox: {
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+  },
+  statusText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  inlineHelper: {
+    paddingHorizontal: 4,
+  },
+  inlineHelperText: {
+    fontSize: 13,
+    color: Brand.textSecondary,
+    lineHeight: 18,
+  },
+  logoutBtn: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginTop: 6,
+  },
+  logoutText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Brand.danger,
+  },
+  ppOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  ppSheet: {
+    backgroundColor: Brand.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 48,
+    paddingHorizontal: 20,
+  },
+  ppHandleWrap: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 14,
+  },
+  ppHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Brand.border,
+  },
+  ppTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Brand.text,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  ppActions: {
+    backgroundColor: Brand.card,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  ppBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  ppBtnPressed: {
+    backgroundColor: Brand.bg,
+  },
+  ppBtnBorder: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Brand.border,
+  },
+  ppIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: Brand.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ppBtnLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Brand.text,
+  },
+  ppCancelBtn: {
+    marginTop: 10,
+    backgroundColor: Brand.card,
+    borderRadius: 16,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  ppCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Brand.textSecondary,
+  },
+});
