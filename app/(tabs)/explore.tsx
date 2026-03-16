@@ -2,11 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  Image,
   Keyboard,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -18,18 +15,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppButton } from '@/components/app-button';
-import { MealAttachmentField } from '@/components/attachments/domain-attachment-fields';
-import { AppInput } from '@/components/app-input';
-import { NutritionErrorModal } from '@/components/nutrition-error-modal';
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
+import { ExploreDishFormCard } from '@/features/explore/explore-dish-form-card';
+import { ExploreFavoriteActionsModal, ExploreMealTypeModal } from '@/features/explore/explore-favorite-sheets';
+import { ExploreFavoritesList } from '@/features/explore/explore-favorites-list';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useMeals } from '@/hooks/use-meals';
 import { createRemotePhotoAttachment } from '@/services/attachments';
 import { getNutrition } from '@/services/nutrition';
 import type { AttachmentItem } from '@/types/attachments';
 import type { Favorite, MealType, NutritionData } from '@/types/nutrition';
-import { MEAL_TYPE_LABELS } from '@/types/nutrition';
 import { resolvePrimaryImagePayload } from '@/utils/attachment-rules';
 import {
   buildFoodsString,
@@ -50,7 +45,6 @@ export default function MyDishesScreen() {
 
   const [showForm, setShowForm] = useState(false);
   const [searchText, setSearchText] = useState('');
-
   const [foodHint] = useState(() => `ex: ${randomFoodExample()}`);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [ingName, setIngName] = useState('');
@@ -62,9 +56,13 @@ export default function MyDishesScreen() {
   const [nutritionLoading, setNutritionLoading] = useState(false);
   const [nutritionError, setNutritionError] = useState<string | null>(null);
   const [calculatedIngredientCount, setCalculatedIngredientCount] = useState(0);
+  const [editingFav, setEditingFav] = useState<Favorite | null>(null);
+  const [actionSheetFav, setActionSheetFav] = useState<Favorite | null>(null);
+  const [mealTypeFav, setMealTypeFav] = useState<Favorite | null>(null);
 
   const { favorites, loading, error, add, update, remove, refresh } = useFavorites();
   const { add: addMeal } = useMeals();
+  const ingNameRef = useRef<TextInput>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -72,13 +70,11 @@ export default function MyDishesScreen() {
     }, [refresh]),
   );
 
-  const ingNameRef = useRef<TextInput>(null);
-
   function handleAddIngredient() {
     const name = ingName.trim();
     if (!name) return;
 
-    setIngredients((prev) => [...prev, { name, weight: ingWeight.trim(), unit: ingUnit }]);
+    setIngredients((current) => [...current, { name, weight: ingWeight.trim(), unit: ingUnit }]);
     setIngName('');
     setIngWeight('');
     setIngUnit('g');
@@ -87,7 +83,7 @@ export default function MyDishesScreen() {
   }
 
   function handleRemoveIngredient(index: number) {
-    setIngredients((prev) => prev.filter((_, i) => i !== index));
+    setIngredients((current) => current.filter((_, itemIndex) => itemIndex !== index));
     setNutritionError(null);
 
     if (index < calculatedIngredientCount) {
@@ -127,18 +123,7 @@ export default function MyDishesScreen() {
     }
   }
 
-  async function handleSave() {
-    if (!nutritionData || calculatedIngredientCount !== ingredients.length) return;
-
-    const ingredientsStr = ingredients.map(formatIngredient).join(', ');
-    const foodsStr = buildFoodsString(dishName, ingredientsStr);
-    const saved = await add(foodsStr, nutritionData, resolvePrimaryImagePayload(attachments));
-    if (saved) {
-      handleCancel();
-    }
-  }
-
-  function handleCancel() {
+  function resetComposer() {
     setIngredients([]);
     setIngName('');
     setIngWeight('');
@@ -153,58 +138,16 @@ export default function MyDishesScreen() {
     setShowForm(false);
   }
 
-  const [editingFav, setEditingFav] = useState<Favorite | null>(null);
-  const [actionSheetFav, setActionSheetFav] = useState<Favorite | null>(null);
-  const [mealTypeFav, setMealTypeFav] = useState<Favorite | null>(null);
+  async function handleSave() {
+    if (!nutritionData || calculatedIngredientCount !== ingredients.length) return;
 
-  function handleFavoriteActions(fav: Favorite) {
-    setActionSheetFav(fav);
-  }
+    const ingredientsStr = ingredients.map(formatIngredient).join(', ');
+    const foodsStr = buildFoodsString(dishName, ingredientsStr);
+    const saved = await add(foodsStr, nutritionData, resolvePrimaryImagePayload(attachments));
 
-  function closeActionSheet() {
-    setActionSheetFav(null);
-  }
-
-  function handleUseAsMeal(fav: Favorite) {
-    setMealTypeFav(fav);
-  }
-
-  async function confirmUseAsMeal(type: MealType) {
-    if (!mealTypeFav) return;
-    const fav = mealTypeFav;
-    setMealTypeFav(null);
-    let imageBase64: string | undefined;
-
-    if (fav.imageUrl) {
-      try {
-        const resp = await fetch(fav.imageUrl);
-        const blob = await resp.blob();
-        imageBase64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-          reader.readAsDataURL(blob);
-        });
-      } catch {
-        imageBase64 = undefined;
-      }
+    if (saved) {
+      resetComposer();
     }
-
-    await addMeal(fav.foods, type, fav.nutrition, undefined, undefined, imageBase64);
-    router.navigate('/(tabs)');
-  }
-
-  function startEditing(fav: Favorite) {
-    setEditingFav(fav);
-    const { dishName: recoveredName, ingredientsRaw } = splitFoodsAndDishName(fav.foods);
-    const parsed = parseFoodsToIngredients(ingredientsRaw);
-    setIngredients(parsed);
-    setDishName(recoveredName);
-    setAttachments(fav.imageUrl ? [createRemotePhotoAttachment('meal', fav.imageUrl, 'imagem-atual.jpg')] : []);
-    setNutritionData(fav.nutrition);
-    setNutritionLoading(false);
-    setNutritionError(null);
-    setCalculatedIngredientCount(parsed.length);
-    setShowForm(true);
   }
 
   async function handleSaveEdit() {
@@ -216,11 +159,55 @@ export default function MyDishesScreen() {
       attachments.length === 0
         ? null
         : resolvePrimaryImagePayload(attachments) ?? editingFav.imageUrl ?? undefined;
-
     const saved = await update(editingFav.id, foodsStr, nutritionData, imageToSend);
+
     if (saved) {
-      handleCancel();
+      resetComposer();
     }
+  }
+
+  function startEditing(favorite: Favorite) {
+    setEditingFav(favorite);
+    const { dishName: recoveredName, ingredientsRaw } = splitFoodsAndDishName(favorite.foods);
+    const parsedIngredients = parseFoodsToIngredients(ingredientsRaw);
+
+    setIngredients(parsedIngredients);
+    setDishName(recoveredName);
+    setAttachments(
+      favorite.imageUrl
+        ? [createRemotePhotoAttachment('meal', favorite.imageUrl, 'imagem-atual.jpg')]
+        : [],
+    );
+    setNutritionData(favorite.nutrition);
+    setNutritionLoading(false);
+    setNutritionError(null);
+    setCalculatedIngredientCount(parsedIngredients.length);
+    setShowForm(true);
+  }
+
+  async function handleUseAsMealConfirm(type: MealType) {
+    if (!mealTypeFav) return;
+
+    const favorite = mealTypeFav;
+    setMealTypeFav(null);
+    let imageBase64: string | undefined;
+
+    if (favorite.imageUrl) {
+      try {
+        const response = await fetch(favorite.imageUrl);
+        const blob = await response.blob();
+        imageBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.readAsDataURL(blob);
+        });
+      } catch {
+        imageBase64 = undefined;
+      }
+    }
+
+    await addMeal(favorite.foods, type, favorite.nutrition, undefined, undefined, imageBase64);
+    router.navigate('/(tabs)');
   }
 
   const hasIngredients = ingredients.length > 0;
@@ -233,12 +220,12 @@ export default function MyDishesScreen() {
 
   const filteredFavorites = useMemo(() => {
     const query = searchText.trim().toLowerCase();
-    return favorites.filter((fav) => query.length === 0 || fav.foods.toLowerCase().includes(query));
+    return favorites.filter((favorite) => query.length === 0 || favorite.foods.toLowerCase().includes(query));
   }, [favorites, searchText]);
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={s.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
       <View style={[s.root, { paddingTop: insets.top }]}>
@@ -264,335 +251,95 @@ export default function MyDishesScreen() {
               <View style={s.newDishIcon}>
                 <Text style={s.newDishIconText}>+</Text>
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={s.newDishCopy}>
                 <Text style={s.newDishTitle}>Novo prato</Text>
                 <Text style={s.newDishSubtitle}>Monte ingredientes, calcule macros e salve.</Text>
               </View>
             </Pressable>
           ) : (
-            <View style={s.formSection}>
-              <Text style={s.stepLabel}>1. Ingredientes</Text>
-
-              {ingredients.length > 0 ? (
-                <View style={s.chipList}>
-                  {ingredients.map((ing, idx) => (
-                    <View key={idx} style={s.chip}>
-                      <Text style={s.chipText}>{formatIngredient(ing)}</Text>
-                      <Pressable onPress={() => handleRemoveIngredient(idx)} hitSlop={8}>
-                        <Text style={s.chipRemove}>×</Text>
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-
-              <AppInput
-                ref={ingNameRef}
-                placeholder={ingredients.length === 0 ? foodHint : 'Adicionar ingrediente'}
-                value={ingName}
-                onChangeText={(text: string) => setIngName(text.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
-                maxLength={50}
-              />
-
-              <View style={s.weightRow}>
-                <View style={{ flex: 1 }}>
-                  <AppInput
-                    placeholder="Quantidade"
-                    value={ingWeight}
-                    onChangeText={(text: string) => setIngWeight(text.replace(/[^0-9.,]/g, ''))}
-                    keyboardType="numeric"
-                    maxLength={7}
-                  />
-                </View>
-                <View style={s.unitRow}>
-                  {UNITS.map((unit) => (
-                    <Pressable key={unit} style={[s.unitBtn, ingUnit === unit && s.unitBtnActive]} onPress={() => setIngUnit(unit)}>
-                      <Text style={[s.unitText, ingUnit === unit && s.unitTextActive]}>{unit}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <Pressable style={[s.addIngBtn, !canAddIngredient && s.addIngBtnDisabled]} onPress={handleAddIngredient} disabled={!canAddIngredient}>
-                  <Text style={s.addIngBtnText}>+</Text>
-                </Pressable>
-              </View>
-
-              {hasIngredients ? (
-                <AppButton
-                  title={
-                    canIncrementallyCalculate
-                      ? `Calcular novos itens (${pendingIngredientCount} ${pendingIngredientCount === 1 ? 'item' : 'itens'})`
-                      : calculated
-                        ? `Recalcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`
-                        : `Calcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`
-                  }
-                  onPress={handleCalculate}
-                  loading={nutritionLoading}
-                />
-              ) : null}
-
-              {canIncrementallyCalculate ? (
-                <Text style={s.pendingHint}>
-                  {pendingIngredientCount} {pendingIngredientCount === 1 ? 'ingrediente novo ainda nao entrou' : 'ingredientes novos ainda nao entraram'} no total. Calcule antes de salvar.
-                </Text>
-              ) : null}
-
-              {nutritionError ? (
-                <NutritionErrorModal visible={!!nutritionError} message={nutritionError} onClose={() => setNutritionError(null)} />
-              ) : null}
-
-              {calculated ? (
-                <>
-                  <View style={s.stepDivider} />
-                  <Text style={s.stepLabel}>2. Resultado</Text>
-                  <View style={s.previewCard}>
-                    <Text style={s.previewCal}>{nutritionData!.calories}</Text>
-                    <View style={s.previewMacros}>
-                      <MacroChip label="prot" value={nutritionData!.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
-                      <MacroChip label="carb" value={nutritionData!.carbs} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
-                      <MacroChip label="gord" value={nutritionData!.fat} color={Brand.macroFat} bg={Brand.macroFatBg} />
-                    </View>
-                  </View>
-
-                  <MealAttachmentField value={attachments} onChange={setAttachments} maxItems={1} />
-
-                  <View style={s.stepDivider} />
-                  <Text style={s.stepLabel}>3. Nome do prato</Text>
-                  <AppInput placeholder="Ex: Marmita fit, Cafe da manha..." value={dishName} onChangeText={setDishName} />
-
-                  <View style={s.formActions}>
-                    <View style={s.formActionItem}>
-                      <AppButton
-                        title={editingFav ? 'Atualizar prato' : 'Salvar prato'}
-                        onPress={editingFav ? handleSaveEdit : handleSave}
-                        disabled={!canSaveDish}
-                      />
-                    </View>
-                    <View style={s.formActionItem}>
-                      <AppButton title="Cancelar" onPress={handleCancel} variant="secondary" />
-                    </View>
-                  </View>
-                </>
-              ) : (
-                <View style={s.formActions}>
-                  <View style={s.formActionItem}>
-                    <AppButton title="Cancelar" onPress={handleCancel} variant="secondary" />
-                  </View>
-                </View>
-              )}
-            </View>
+            <ExploreDishFormCard
+              ingredients={ingredients}
+              ingName={ingName}
+              ingWeight={ingWeight}
+              ingUnit={ingUnit}
+              units={UNITS}
+              foodHint={foodHint}
+              dishName={dishName}
+              attachments={attachments}
+              nutritionData={nutritionData}
+              nutritionLoading={nutritionLoading}
+              nutritionError={nutritionError}
+              editing={!!editingFav}
+              hasIngredients={hasIngredients}
+              calculated={calculated}
+              canAddIngredient={canAddIngredient}
+              canSaveDish={canSaveDish}
+              canIncrementallyCalculate={canIncrementallyCalculate}
+              pendingIngredientCount={pendingIngredientCount}
+              ingNameRef={ingNameRef}
+              onChangeIngredientName={(text) => setIngName(text.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''))}
+              onChangeIngredientWeight={(text) => setIngWeight(text.replace(/[^0-9.,]/g, ''))}
+              onChangeIngredientUnit={setIngUnit}
+              onAddIngredient={handleAddIngredient}
+              onRemoveIngredient={handleRemoveIngredient}
+              onCalculate={handleCalculate}
+              onCloseNutritionError={() => setNutritionError(null)}
+              onChangeAttachments={setAttachments}
+              onChangeDishName={setDishName}
+              onSave={editingFav ? handleSaveEdit : handleSave}
+              onCancel={resetComposer}
+            />
           )}
 
-          {loading ? <Text style={s.hint}>Carregando pratos...</Text> : null}
-
-          {!loading && favorites.length === 0 && !showForm ? (
-            <View style={s.emptyState}>
-              <Text style={s.emptyTitle}>Nenhum prato cadastrado</Text>
-              <Text style={s.emptyHint}>Use o botao Novo prato para montar sua primeira receita favorita.</Text>
-            </View>
-          ) : null}
-
-          {error ? (
-            <View style={s.errorBox}>
-              <Text style={s.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          {favorites.length > 0 ? (
-            <>
-              <View style={s.sectionHeader}>
-                <Text style={s.sectionTitle}>Pratos salvos</Text>
-                <Text style={s.sectionCount}>
-                  {filteredFavorites.length}/{favorites.length}
-                </Text>
-              </View>
-
-              <View style={s.list}>
-                {filteredFavorites.map((fav) => (
-                  <Pressable key={fav.id} style={({ pressed }) => [s.card, pressed && s.cardPressed]} onPress={() => handleFavoriteActions(fav)}>
-                    {fav.imageUrl ? (
-                      <Image source={{ uri: fav.imageUrl }} style={s.cardThumb} />
-                    ) : (
-                      <View style={s.cardThumbPlaceholder}>
-                        <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
-                      </View>
-                    )}
-                    <View style={s.cardContent}>
-                      <View style={s.cardTop}>
-                        <Text style={s.cardFoods} numberOfLines={1}>
-                          {fav.foods}
-                        </Text>
-                        <Text style={s.cardCal}>{fav.nutrition.calories}</Text>
-                      </View>
-                      <View style={s.cardMacros}>
-                        <MacroChip label="prot" value={fav.nutrition.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
-                        <MacroChip label="carb" value={fav.nutrition.carbs} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
-                        <MacroChip label="gord" value={fav.nutrition.fat} color={Brand.macroFat} bg={Brand.macroFatBg} />
-                      </View>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            </>
-          ) : null}
+          <ExploreFavoritesList
+            favorites={filteredFavorites}
+            totalFavorites={favorites.length}
+            loading={loading}
+            showForm={showForm}
+            error={error}
+            onPressFavorite={setActionSheetFav}
+          />
         </ScrollView>
       </View>
 
-      <Modal visible={!!mealTypeFav} transparent animationType="fade" onRequestClose={() => setMealTypeFav(null)}>
-        <Pressable style={s.overlay} onPress={() => setMealTypeFav(null)}>
-          <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
-            <View style={s.handleWrap}>
-              <View style={s.handle} />
-            </View>
-            <Text style={s.sheetTitle}>Adicionar em qual refeicao?</Text>
-            {mealTypeFav ? <Text style={s.sheetSubtitle}>{mealTypeFav.foods}</Text> : null}
+      <ExploreMealTypeModal
+        favorite={mealTypeFav}
+        onClose={() => setMealTypeFav(null)}
+        onConfirm={handleUseAsMealConfirm}
+      />
 
-            <View style={s.sheetActions}>
-              {(['breakfast', 'lunch', 'snack', 'dinner', 'supper'] as MealType[]).map((type, idx) => {
-                const iconConfig: Record<
-                  MealType,
-                  { name: 'sunny-outline' | 'restaurant-outline' | 'cafe-outline' | 'moon-outline' | 'bed-outline'; color: string; bg: string }
-                > = {
-                  breakfast: { name: 'sunny-outline', color: '#F57C00', bg: '#FFF3E0' },
-                  lunch: { name: 'restaurant-outline', color: Brand.greenDark, bg: '#E8F5E9' },
-                  snack: { name: 'cafe-outline', color: '#D6A624', bg: '#FFF8E1' },
-                  dinner: { name: 'moon-outline', color: '#7E57C2', bg: '#EDE7F6' },
-                  supper: { name: 'bed-outline', color: '#5C6BC0', bg: '#E8EAF6' },
-                };
-                const cfg = iconConfig[type];
-                return (
-                  <View key={type}>
-                    {idx > 0 ? <View style={s.sheetBorder} /> : null}
-                    <Pressable style={({ pressed }) => [s.sheetBtn, pressed && s.sheetBtnPressed]} onPress={() => confirmUseAsMeal(type)}>
-                      <View style={[s.sheetIconWrap, { backgroundColor: cfg.bg }]}>
-                        <Ionicons name={cfg.name} size={18} color={cfg.color} />
-                      </View>
-                      <Text style={s.sheetBtnLabel}>{MEAL_TYPE_LABELS[type]}</Text>
-                    </Pressable>
-                  </View>
-                );
-              })}
-            </View>
-
-            <Pressable style={({ pressed }) => [s.sheetCancelBtn, pressed && s.sheetBtnPressed]} onPress={() => setMealTypeFav(null)}>
-              <Text style={s.sheetCancelText}>Cancelar</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal visible={!!actionSheetFav} transparent animationType="fade" onRequestClose={closeActionSheet}>
-        <Pressable style={s.overlay} onPress={closeActionSheet}>
-          <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
-            <View style={s.handleWrap}>
-              <View style={s.handle} />
-            </View>
-
-            {actionSheetFav ? (
-              <View style={s.sheetHeaderRow}>
-                {actionSheetFav.imageUrl ? (
-                  <Image source={{ uri: actionSheetFav.imageUrl }} style={s.sheetThumb} />
-                ) : (
-                  <View style={s.sheetThumbPlaceholder}>
-                    <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
-                  </View>
-                )}
-                <Text style={s.sheetHeaderName} numberOfLines={2}>
-                  {actionSheetFav.foods}
-                </Text>
-              </View>
-            ) : null}
-
-            <View style={s.sheetActions}>
-              <Pressable
-                style={({ pressed }) => [s.sheetBtn, pressed && s.sheetBtnPressed]}
-                onPress={() => {
-                  const fav = actionSheetFav!;
-                  closeActionSheet();
-                  setTimeout(() => handleUseAsMeal(fav), 150);
-                }}>
-                <View style={[s.sheetIconWrap, { backgroundColor: '#E8F5E9' }]}>
-                  <Ionicons name="add-circle-outline" size={18} color={Brand.greenDark} />
-                </View>
-                <Text style={s.sheetBtnLabel}>Usar como refeicao</Text>
-              </Pressable>
-
-              <View style={s.sheetBorder} />
-
-              <Pressable
-                style={({ pressed }) => [s.sheetBtn, pressed && s.sheetBtnPressed]}
-                onPress={() => {
-                  const fav = actionSheetFav!;
-                  closeActionSheet();
-                  setTimeout(() => startEditing(fav), 150);
-                }}>
-                <View style={[s.sheetIconWrap, { backgroundColor: '#E6F2FF' }]}>
-                  <Ionicons name="create-outline" size={18} color="#1E88E5" />
-                </View>
-                <Text style={s.sheetBtnLabel}>Editar</Text>
-              </Pressable>
-
-              <View style={s.sheetBorder} />
-
-              <Pressable
-                style={({ pressed }) => [s.sheetBtn, pressed && s.sheetBtnPressed]}
-                onPress={() => {
-                  const fav = actionSheetFav!;
-                  closeActionSheet();
-                  setTimeout(() => {
-                    Alert.alert('Remover prato?', fav.foods, [
-                      { text: 'Remover', style: 'destructive', onPress: () => remove(fav.id) },
-                      { text: 'Cancelar', style: 'cancel' },
-                    ]);
-                  }, 150);
-                }}>
-                <View style={[s.sheetIconWrap, { backgroundColor: '#FFEDEE' }]}>
-                  <Ionicons name="trash-outline" size={18} color={Brand.danger} />
-                </View>
-                <Text style={[s.sheetBtnLabel, { color: Brand.danger }]}>Apagar</Text>
-              </Pressable>
-            </View>
-
-            <Pressable style={({ pressed }) => [s.sheetCancelBtn, pressed && s.sheetBtnPressed]} onPress={closeActionSheet}>
-              <Text style={s.sheetCancelText}>Cancelar</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <ExploreFavoriteActionsModal
+        favorite={actionSheetFav}
+        onClose={() => setActionSheetFav(null)}
+        onUseAsMeal={(favorite) => {
+          setActionSheetFav(null);
+          setTimeout(() => setMealTypeFav(favorite), 150);
+        }}
+        onEdit={(favorite) => {
+          setActionSheetFav(null);
+          setTimeout(() => startEditing(favorite), 150);
+        }}
+        onDelete={(favorite) => {
+          setActionSheetFav(null);
+          remove(favorite.id);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
 
-function MacroChip({
-  label,
-  value,
-  color,
-  bg,
-}: {
-  label: string;
-  value: string;
-  color: string;
-  bg: string;
-}) {
-  return (
-    <View style={[s.pill, { backgroundColor: bg }]}>
-      <Text style={[s.pillLabel, { color }]}>{label}</Text>
-      <Text style={[s.pillValue, { color }]}>{value}</Text>
-    </View>
-  );
-}
-
-const THUMB_SIZE = 56;
-
 const s = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   root: {
     flex: 1,
     backgroundColor: Brand.bg,
   },
   scroll: {
     paddingHorizontal: 18,
-    paddingTop: 14,
-    paddingBottom: 150,
-    gap: 12,
+    paddingBottom: 140,
+    gap: 14,
   },
   title: {
     ...Typography.title,
@@ -605,455 +352,62 @@ const s = StyleSheet.create({
     marginTop: -8,
   },
   searchWrap: {
-    marginTop: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    borderRadius: Radii.xl,
     backgroundColor: Brand.card,
-    borderRadius: Radii.md,
     borderWidth: 1,
     borderColor: Brand.border,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     ...Shadows.card,
   },
   searchInput: {
     flex: 1,
-    minHeight: 50,
+    minHeight: 42,
     color: Brand.text,
     ...Typography.body,
   },
-  categoryRow: {
-    gap: 8,
-    paddingRight: 8,
-  },
-  categoryChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: Radii.pill,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    backgroundColor: Brand.surfaceAlt,
-  },
-  categoryChipActive: {
-    backgroundColor: Brand.green,
-    borderColor: Brand.green,
-  },
-  categoryChipText: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  categoryChipTextActive: {
-    color: '#FFFFFF',
-  },
   newDishCard: {
-    marginTop: 2,
-    backgroundColor: Brand.card,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
+    borderRadius: Radii.xl,
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 18,
     ...Shadows.card,
   },
   newDishCardPressed: {
-    opacity: 0.88,
+    opacity: 0.92,
   },
   newDishIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    backgroundColor: Brand.green,
+    width: 48,
+    height: 48,
+    borderRadius: 18,
+    backgroundColor: '#E7F6EC',
     alignItems: 'center',
     justifyContent: 'center',
   },
   newDishIconText: {
-    color: '#FFFFFF',
-    fontSize: 22,
+    fontSize: 28,
+    lineHeight: 30,
     fontWeight: '700',
-    marginTop: -2,
+    color: Brand.greenDark,
+  },
+  newDishCopy: {
+    flex: 1,
+    gap: 4,
   },
   newDishTitle: {
-    ...Typography.body,
+    ...Typography.subtitle,
     color: Brand.text,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   newDishSubtitle: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    marginTop: 2,
-  },
-  formSection: {
-    backgroundColor: Brand.card,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    padding: 16,
-    gap: 12,
-    ...Shadows.card,
-  },
-  stepLabel: {
-    ...Typography.caption,
-    color: Brand.greenDark,
-    textTransform: 'uppercase',
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  stepDivider: {
-    width: 28,
-    height: 2,
-    borderRadius: Radii.pill,
-    backgroundColor: Brand.border,
-    alignSelf: 'center',
-  },
-  chipList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: Radii.pill,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    backgroundColor: Brand.surfaceAlt,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  chipText: {
-    ...Typography.caption,
-    color: Brand.text,
-    fontWeight: '700',
-  },
-  chipRemove: {
-    color: Brand.textSecondary,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  weightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  unitRow: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: Brand.border,
-    borderRadius: Radii.md,
-    overflow: 'hidden',
-    backgroundColor: Brand.surfaceAlt,
-  },
-  unitBtn: {
-    minWidth: 40,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  unitBtnActive: {
-    backgroundColor: Brand.green,
-  },
-  unitText: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  unitTextActive: {
-    color: '#FFFFFF',
-  },
-  addIngBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: Radii.md,
-    backgroundColor: Brand.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addIngBtnDisabled: {
-    backgroundColor: Brand.border,
-  },
-  addIngBtnText: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '700',
-    marginTop: -2,
-  },
-  previewCard: {
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    backgroundColor: Brand.surfaceSoft,
-    padding: 14,
-    gap: 8,
-  },
-  previewCal: {
-    ...Typography.subtitle,
-    color: Brand.greenDark,
-    fontWeight: '800',
-  },
-  previewMacros: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  pendingHint: {
-    ...Typography.caption,
-    color: '#A16207',
-    fontWeight: '700',
-    lineHeight: 17,
-  },
-  formActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  formActionItem: {
-    flex: 1,
-    minWidth: 140,
-  },
-  sectionHeader: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    ...Typography.subtitle,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  sectionCount: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-  },
-  hint: {
     ...Typography.body,
     color: Brand.textSecondary,
-    textAlign: 'center',
-    paddingVertical: 8,
-  },
-  emptyState: {
-    marginTop: 2,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    backgroundColor: Brand.surfaceAlt,
-    padding: 18,
-    alignItems: 'center',
-    gap: 6,
-  },
-  emptyTitle: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  emptyHint: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    textAlign: 'center',
-    lineHeight: 17,
-  },
-  errorBox: {
-    borderRadius: Radii.md,
-    backgroundColor: '#FFEDEE',
-    padding: 12,
-  },
-  errorText: {
-    ...Typography.body,
-    color: Brand.danger,
-    fontSize: 14,
-  },
-  list: {
-    gap: 8,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    backgroundColor: Brand.card,
-    padding: 10,
-    ...Shadows.card,
-  },
-  cardPressed: {
-    opacity: 0.88,
-  },
-  cardThumb: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
-    borderRadius: 12,
-  },
-  cardThumbPlaceholder: {
-    width: THUMB_SIZE,
-    height: THUMB_SIZE,
-    borderRadius: 12,
-    backgroundColor: Brand.surfaceAlt,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardContent: {
-    flex: 1,
-    paddingHorizontal: 12,
-    gap: 6,
-  },
-  cardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  cardFoods: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '700',
-    flex: 1,
-  },
-  cardCal: {
-    ...Typography.caption,
-    color: Brand.greenDark,
-    fontWeight: '800',
-    fontSize: 12,
-  },
-  cardMacros: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderRadius: Radii.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  pillLabel: {
-    ...Typography.caption,
-    textTransform: 'uppercase',
-    fontWeight: '800',
-    fontSize: 10,
-  },
-  pillValue: {
-    ...Typography.caption,
-    fontWeight: '700',
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(31,41,51,0.34)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: Brand.bg,
-    borderTopLeftRadius: Radii.xl,
-    borderTopRightRadius: Radii.xl,
-    paddingBottom: 34,
-    paddingHorizontal: 20,
-  },
-  handleWrap: {
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  handle: {
-    width: 42,
-    height: 4,
-    borderRadius: Radii.pill,
-    backgroundColor: Brand.border,
-  },
-  sheetTitle: {
-    ...Typography.subtitle,
-    color: Brand.text,
-    textAlign: 'center',
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  sheetSubtitle: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    textAlign: 'center',
-    marginBottom: 14,
-  },
-  sheetActions: {
-    backgroundColor: Brand.card,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    overflow: 'hidden',
-  },
-  sheetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  sheetBtnPressed: {
-    opacity: 0.82,
-  },
-  sheetBorder: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: Brand.border,
-  },
-  sheetIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetBtnLabel: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '600',
-  },
-  sheetCancelBtn: {
-    marginTop: 10,
-    borderRadius: Radii.lg,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    backgroundColor: Brand.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-  },
-  sheetCancelText: {
-    ...Typography.body,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  sheetHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 14,
-  },
-  sheetThumb: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-  },
-  sheetThumbPlaceholder: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: Brand.surfaceAlt,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetHeaderName: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '600',
-    flex: 1,
-    lineHeight: 20,
   },
 });
