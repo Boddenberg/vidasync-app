@@ -23,13 +23,12 @@ import { MealAttachmentField } from '@/components/attachments/domain-attachment-
 import { AppInput } from '@/components/app-input';
 import { NutritionErrorModal } from '@/components/nutrition-error-modal';
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
-import { useAsync } from '@/hooks/use-async';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useMeals } from '@/hooks/use-meals';
 import { createRemotePhotoAttachment } from '@/services/attachments';
 import { getNutrition } from '@/services/nutrition';
 import type { AttachmentItem } from '@/types/attachments';
-import type { Favorite, MealType } from '@/types/nutrition';
+import type { Favorite, MealType, NutritionData } from '@/types/nutrition';
 import { MEAL_TYPE_LABELS } from '@/types/nutrition';
 import { resolvePrimaryImagePayload } from '@/utils/attachment-rules';
 import {
@@ -41,6 +40,7 @@ import {
   type Ingredient,
   type WeightUnit,
 } from '@/utils/helpers';
+import { sumNutritionData } from '@/utils/nutrition-math';
 
 const UNITS: WeightUnit[] = ['g', 'ml', 'un'];
 
@@ -58,9 +58,12 @@ export default function MyDishesScreen() {
   const [ingUnit, setIngUnit] = useState<WeightUnit>('g');
   const [dishName, setDishName] = useState('');
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const [nutritionData, setNutritionData] = useState<NutritionData | null>(null);
+  const [nutritionLoading, setNutritionLoading] = useState(false);
+  const [nutritionError, setNutritionError] = useState<string | null>(null);
+  const [calculatedIngredientCount, setCalculatedIngredientCount] = useState(0);
 
-  const nutrition = useAsync(getNutrition);
-  const { favorites, loading, error, add, remove, refresh } = useFavorites();
+  const { favorites, loading, error, add, update, remove, refresh } = useFavorites();
   const { add: addMeal } = useMeals();
 
   useFocusEffect(
@@ -74,32 +77,65 @@ export default function MyDishesScreen() {
   function handleAddIngredient() {
     const name = ingName.trim();
     if (!name) return;
+
     setIngredients((prev) => [...prev, { name, weight: ingWeight.trim(), unit: ingUnit }]);
     setIngName('');
     setIngWeight('');
     setIngUnit('g');
+    setNutritionError(null);
     setTimeout(() => ingNameRef.current?.focus(), 100);
-    if (nutrition.data) nutrition.reset();
   }
 
   function handleRemoveIngredient(index: number) {
     setIngredients((prev) => prev.filter((_, i) => i !== index));
-    if (nutrition.data) nutrition.reset();
+    setNutritionError(null);
+
+    if (index < calculatedIngredientCount) {
+      setNutritionData(null);
+      setCalculatedIngredientCount(0);
+    }
   }
 
-  function handleCalculate() {
-    if (ingredients.length === 0) return;
+  async function handleCalculate() {
+    if (ingredients.length === 0 || nutritionLoading) return;
+
     Keyboard.dismiss();
-    const foodsStr = ingredients.map(formatIngredient).join(', ');
-    nutrition.execute(foodsStr);
+    setNutritionLoading(true);
+    setNutritionError(null);
+
+    const hasPendingIngredients =
+      calculatedIngredientCount > 0 &&
+      calculatedIngredientCount < ingredients.length &&
+      nutritionData !== null;
+    const ingredientsToCalculate = hasPendingIngredients
+      ? ingredients.slice(calculatedIngredientCount)
+      : ingredients;
+    const foodsStr = ingredientsToCalculate.map(formatIngredient).join(', ');
+
+    try {
+      const nextNutrition = await getNutrition(foodsStr);
+      setNutritionData(
+        hasPendingIngredients && nutritionData
+          ? sumNutritionData(nutritionData, nextNutrition)
+          : nextNutrition,
+      );
+      setCalculatedIngredientCount(ingredients.length);
+    } catch (err: any) {
+      setNutritionError(err?.message ?? 'Erro ao calcular macros');
+    } finally {
+      setNutritionLoading(false);
+    }
   }
 
   async function handleSave() {
-    if (!nutrition.data) return;
+    if (!nutritionData || calculatedIngredientCount !== ingredients.length) return;
+
     const ingredientsStr = ingredients.map(formatIngredient).join(', ');
     const foodsStr = buildFoodsString(dishName, ingredientsStr);
-    await add(foodsStr, nutrition.data, resolvePrimaryImagePayload(attachments));
-    handleCancel();
+    const saved = await add(foodsStr, nutritionData, resolvePrimaryImagePayload(attachments));
+    if (saved) {
+      handleCancel();
+    }
   }
 
   function handleCancel() {
@@ -110,7 +146,10 @@ export default function MyDishesScreen() {
     setDishName('');
     setAttachments([]);
     setEditingFav(null);
-    nutrition.reset();
+    setNutritionData(null);
+    setNutritionLoading(false);
+    setNutritionError(null);
+    setCalculatedIngredientCount(0);
     setShowForm(false);
   }
 
@@ -161,24 +200,36 @@ export default function MyDishesScreen() {
     setIngredients(parsed);
     setDishName(recoveredName);
     setAttachments(fav.imageUrl ? [createRemotePhotoAttachment('meal', fav.imageUrl, 'imagem-atual.jpg')] : []);
-    nutrition.setData(fav.nutrition);
+    setNutritionData(fav.nutrition);
+    setNutritionLoading(false);
+    setNutritionError(null);
+    setCalculatedIngredientCount(parsed.length);
     setShowForm(true);
   }
 
   async function handleSaveEdit() {
-    if (!editingFav || !nutrition.data) return;
+    if (!editingFav || !nutritionData || calculatedIngredientCount !== ingredients.length) return;
+
     const ingredientsStr = ingredients.map(formatIngredient).join(', ');
     const foodsStr = buildFoodsString(dishName, ingredientsStr);
-    const imageToSend = resolvePrimaryImagePayload(attachments);
-    await remove(editingFav.id);
-    await add(foodsStr, nutrition.data, imageToSend);
-    setEditingFav(null);
-    handleCancel();
+    const imageToSend =
+      attachments.length === 0
+        ? null
+        : resolvePrimaryImagePayload(attachments) ?? editingFav.imageUrl ?? undefined;
+
+    const saved = await update(editingFav.id, foodsStr, nutritionData, imageToSend);
+    if (saved) {
+      handleCancel();
+    }
   }
 
   const hasIngredients = ingredients.length > 0;
-  const calculated = !!nutrition.data;
+  const calculated = !!nutritionData;
   const canAddIngredient = ingName.trim().length > 0;
+  const pendingIngredientCount = Math.max(0, ingredients.length - calculatedIngredientCount);
+  const canIncrementallyCalculate =
+    !!nutritionData && calculatedIngredientCount > 0 && pendingIngredientCount > 0;
+  const canSaveDish = calculated && pendingIngredientCount === 0 && !nutritionLoading;
 
   const filteredFavorites = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -268,17 +319,25 @@ export default function MyDishesScreen() {
               {hasIngredients ? (
                 <AppButton
                   title={
-                    calculated
-                      ? `Recalcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`
-                      : `Calcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`
+                    canIncrementallyCalculate
+                      ? `Calcular novos itens (${pendingIngredientCount} ${pendingIngredientCount === 1 ? 'item' : 'itens'})`
+                      : calculated
+                        ? `Recalcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`
+                        : `Calcular macros (${ingredients.length} ${ingredients.length === 1 ? 'item' : 'itens'})`
                   }
                   onPress={handleCalculate}
-                  loading={nutrition.loading}
+                  loading={nutritionLoading}
                 />
               ) : null}
 
-              {nutrition.error ? (
-                <NutritionErrorModal visible={!!nutrition.error} message={nutrition.error} onClose={() => nutrition.reset()} />
+              {canIncrementallyCalculate ? (
+                <Text style={s.pendingHint}>
+                  {pendingIngredientCount} {pendingIngredientCount === 1 ? 'ingrediente novo ainda nao entrou' : 'ingredientes novos ainda nao entraram'} no total. Calcule antes de salvar.
+                </Text>
+              ) : null}
+
+              {nutritionError ? (
+                <NutritionErrorModal visible={!!nutritionError} message={nutritionError} onClose={() => setNutritionError(null)} />
               ) : null}
 
               {calculated ? (
@@ -286,11 +345,11 @@ export default function MyDishesScreen() {
                   <View style={s.stepDivider} />
                   <Text style={s.stepLabel}>2. Resultado</Text>
                   <View style={s.previewCard}>
-                    <Text style={s.previewCal}>{nutrition.data!.calories}</Text>
+                    <Text style={s.previewCal}>{nutritionData!.calories}</Text>
                     <View style={s.previewMacros}>
-                      <MacroChip label="prot" value={nutrition.data!.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
-                      <MacroChip label="carb" value={nutrition.data!.carbs} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
-                      <MacroChip label="gord" value={nutrition.data!.fat} color={Brand.macroFat} bg={Brand.macroFatBg} />
+                      <MacroChip label="prot" value={nutritionData!.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
+                      <MacroChip label="carb" value={nutritionData!.carbs} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
+                      <MacroChip label="gord" value={nutritionData!.fat} color={Brand.macroFat} bg={Brand.macroFatBg} />
                     </View>
                   </View>
 
@@ -301,17 +360,21 @@ export default function MyDishesScreen() {
                   <AppInput placeholder="Ex: Marmita fit, Cafe da manha..." value={dishName} onChangeText={setDishName} />
 
                   <View style={s.formActions}>
-                    <View style={{ flex: 2 }}>
-                      <AppButton title={editingFav ? 'Atualizar prato' : 'Salvar prato'} onPress={editingFav ? handleSaveEdit : handleSave} />
+                    <View style={s.formActionItem}>
+                      <AppButton
+                        title={editingFav ? 'Atualizar prato' : 'Salvar prato'}
+                        onPress={editingFav ? handleSaveEdit : handleSave}
+                        disabled={!canSaveDish}
+                      />
                     </View>
-                    <View style={{ flex: 1 }}>
+                    <View style={s.formActionItem}>
                       <AppButton title="Cancelar" onPress={handleCancel} variant="secondary" />
                     </View>
                   </View>
                 </>
               ) : (
                 <View style={s.formActions}>
-                  <View style={{ flex: 1 }}>
+                  <View style={s.formActionItem}>
                     <AppButton title="Cancelar" onPress={handleCancel} variant="secondary" />
                   </View>
                 </View>
@@ -736,9 +799,20 @@ const s = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  pendingHint: {
+    ...Typography.caption,
+    color: '#A16207',
+    fontWeight: '700',
+    lineHeight: 17,
+  },
   formActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
+  },
+  formActionItem: {
+    flex: 1,
+    minWidth: 140,
   },
   sectionHeader: {
     marginTop: 8,
