@@ -1,4 +1,5 @@
 import { apiGetJson, apiPost } from './api';
+import { normalizeHydrationGoalMl } from '@/utils/hydration';
 
 export type WaterEvent = {
   id: string | null;
@@ -152,7 +153,13 @@ export async function saveWaterStatus(params: {
   goalMl?: number;
   deltaMl?: number;
 }): Promise<WaterStatus> {
-  const data = await apiPost<WaterResponse | WaterStatus>('/water', params);
+  const payload = { ...params };
+
+  if (typeof payload.goalMl === 'number' && payload.goalMl > 0) {
+    payload.goalMl = normalizeHydrationGoalMl(payload.goalMl);
+  }
+
+  const data = await apiPost<WaterResponse | WaterStatus>('/water', payload);
   const water = parseWaterResponse(data);
 
   if (!water) {

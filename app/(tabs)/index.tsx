@@ -1,7 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  Image,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
@@ -27,6 +39,14 @@ import {
 import { getWaterStatus, saveWaterStatus, type WaterEvent, type WaterStatus } from '@/services/water';
 import type { Meal, MealType, NutritionData } from '@/types/nutrition';
 import { buildFoodsString, extractNum, toDateStr, todayStr } from '@/utils/helpers';
+import {
+  HYDRATION_GOAL_MAX_ML,
+  HYDRATION_GOAL_MIN_ML,
+  getHydrationGoalDraftMl,
+  hydrationGoalFromRatio,
+  hydrationGoalRatio,
+  normalizeHydrationGoalMl,
+} from '@/utils/hydration';
 
 const MEAL_SUMMARY_META: Record<
   MealType,
@@ -45,8 +65,6 @@ const MEAL_SUMMARY_META: Record<
 };
 
 const MEAL_SUMMARY_ORDER: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner', 'supper'];
-
-const HYDRATION_GOAL_OPTIONS = [2000, 2500, 3000, 3500];
 
 const HYDRATION_QUICK_ACTIONS = [
   { label: '-500 ml', deltaMl: -500, tone: 'negative' as const },
@@ -254,6 +272,7 @@ export default function HomeScreen() {
   const [hydrationLoading, setHydrationLoading] = useState(false);
   const [hydrationError, setHydrationError] = useState<string | null>(null);
   const [hydrationGoalMenuOpen, setHydrationGoalMenuOpen] = useState(false);
+  const [hydrationGoalDraftMl, setHydrationGoalDraftMl] = useState(getHydrationGoalDraftMl(null));
 
   const [nutritionGoals, setNutritionGoals] = useState<NutritionGoalsStatus | null>(null);
   const [goalsLoading, setGoalsLoading] = useState(false);
@@ -344,6 +363,10 @@ export default function HomeScreen() {
     setHydrationGoalMenuOpen(false);
   }, [loadGoalState, loadHydration, selectedDate]);
 
+  useEffect(() => {
+    setHydrationGoalDraftMl(getHydrationGoalDraftMl(hydrationGoalMl));
+  }, [hydrationGoalMl]);
+
   async function handleSaveNew(params: {
     foods: string;
     mealType: MealType;
@@ -377,9 +400,18 @@ export default function HomeScreen() {
     }
   }
 
-  async function handleHydrationGoalSelect(goalMl: number) {
-    setHydrationGoalMenuOpen(false);
-    await sendHydrationUpdate({ goalMl });
+  function handleHydrationGoalDraftChange(goalMl: number) {
+    setHydrationGoalDraftMl(normalizeHydrationGoalMl(goalMl));
+  }
+
+  async function handleHydrationGoalCommit(goalMl: number) {
+    const normalizedGoal = normalizeHydrationGoalMl(goalMl);
+    const currentGoal = hydrationGoalMl > 0 ? normalizeHydrationGoalMl(hydrationGoalMl) : 0;
+
+    setHydrationGoalDraftMl(normalizedGoal);
+    if (normalizedGoal === currentGoal) return;
+
+    await sendHydrationUpdate({ goalMl: normalizedGoal });
   }
 
   async function handleSaveGoals(
@@ -786,15 +818,25 @@ export default function HomeScreen() {
               {hydrationGoalMenuOpen ? (
                 <View style={s.hydrationGoalMenu}>
                   <Text style={s.hydrationGoalMenuTitle}>Meta diária</Text>
-                  <View style={s.quickRow}>
-                    {HYDRATION_GOAL_OPTIONS.map((goal) => (
-                      <GoalChip
-                        key={goal}
-                        label={formatLiters(goal)}
-                        active={hydrationGoalMl === goal}
-                        onPress={() => handleHydrationGoalSelect(goal)}
-                      />
-                    ))}
+                  <View style={s.hydrationGoalMenuHeader}>
+                    <View style={s.hydrationGoalMenuCopy}>
+                      <Text style={s.hydrationGoalMenuHint}>Arraste para ajustar entre 1L e 10L. A meta salva ao soltar.</Text>
+                    </View>
+                    <View style={s.hydrationGoalValueBadge}>
+                      <Text style={s.hydrationGoalValue}>{formatLiters(hydrationGoalDraftMl)}</Text>
+                      <Text style={s.hydrationGoalValueLabel}>{hydrationSaving ? 'salvando' : 'meta atual'}</Text>
+                    </View>
+                  </View>
+                  <HydrationGoalSlider
+                    value={hydrationGoalDraftMl}
+                    disabled={hydrationSaving}
+                    onChange={handleHydrationGoalDraftChange}
+                    onChangeEnd={handleHydrationGoalCommit}
+                  />
+                  <View style={s.hydrationGoalScale}>
+                    <Text style={s.hydrationGoalScaleLabel}>{formatLiters(HYDRATION_GOAL_MIN_ML)}</Text>
+                    <Text style={s.hydrationGoalScaleHint}>passos de 100ml</Text>
+                    <Text style={s.hydrationGoalScaleLabel}>{formatLiters(HYDRATION_GOAL_MAX_ML)}</Text>
                   </View>
                 </View>
               ) : null}
@@ -861,8 +903,87 @@ function HydrationButton({
   );
 }
 
-function GoalChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return <Pressable style={({ pressed }) => [s.goalChip, active && s.goalChipActive, pressed && s.pressed]} onPress={onPress}><Text style={[s.goalChipText, active && s.goalChipTextActive]}>{label}</Text></Pressable>;
+function HydrationGoalSlider({
+  value,
+  disabled,
+  onChange,
+  onChangeEnd,
+}: {
+  value: number;
+  disabled?: boolean;
+  onChange: (goalMl: number) => void;
+  onChangeEnd: (goalMl: number) => void;
+}) {
+  const [trackWidth, setTrackWidth] = useState(0);
+
+  const valueRef = useRef(value);
+  const trackWidthRef = useRef(trackWidth);
+  const disabledRef = useRef(Boolean(disabled));
+  const onChangeRef = useRef(onChange);
+  const onChangeEndRef = useRef(onChangeEnd);
+
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
+  useEffect(() => {
+    trackWidthRef.current = trackWidth;
+  }, [trackWidth]);
+
+  useEffect(() => {
+    disabledRef.current = Boolean(disabled);
+  }, [disabled]);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    onChangeEndRef.current = onChangeEnd;
+  }, [onChangeEnd]);
+
+  const updateGoalFromLocation = useCallback((locationX: number, commit = false) => {
+    const width = trackWidthRef.current;
+    const nextValue = width > 0 ? hydrationGoalFromRatio(locationX / width) : valueRef.current;
+
+    valueRef.current = nextValue;
+    onChangeRef.current(nextValue);
+
+    if (commit) {
+      onChangeEndRef.current(nextValue);
+    }
+  }, []);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !disabledRef.current,
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        !disabledRef.current && Math.abs(gestureState.dx) >= Math.abs(gestureState.dy),
+      onPanResponderGrant: (event) => updateGoalFromLocation(event.nativeEvent.locationX),
+      onPanResponderMove: (event) => updateGoalFromLocation(event.nativeEvent.locationX),
+      onPanResponderRelease: (event) => updateGoalFromLocation(event.nativeEvent.locationX, true),
+      onPanResponderTerminate: (event) => updateGoalFromLocation(event.nativeEvent.locationX, true),
+      onPanResponderTerminationRequest: () => true,
+    }),
+  ).current;
+
+  function handleTrackLayout(event: LayoutChangeEvent) {
+    setTrackWidth(event.nativeEvent.layout.width);
+  }
+
+  const progress = hydrationGoalRatio(value);
+  const thumbLeft = trackWidth > 0 ? progress * trackWidth : 0;
+
+  return (
+    <View style={[s.hydrationGoalSliderWrap, disabled && s.disabled]}>
+      <View style={s.hydrationGoalSliderTapArea} onLayout={handleTrackLayout} {...panResponder.panHandlers}>
+        <View style={s.hydrationGoalSliderTrack}>
+          <View style={[s.hydrationGoalSliderFill, { width: `${Math.round(progress * 100)}%` }]} />
+        </View>
+        <View style={[s.hydrationGoalSliderThumb, { left: thumbLeft - 14 }]} />
+      </View>
+    </View>
+  );
 }
 
 function MacroBar({
@@ -1175,11 +1296,50 @@ const s = StyleSheet.create({
     gap: 10,
   },
   hydrationGoalMenuTitle: { ...Typography.caption, color: '#4C7892', textTransform: 'uppercase', fontWeight: '700' },
+  hydrationGoalMenuHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  hydrationGoalMenuCopy: { flex: 1 },
+  hydrationGoalMenuHint: { ...Typography.helper, color: '#4C7892' },
+  hydrationGoalValueBadge: {
+    minWidth: 88,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#D3EAF7',
+    backgroundColor: '#F5FBFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  hydrationGoalValue: { ...Typography.subtitle, color: '#0D5F8E', fontWeight: '800' },
+  hydrationGoalValueLabel: { ...Typography.caption, color: '#5C88A2', textTransform: 'uppercase', fontWeight: '700' },
+  hydrationGoalSliderWrap: { gap: 10 },
+  hydrationGoalSliderTapArea: { paddingVertical: 10, justifyContent: 'center' },
+  hydrationGoalSliderTrack: {
+    height: 8,
+    borderRadius: Radii.pill,
+    backgroundColor: '#D8EEF8',
+    overflow: 'hidden',
+  },
+  hydrationGoalSliderFill: {
+    height: '100%',
+    borderRadius: Radii.pill,
+    backgroundColor: '#1AA6E8',
+  },
+  hydrationGoalSliderThumb: {
+    position: 'absolute',
+    top: '50%',
+    width: 28,
+    height: 28,
+    marginTop: -14,
+    borderRadius: 14,
+    borderWidth: 4,
+    borderColor: '#D8F3FF',
+    backgroundColor: '#0B6B94',
+    ...Shadows.soft,
+  },
+  hydrationGoalScale: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  hydrationGoalScaleLabel: { ...Typography.caption, color: '#386D8A', fontWeight: '700' },
+  hydrationGoalScaleHint: { ...Typography.caption, color: '#6C95AC', fontWeight: '700' },
   hydrationFootnote: { ...Typography.caption, color: '#5D86A1', fontWeight: '700' },
-  goalChip: { borderRadius: Radii.pill, borderWidth: 1, borderColor: '#CFE5F7', backgroundColor: '#F6FBFF', paddingHorizontal: 12, paddingVertical: 7 },
-  goalChipActive: { backgroundColor: '#DDF2FF', borderColor: '#88CBEE' },
-  goalChipText: { ...Typography.caption, color: '#4C7FA8', fontWeight: '700' },
-  goalChipTextActive: { color: '#0D5F8E' },
   error: { ...Typography.caption, color: Brand.danger, fontWeight: '700' },
 
   counter: { ...Typography.caption, color: Brand.textSecondary, textTransform: 'uppercase', fontWeight: '700' },
