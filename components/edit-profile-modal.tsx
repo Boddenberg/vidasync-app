@@ -1,22 +1,19 @@
 /**
- * Modal de edicao de perfil
- *
- * Permite alterar nome de usuario, senha e foto de perfil.
- * Abre ao tocar no avatar na Home.
+ * Modal de perfil com fluxos separados para foto, usuario e senha.
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -27,35 +24,200 @@ import { AppInput } from '@/components/app-input';
 import { Brand } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { pickDishImage } from '@/services/dish-images';
+import {
+  PASSWORD_MAX_LENGTH,
+  sanitizeUsernameInput,
+  USERNAME_MAX_LENGTH,
+  validatePasswordLength,
+  validateUsername,
+} from '@/utils/auth-validation';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
 };
 
+type ProfileStep = 'overview' | 'username' | 'password';
+type UsernameCheckState = 'idle' | 'checking' | 'available' | 'unavailable' | 'invalid' | 'same' | 'error';
+
+function getUsernameStatusPalette(status: UsernameCheckState) {
+  if (status === 'available') {
+    return {
+      backgroundColor: '#F0FFF4',
+      borderColor: '#C7E9D0',
+      textColor: Brand.greenDark,
+    };
+  }
+
+  if (status === 'checking' || status === 'error') {
+    return {
+      backgroundColor: '#FFF8E8',
+      borderColor: '#F1D49A',
+      textColor: '#9A6700',
+    };
+  }
+
+  return {
+    backgroundColor: '#FFF0F0',
+    borderColor: '#F2C6CB',
+    textColor: Brand.danger,
+  };
+}
+
 export function EditProfileModal({ visible, onClose }: Props) {
   const router = useRouter();
-  const { user, updateProfile, logout } = useAuth();
+  const {
+    user,
+    updateProfile,
+    checkUsernameAvailability,
+    updateUsername,
+    updatePassword,
+    logout,
+  } = useAuth();
 
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const usernameCheckId = useRef(0);
+
+  const [step, setStep] = useState<ProfileStep>('overview');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoChanged, setPhotoChanged] = useState(false);
+  const [photoPickerVisible, setPhotoPickerVisible] = useState(false);
+  const [usernameDraft, setUsernameDraft] = useState('');
+  const [usernamePassword, setUsernamePassword] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<UsernameCheckState>('idle');
+  const [usernameStatusMessage, setUsernameStatusMessage] = useState<string | null>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [photoPickerVisible, setPhotoPickerVisible] = useState(false);
 
-  function resetForm() {
-    setUsername('');
-    setPassword('');
-    setConfirmPassword('');
-    setPhotoUri(null);
-    setPhotoChanged(false);
+  const currentUsername = user?.username ?? '-';
+  const normalizedCurrentUsername = currentUsername.trim().toLowerCase();
+  const displayPhoto = photoChanged ? photoUri : (user?.profileImageUrl ?? null);
+  const usernamePalette = getUsernameStatusPalette(usernameStatus);
+
+  const passwordValidationMessage = (() => {
+    if (!currentPassword.trim() && !newPassword.trim() && !confirmNewPassword.trim()) {
+      return null;
+    }
+    const currentPasswordError = validatePasswordLength(currentPassword, { label: 'Senha atual' });
+    if (currentPasswordError) {
+      return currentPasswordError;
+    }
+    const newPasswordError = validatePasswordLength(newPassword, { label: 'A nova senha' });
+    if (newPasswordError) {
+      return newPasswordError;
+    }
+    if (newPassword.trim() === currentPassword.trim()) {
+      return 'Escolha uma senha diferente da atual.';
+    }
+    if (newPassword.trim() !== confirmNewPassword.trim()) {
+      return 'As senhas nao coincidem.';
+    }
+    return null;
+  })();
+
+  const canSubmitUsername =
+    !loading &&
+    !!usernameDraft.trim() &&
+    !!usernamePassword.trim() &&
+    (usernameStatus === 'available' || usernameStatus === 'error');
+
+  const canSubmitPassword =
+    !loading &&
+    !!currentPassword.trim() &&
+    !!newPassword.trim() &&
+    !!confirmNewPassword.trim() &&
+    !passwordValidationMessage;
+
+  useEffect(() => {
+    if (step !== 'username') {
+      return;
+    }
+
+    const normalizedUsername = usernameDraft.trim();
+
+    if (!normalizedUsername) {
+      setUsernameStatus('idle');
+      setUsernameStatusMessage(null);
+      return;
+    }
+
+    const validationMessage = validateUsername(normalizedUsername);
+    if (validationMessage) {
+      setUsernameStatus('invalid');
+      setUsernameStatusMessage(validationMessage);
+      return;
+    }
+
+    if (normalizedUsername.toLowerCase() === normalizedCurrentUsername) {
+      setUsernameStatus('same');
+      setUsernameStatusMessage('Esse ja e o seu usuario atual.');
+      return;
+    }
+
+    const requestId = usernameCheckId.current + 1;
+    usernameCheckId.current = requestId;
+    setUsernameStatus('checking');
+    setUsernameStatusMessage('Verificando disponibilidade...');
+
+    const timer = setTimeout(() => {
+      (async () => {
+        try {
+          const result = await checkUsernameAvailability(normalizedUsername);
+          if (requestId !== usernameCheckId.current) {
+            return;
+          }
+
+          setUsernameStatus(result.available ? 'available' : 'unavailable');
+          setUsernameStatusMessage(
+            result.message ??
+              (result.available
+                ? 'Nome de usuario disponivel.'
+                : 'Esse nome de usuario ja esta em uso.'),
+          );
+        } catch (err: any) {
+          if (requestId !== usernameCheckId.current) {
+            return;
+          }
+
+          setUsernameStatus('error');
+          setUsernameStatusMessage(err?.message ?? 'Nao foi possivel verificar agora.');
+        }
+      })();
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [checkUsernameAvailability, normalizedCurrentUsername, step, usernameDraft]);
+
+  function clearMessages() {
     setError(null);
     setSuccess(null);
+  }
+
+  function resetUsernameFlow() {
+    setUsernameDraft('');
+    setUsernamePassword('');
+    setUsernameStatus('idle');
+    setUsernameStatusMessage(null);
+  }
+
+  function resetPasswordFlow() {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+  }
+
+  function resetForm() {
+    setStep('overview');
+    setPhotoUri(null);
+    setPhotoChanged(false);
     setPhotoPickerVisible(false);
+    resetUsernameFlow();
+    resetPasswordFlow();
+    clearMessages();
+    setLoading(false);
   }
 
   function handleOpen() {
@@ -67,6 +229,33 @@ export function EditProfileModal({ visible, onClose }: Props) {
     onClose();
   }
 
+  function handleBack() {
+    if (step === 'overview') {
+      handleClose();
+      return;
+    }
+
+    clearMessages();
+    if (step === 'username') {
+      resetUsernameFlow();
+    } else {
+      resetPasswordFlow();
+    }
+    setStep('overview');
+  }
+
+  function openUsernameFlow() {
+    clearMessages();
+    resetUsernameFlow();
+    setStep('username');
+  }
+
+  function openPasswordFlow() {
+    clearMessages();
+    resetPasswordFlow();
+    setStep('password');
+  }
+
   function handlePickPhoto() {
     setPhotoPickerVisible(true);
   }
@@ -75,6 +264,7 @@ export function EditProfileModal({ visible, onClose }: Props) {
     setPhotoPickerVisible(false);
     const uri = await pickDishImage(true);
     if (uri) {
+      clearMessages();
       setPhotoUri(uri);
       setPhotoChanged(true);
     }
@@ -84,76 +274,107 @@ export function EditProfileModal({ visible, onClose }: Props) {
     setPhotoPickerVisible(false);
     const uri = await pickDishImage(false);
     if (uri) {
+      clearMessages();
       setPhotoUri(uri);
       setPhotoChanged(true);
     }
   }
 
   function removePhoto() {
+    clearMessages();
     setPhotoPickerVisible(false);
     setPhotoUri(null);
     setPhotoChanged(true);
   }
 
-  async function handleSave() {
-    const newUser = username.trim();
-    const newPass = password.trim();
-    const newConfirm = confirmPassword.trim();
-
-    // Validar que algo foi alterado
-    if (!newUser && !newPass && !photoChanged) {
-      setError('Altere pelo menos um campo');
+  async function handleSavePhoto() {
+    if (!photoChanged) {
       return;
     }
 
-    // Validar username
-    if (newUser) {
-      if (newUser.length < 3) {
-        setError('Usuario deve ter pelo menos 3 caracteres');
-        return;
-      }
-      if (!/^[a-zA-Z][a-zA-Z0-9]*$/.test(newUser)) {
-        setError('Usuario deve comecar com letra e conter apenas letras e numeros');
-        return;
-      }
-    }
-
-    // Validar senha
-    if (newPass) {
-      if (newPass.length < 6) {
-        setError('Senha deve ter pelo menos 6 caracteres');
-        return;
-      }
-      if (newPass !== newConfirm) {
-        setError('As senhas nao coincidem');
-        return;
-      }
-    }
-
-    setError(null);
-    setSuccess(null);
+    clearMessages();
     setLoading(true);
 
     try {
-      const params: { username?: string; password?: string; profileImage?: string | null } = {};
-      if (newUser) params.username = newUser;
-      if (newPass) params.password = newPass;
-      if (photoChanged) params.profileImage = photoUri;
-
-      await updateProfile(params);
-      setSuccess('Perfil atualizado!');
-      setUsername('');
-      setPassword('');
-      setConfirmPassword('');
+      await updateProfile({ profileImage: photoUri });
+      setSuccess(photoUri ? 'Foto atualizada com sucesso.' : 'Foto removida com sucesso.');
       setPhotoChanged(false);
+      setPhotoUri(null);
     } catch (err: any) {
-      const msg = err?.message ?? 'Erro ao atualizar perfil';
-      // Sessão expirada → modal fecha, logout já redireciona para login
       if (err?.name === 'SessionExpiredError') {
         handleClose();
         return;
       }
-      setError(msg);
+      setError(err?.message ?? 'Erro ao atualizar a foto.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSaveUsername() {
+    const normalizedUsername = usernameDraft.trim();
+    const validationMessage = validateUsername(normalizedUsername);
+
+    if (validationMessage) {
+      setError(validationMessage);
+      return;
+    }
+
+    if (normalizedUsername.toLowerCase() === normalizedCurrentUsername) {
+      setError('Escolha um nome de usuario diferente do atual.');
+      return;
+    }
+
+    if (!usernamePassword.trim()) {
+      setError('Digite sua senha atual para confirmar.');
+      return;
+    }
+
+    clearMessages();
+    setLoading(true);
+
+    try {
+      await updateUsername({
+        username: normalizedUsername,
+        currentPassword: usernamePassword.trim(),
+      });
+      resetUsernameFlow();
+      setStep('overview');
+      setSuccess('Nome de usuario atualizado com sucesso.');
+    } catch (err: any) {
+      if (err?.name === 'SessionExpiredError') {
+        handleClose();
+        return;
+      }
+      setError(err?.message ?? 'Erro ao atualizar o nome de usuario.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSavePassword() {
+    if (passwordValidationMessage) {
+      setError(passwordValidationMessage);
+      return;
+    }
+
+    clearMessages();
+    setLoading(true);
+
+    try {
+      await updatePassword({
+        currentPassword: currentPassword.trim(),
+        newPassword: newPassword.trim(),
+      });
+      resetPasswordFlow();
+      setStep('overview');
+      setSuccess('Senha atualizada com sucesso.');
+    } catch (err: any) {
+      if (err?.name === 'SessionExpiredError') {
+        handleClose();
+        return;
+      }
+      setError(err?.message ?? 'Erro ao atualizar a senha.');
     } finally {
       setLoading(false);
     }
@@ -183,147 +404,277 @@ export function EditProfileModal({ visible, onClose }: Props) {
     router.push('/tools/imc' as any);
   }
 
-  // Foto exibida: nova > atual do perfil
-  const displayPhoto = photoChanged ? photoUri : (user?.profileImageUrl ?? null);
+  function handleOpenLogs() {
+    handleClose();
+    router.push({ pathname: '/(tabs)/devtools', params: { mode: 'logs' } } as any);
+  }
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={handleClose}
-      onShow={handleOpen}>
-      <KeyboardAvoidingView
-        style={s.root}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-
-        {/* Header */}
-        <View style={s.header}>
-          <Pressable onPress={handleClose} hitSlop={12}>
-            <Text style={s.headerCancel}>Fechar</Text>
-          </Pressable>
-          <Text style={s.headerTitle}>Editar perfil</Text>
-          <View style={{ width: 50 }} />
-        </View>
-
-        <ScrollView
-          contentContainerStyle={s.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
-
-          {/* Avatar */}
-          <Pressable style={s.avatarWrap} onPress={handlePickPhoto}>
-            {displayPhoto ? (
-              <Image source={{ uri: displayPhoto }} style={s.avatarImg} />
-            ) : (
-              <View style={s.avatarPlaceholder}>
-                <Text style={s.avatarLetter}>
-                  {(user?.username ?? 'V').charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
-            <View style={s.avatarBadge}>
-              <Ionicons name="camera" size={14} color="#FFFFFF" />
-            </View>
-          </Pressable>
-          <Text style={s.avatarHint}>Toque para alterar a foto</Text>
-
-          {/* Username atual */}
-          <View style={s.currentInfo}>
+  function renderOverview() {
+    return (
+      <>
+        <Pressable style={({ pressed }) => [s.infoCard, pressed && s.cardPressed]} onPress={openUsernameFlow}>
+          <View style={s.infoCopy}>
             <Text style={s.currentLabel}>Usuario atual</Text>
-            <Text style={s.currentValue}>{user?.username ?? '-'}</Text>
+            <Text style={s.currentValue}>{currentUsername}</Text>
+            <Text style={s.infoHint}>Toque para alterar o nome de usuario</Text>
           </View>
+          <Ionicons name="chevron-forward" size={18} color={Brand.textSecondary} />
+        </Pressable>
 
-          {/* Campos */}
-          <View style={s.fieldGroup}>
-            <Text style={s.fieldLabel}>Novo nome de usuario</Text>
-            <AppInput
-              placeholder="Deixe vazio para manter"
-              value={username}
-              onChangeText={(t: string) => setUsername(t.replace(/[^a-zA-Z0-9]/g, ''))}
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={30}
-            />
+        <Pressable style={({ pressed }) => [s.actionCard, pressed && s.cardPressed]} onPress={openPasswordFlow}>
+          <View style={[s.actionIcon, { backgroundColor: '#EEF4FF' }]}>
+            <Ionicons name="lock-closed-outline" size={20} color="#2563EB" />
           </View>
-
-          <View style={s.fieldGroup}>
-            <Text style={s.fieldLabel}>Nova senha</Text>
-            <AppInput
-              placeholder="Deixe vazio para manter"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={50}
-            />
+          <View style={s.actionCopy}>
+            <Text style={s.actionTitle}>Alterar senha</Text>
+            <Text style={s.actionDescription}>Confirme a senha atual e defina uma nova.</Text>
           </View>
+          <Ionicons name="chevron-forward" size={18} color={Brand.textSecondary} />
+        </Pressable>
 
-          {password.length > 0 && (
-            <View style={s.fieldGroup}>
-              <Text style={s.fieldLabel}>Confirmar nova senha</Text>
-              <AppInput
-                placeholder="Repita a nova senha"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                maxLength={50}
-              />
-            </View>
-          )}
-
-          {/* Mensagens */}
-          {error && (
-            <View style={s.errorBox}>
-              <Text style={s.errorText}>{error}</Text>
-            </View>
-          )}
-
-          {success && (
-            <View style={s.successBox}>
-              <Text style={s.successText}>{success}</Text>
-            </View>
-          )}
-
-          {/* Salvar */}
+        {photoChanged ? (
           <AppButton
-            title="Salvar alteracoes"
-            onPress={handleSave}
+            title="Salvar alteracao da foto"
+            onPress={handleSavePhoto}
             loading={loading}
           />
+        ) : null}
 
+        <View style={s.utilityGroup}>
           <AppButton
             title="Enviar feedback"
             onPress={handleOpenFeedback}
             variant="secondary"
             disabled={loading}
           />
-
           <AppButton
             title="Calculadora de IMC"
             onPress={handleOpenBmi}
             variant="secondary"
             disabled={loading}
           />
+          <AppButton
+            title="Ver logs"
+            onPress={handleOpenLogs}
+            variant="secondary"
+            disabled={loading}
+          />
+        </View>
 
-          {/* Logout */}
-          <Pressable style={s.logoutBtn} onPress={handleLogout}>
-            <Text style={s.logoutText}>Sair da conta</Text>
+        <Pressable style={s.logoutBtn} onPress={handleLogout}>
+          <Text style={s.logoutText}>Sair da conta</Text>
+        </Pressable>
+      </>
+    );
+  }
+
+  function renderUsernameFlow() {
+    return (
+      <View style={s.formCard}>
+        <Text style={s.sectionTitle}>Alterar nome de usuario</Text>
+        <Text style={s.sectionSubtitle}>
+          Escolha um nome novo e confirme com sua senha atual antes de salvar.
+        </Text>
+
+        <View style={s.currentInfo}>
+          <Text style={s.currentLabel}>Usuario atual</Text>
+          <Text style={s.currentValue}>{currentUsername}</Text>
+        </View>
+
+        <View style={s.fieldGroup}>
+          <Text style={s.fieldLabel}>Novo nome de usuario</Text>
+          <AppInput
+            placeholder="Digite o novo usuario"
+            value={usernameDraft}
+            onChangeText={(text: string) => setUsernameDraft(sanitizeUsernameInput(text))}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={USERNAME_MAX_LENGTH}
+          />
+        </View>
+
+        {usernameStatusMessage ? (
+          <View
+            style={[
+              s.statusBox,
+              {
+                backgroundColor: usernamePalette.backgroundColor,
+                borderColor: usernamePalette.borderColor,
+              },
+            ]}>
+            <Text style={[s.statusText, { color: usernamePalette.textColor }]}>
+              {usernameStatusMessage}
+            </Text>
+          </View>
+        ) : null}
+
+        <View style={s.fieldGroup}>
+          <Text style={s.fieldLabel}>Sua senha atual</Text>
+          <AppInput
+            placeholder="Digite sua senha atual"
+            value={usernamePassword}
+            onChangeText={setUsernamePassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={PASSWORD_MAX_LENGTH}
+          />
+        </View>
+
+        <AppButton
+          title="Confirmar nome de usuario"
+          onPress={handleSaveUsername}
+          loading={loading}
+          disabled={!canSubmitUsername}
+        />
+
+        <AppButton
+          title="Cancelar"
+          onPress={handleBack}
+          variant="secondary"
+          disabled={loading}
+        />
+      </View>
+    );
+  }
+
+  function renderPasswordFlow() {
+    return (
+      <View style={s.formCard}>
+        <Text style={s.sectionTitle}>Alterar senha</Text>
+        <Text style={s.sectionSubtitle}>
+          Informe a senha atual, escolha a nova senha e confirme antes de salvar.
+        </Text>
+
+        <View style={s.fieldGroup}>
+          <Text style={s.fieldLabel}>Senha atual</Text>
+          <AppInput
+            placeholder="Digite sua senha atual"
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={PASSWORD_MAX_LENGTH}
+          />
+        </View>
+
+        <View style={s.fieldGroup}>
+          <Text style={s.fieldLabel}>Nova senha</Text>
+          <AppInput
+            placeholder="Digite a nova senha"
+            value={newPassword}
+            onChangeText={setNewPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={PASSWORD_MAX_LENGTH}
+          />
+        </View>
+
+        <View style={s.fieldGroup}>
+          <Text style={s.fieldLabel}>Repita a nova senha</Text>
+          <AppInput
+            placeholder="Repita a nova senha"
+            value={confirmNewPassword}
+            onChangeText={setConfirmNewPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={PASSWORD_MAX_LENGTH}
+          />
+        </View>
+
+        {passwordValidationMessage ? (
+          <View style={s.inlineHelper}>
+            <Text style={s.inlineHelperText}>{passwordValidationMessage}</Text>
+          </View>
+        ) : null}
+
+        <AppButton
+          title="Confirmar nova senha"
+          onPress={handleSavePassword}
+          loading={loading}
+          disabled={!canSubmitPassword}
+        />
+
+        <AppButton
+          title="Cancelar"
+          onPress={handleBack}
+          variant="secondary"
+          disabled={loading}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={handleBack}
+      onShow={handleOpen}>
+      <KeyboardAvoidingView
+        style={s.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={s.header}>
+          <Pressable onPress={handleBack} hitSlop={12}>
+            <Text style={s.headerAction}>{step === 'overview' ? 'Fechar' : 'Voltar'}</Text>
           </Pressable>
+          <Text style={s.headerTitle}>
+            {step === 'overview'
+              ? 'Editar perfil'
+              : step === 'username'
+                ? 'Alterar usuario'
+                : 'Alterar senha'}
+          </Text>
+          <View style={s.headerSpacer} />
+        </View>
+
+        <ScrollView
+          contentContainerStyle={s.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
+          <Pressable style={s.avatarWrap} onPress={handlePickPhoto}>
+            {displayPhoto ? (
+              <Image source={{ uri: displayPhoto }} style={s.avatarImg} />
+            ) : (
+              <View style={s.avatarPlaceholder}>
+                <Text style={s.avatarLetter}>{currentUsername.charAt(0).toUpperCase() || 'V'}</Text>
+              </View>
+            )}
+            <View style={s.avatarBadge}>
+              <Ionicons name="camera" size={14} color="#FFFFFF" />
+            </View>
+          </Pressable>
+          <Text style={s.avatarHint}>Toque para alterar a foto do perfil</Text>
+
+          {error ? (
+            <View style={[s.messageBox, s.errorBox]}>
+              <Text style={[s.messageText, s.errorText]}>{error}</Text>
+            </View>
+          ) : null}
+
+          {success ? (
+            <View style={[s.messageBox, s.successBox]}>
+              <Text style={[s.messageText, s.successText]}>{success}</Text>
+            </View>
+          ) : null}
+
+          {step === 'overview' ? renderOverview() : null}
+          {step === 'username' ? renderUsernameFlow() : null}
+          {step === 'password' ? renderPasswordFlow() : null}
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ── Photo picker modal ── */}
       <Modal
         visible={photoPickerVisible}
         transparent
         animationType="fade"
         onRequestClose={() => setPhotoPickerVisible(false)}>
         <Pressable style={s.ppOverlay} onPress={() => setPhotoPickerVisible(false)}>
-          <Pressable style={s.ppSheet} onPress={(e) => e.stopPropagation()}>
+          <Pressable style={s.ppSheet} onPress={(event) => event.stopPropagation()}>
             <View style={s.ppHandleWrap}>
               <View style={s.ppHandle} />
             </View>
@@ -336,7 +687,7 @@ export function EditProfileModal({ visible, onClose }: Props) {
                 <View style={[s.ppIconWrap, { backgroundColor: '#E8F5E9' }]}>
                   <Ionicons name="camera-outline" size={20} color={Brand.greenDark} />
                 </View>
-                <Text style={s.ppBtnLabel}>Câmera</Text>
+                <Text style={s.ppBtnLabel}>Camera</Text>
               </Pressable>
 
               <View style={s.ppBtnBorder} />
@@ -350,7 +701,7 @@ export function EditProfileModal({ visible, onClose }: Props) {
                 <Text style={s.ppBtnLabel}>Galeria</Text>
               </Pressable>
 
-              {(photoUri || displayPhoto) && (
+              {(photoUri || displayPhoto) ? (
                 <>
                   <View style={s.ppBtnBorder} />
                   <Pressable
@@ -362,7 +713,7 @@ export function EditProfileModal({ visible, onClose }: Props) {
                     <Text style={[s.ppBtnLabel, { color: Brand.danger }]}>Remover foto</Text>
                   </Pressable>
                 </>
-              )}
+              ) : null}
             </View>
 
             <Pressable
@@ -392,7 +743,7 @@ const s = StyleSheet.create({
     borderBottomColor: Brand.border,
     backgroundColor: Brand.card,
   },
-  headerCancel: {
+  headerAction: {
     fontSize: 15,
     fontWeight: '600',
     color: Brand.textSecondary,
@@ -402,14 +753,15 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: Brand.text,
   },
+  headerSpacer: {
+    width: 52,
+  },
   scroll: {
     paddingHorizontal: 24,
     paddingTop: 28,
     paddingBottom: 48,
     gap: 16,
   },
-
-  // Avatar
   avatarWrap: {
     alignSelf: 'center',
     position: 'relative',
@@ -449,17 +801,114 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: Brand.textSecondary,
     textAlign: 'center',
-    marginTop: -8,
+    marginTop: -6,
   },
-
-  // Current info
-  currentInfo: {
+  messageBox: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  messageText: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  errorBox: {
+    backgroundColor: '#FFF0F0',
+    borderColor: '#F2C6CB',
+  },
+  errorText: {
+    color: Brand.danger,
+  },
+  successBox: {
+    backgroundColor: '#F0FFF4',
+    borderColor: '#C7E9D0',
+  },
+  successText: {
+    color: Brand.greenDark,
+    fontWeight: '600',
+  },
+  infoCard: {
     backgroundColor: Brand.card,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  infoCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  infoHint: {
+    fontSize: 12,
+    color: Brand.textSecondary,
+  },
+  actionCard: {
+    backgroundColor: Brand.card,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  cardPressed: {
+    opacity: 0.9,
+  },
+  actionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  actionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Brand.text,
+  },
+  actionDescription: {
+    fontSize: 13,
+    color: Brand.textSecondary,
+  },
+  utilityGroup: {
+    gap: 12,
+  },
+  formCard: {
+    backgroundColor: Brand.card,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    gap: 14,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Brand.text,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: Brand.textSecondary,
+  },
+  currentInfo: {
+    backgroundColor: Brand.bg,
     borderRadius: 14,
     padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Brand.border,
   },
   currentLabel: {
     fontSize: 13,
@@ -467,12 +916,10 @@ const s = StyleSheet.create({
     fontWeight: '500',
   },
   currentValue: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: Brand.text,
   },
-
-  // Fields
   fieldGroup: {
     gap: 6,
   },
@@ -482,47 +929,34 @@ const s = StyleSheet.create({
     color: Brand.text,
     marginLeft: 4,
   },
-
-  // Messages
-  errorBox: {
+  statusBox: {
+    borderRadius: 14,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFF0F0',
-    borderRadius: 12,
-    alignItems: 'center',
+    borderWidth: 1,
   },
-  errorText: {
+  statusText: {
     fontSize: 13,
-    color: Brand.danger,
-    textAlign: 'center',
+    lineHeight: 18,
   },
-  successBox: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#F0FFF4',
-    borderRadius: 12,
-    alignItems: 'center',
+  inlineHelper: {
+    paddingHorizontal: 4,
   },
-  successText: {
+  inlineHelperText: {
     fontSize: 13,
-    color: Brand.greenDark,
-    fontWeight: '600',
-    textAlign: 'center',
+    color: Brand.textSecondary,
+    lineHeight: 18,
   },
-
-  // Logout
   logoutBtn: {
     alignItems: 'center',
     paddingVertical: 14,
-    marginTop: 8,
+    marginTop: 6,
   },
   logoutText: {
     fontSize: 15,
     fontWeight: '600',
     color: Brand.danger,
   },
-
-  // Photo picker modal
   ppOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.35)',

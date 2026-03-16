@@ -28,6 +28,13 @@ import { VidaSyncLogo } from '@/components/vida-sync-logo';
 import { Brand } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { pickDishImage } from '@/services/dish-images';
+import {
+  PASSWORD_MAX_LENGTH,
+  sanitizeUsernameInput,
+  USERNAME_MAX_LENGTH,
+  validatePasswordLength,
+  validateUsername,
+} from '@/utils/auth-validation';
 
 type Mode = 'login' | 'signup';
 
@@ -71,18 +78,17 @@ export default function LoginScreen() {
       return;
     }
 
-    if (mode === 'signup' && user.length < 3) {
-      setError('Usuario deve ter pelo menos 3 caracteres');
-      return;
+    if (mode === 'signup') {
+      const usernameError = validateUsername(user);
+      if (usernameError) {
+        setError(usernameError);
+        return;
+      }
     }
 
-    if (mode === 'signup' && !/^[a-zA-Z][a-zA-Z0-9]*$/.test(user)) {
-      setError('Usuario deve comecar com letra e conter apenas letras e numeros');
-      return;
-    }
-
-    if (mode === 'signup' && pass.length < 6) {
-      setError('Senha deve ter pelo menos 6 caracteres');
+    const passwordError = validatePasswordLength(pass);
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
 
@@ -149,10 +155,10 @@ export default function LoginScreen() {
           <AppInput
             placeholder="Usuario"
             value={username}
-            onChangeText={(t: string) => setUsername(t.replace(/[^a-zA-Z0-9]/g, ''))}
+            onChangeText={(text: string) => setUsername(sanitizeUsernameInput(text))}
             autoCapitalize="none"
             autoCorrect={false}
-            maxLength={30}
+            maxLength={USERNAME_MAX_LENGTH}
           />
 
           <AppInput
@@ -162,7 +168,7 @@ export default function LoginScreen() {
             secureTextEntry
             autoCapitalize="none"
             autoCorrect={false}
-            maxLength={50}
+            maxLength={PASSWORD_MAX_LENGTH}
           />
 
           {/* Erro */}

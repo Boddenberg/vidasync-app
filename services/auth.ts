@@ -1,15 +1,23 @@
 /**
- * Serviço de Autenticação
+ * Servico de autenticacao.
  *
- * Signup, login e perfil do usuário.
- * Rotas públicas (sem X-User-Id).
+ * Centraliza login, signup e alteracoes protegidas do perfil.
  */
 
 import { API_BASE_URL } from '@/constants/config';
 import { getStoredAccessToken, getStoredUserId, isValidUuid } from '@/hooks/use-auth';
 import type { AuthResponse } from '@/types/nutrition';
 
-/** Erro especial para sessão expirada (token JWT inválido/expirado) */
+export type UsernameAvailabilityResponse = {
+  username: string;
+  available: boolean;
+  message?: string;
+};
+
+type AuthHeadersOptions = {
+  includeContentType?: boolean;
+};
+
 export class SessionExpiredError extends Error {
   constructor() {
     super('Sessao expirada. Faca login novamente.');
@@ -17,20 +25,94 @@ export class SessionExpiredError extends Error {
   }
 }
 
-/** Traduz erros comuns do backend para português */
 function translateError(msg: string): string {
   const lower = msg.toLowerCase();
-  if (lower.includes('email') && lower.includes('invalid')) return 'Nome de usuario invalido. Use apenas letras e numeros, comecando com uma letra.';
-  if (lower.includes('already registered') || lower.includes('already exists')) return 'Esse nome de usuario ja esta em uso.';
-  if (lower.includes('rate limit')) return 'Muitas tentativas. Aguarde um momento e tente novamente.';
-  if (lower.includes('invalid login') || lower.includes('invalid credentials')) return 'Usuario ou senha incorretos.';
-  if (lower.includes('user not found')) return 'Usuario nao encontrado.';
-  if (lower.includes('not allowed') || lower.includes('not permitted') || lower.includes('forbidden')) return 'Operacao nao permitida. Tente novamente mais tarde.';
-  if (/^erro \d+$/.test(lower)) return 'Erro no servidor. Tente novamente mais tarde.';
+
+  if (lower.includes('email') && lower.includes('invalid')) {
+    return 'Nome de usuario invalido. Use apenas letras e numeros, comecando com uma letra.';
+  }
+  if (lower.includes('already registered') || lower.includes('already exists') || lower.includes('already taken')) {
+    return 'Esse nome de usuario ja esta em uso.';
+  }
+  if (lower.includes('username') && lower.includes('unavailable')) {
+    return 'Esse nome de usuario ja esta em uso.';
+  }
+  if (lower.includes('rate limit')) {
+    return 'Muitas tentativas. Aguarde um momento e tente novamente.';
+  }
+  if (lower.includes('invalid login') || lower.includes('invalid credentials')) {
+    return 'Usuario ou senha incorretos.';
+  }
+  if (lower.includes('current password') && (lower.includes('invalid') || lower.includes('incorrect') || lower.includes('wrong'))) {
+    return 'Senha atual incorreta.';
+  }
+  if (lower.includes('user not found')) {
+    return 'Usuario nao encontrado.';
+  }
+  if (lower.includes('not allowed') || lower.includes('not permitted') || lower.includes('forbidden')) {
+    return 'Operacao nao permitida. Tente novamente mais tarde.';
+  }
+  if (/^erro \d+$/.test(lower)) {
+    return 'Erro no servidor. Tente novamente mais tarde.';
+  }
   return msg;
 }
 
-/** Cria uma conta nova */
+async function buildAuthHeaders(options: AuthHeadersOptions = {}): Promise<Record<string, string>> {
+  const userId = await getStoredUserId();
+  const accessToken = await getStoredAccessToken();
+  const headers: Record<string, string> = {};
+
+  if (options.includeContentType !== false) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (isValidUuid(userId)) {
+    headers['X-User-Id'] = userId;
+  }
+  if (accessToken) {
+    headers['X-Access-Token'] = accessToken;
+  }
+
+  return headers;
+}
+
+function parseErrorMessage(status: number, text: string): string {
+  let message = `Erro ${status}`;
+
+  try {
+    const json = JSON.parse(text);
+    message = json.error || json.message || message;
+  } catch {
+    message = text || message;
+  }
+
+  return translateError(message);
+}
+
+function parseJson<T>(text: string): T {
+  if (!text.trim()) {
+    return {} as T;
+  }
+  return JSON.parse(text) as T;
+}
+
+function ensureSession(res: Response) {
+  if (res.status === 401 || res.status === 403) {
+    throw new SessionExpiredError();
+  }
+}
+
+async function readJsonResponse<T>(res: Response): Promise<T> {
+  const text = await res.text();
+
+  if (!res.ok) {
+    ensureSession(res);
+    throw new Error(parseErrorMessage(res.status, text));
+  }
+
+  return parseJson<T>(text);
+}
+
 export async function signup(params: {
   username: string;
   password: string;
@@ -41,21 +123,10 @@ export async function signup(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  const text = await res.text();
-  if (!res.ok) {
-    let msg = `Erro ${res.status}`;
-    try {
-      const json = JSON.parse(text);
-      msg = json.error || json.message || msg;
-    } catch {
-      msg = text || msg;
-    }
-    throw new Error(translateError(msg));
-  }
-  return JSON.parse(text) as AuthResponse;
+
+  return readJsonResponse<AuthResponse>(res);
 }
 
-/** Faz login */
 export async function login(params: {
   username: string;
   password: string;
@@ -65,53 +136,98 @@ export async function login(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  const text = await res.text();
-  if (!res.ok) {
-    let msg = `Erro ${res.status}`;
-    try {
-      const json = JSON.parse(text);
-      msg = json.error || json.message || msg;
-    } catch {
-      msg = text || msg;
-    }
-    throw new Error(translateError(msg));
-  }
-  return JSON.parse(text) as AuthResponse;
+
+  return readJsonResponse<AuthResponse>(res);
 }
 
-/** Atualiza o perfil do usuario logado */
 export async function updateProfile(params: {
-  username?: string;
-  password?: string;
   profileImage?: string | null;
 }): Promise<AuthResponse> {
-  const userId = await getStoredUserId();
-  const accessToken = await getStoredAccessToken();
-  console.log('[updateProfile] userId:', userId, 'hasToken:', !!accessToken, 'params:', Object.keys(params));
   const res = await fetch(`${API_BASE_URL}/auth/profile`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(isValidUuid(userId) ? { 'X-User-Id': userId } : {}),
-      ...(accessToken ? { 'X-Access-Token': accessToken } : {}),
-    },
+    headers: await buildAuthHeaders(),
     body: JSON.stringify(params),
   });
+
+  return readJsonResponse<AuthResponse>(res);
+}
+
+export async function checkUsernameAvailability(username: string): Promise<UsernameAvailabilityResponse> {
+  const normalizedUsername = username.trim();
+  const res = await fetch(
+    `${API_BASE_URL}/auth/profile/username/availability?username=${encodeURIComponent(normalizedUsername)}`,
+    {
+      method: 'GET',
+      headers: await buildAuthHeaders({ includeContentType: false }),
+    },
+  );
+
   const text = await res.text();
-  console.log('[updateProfile] status:', res.status, 'body:', text.substring(0, 200));
+
   if (!res.ok) {
-    // Token expirado ou inválido → sessão expirada
-    if (res.status === 401 || res.status === 403) {
-      throw new SessionExpiredError();
+    ensureSession(res);
+
+    if (res.status === 404 || res.status === 405) {
+      throw new Error('Endpoint de disponibilidade de usuario ainda nao existe no backend.');
     }
-    let msg = `Erro ${res.status}`;
-    try {
-      const json = JSON.parse(text);
-      msg = json.error || json.message || msg;
-    } catch {
-      msg = text || msg;
-    }
-    throw new Error(translateError(msg));
+
+    throw new Error(parseErrorMessage(res.status, text));
   }
-  return JSON.parse(text) as AuthResponse;
+
+  const data = parseJson<Partial<UsernameAvailabilityResponse>>(text);
+  return {
+    username: `${data.username ?? normalizedUsername}`.trim() || normalizedUsername,
+    available: Boolean(data.available),
+    message: data.message,
+  };
+}
+
+export async function updateUsername(params: {
+  username: string;
+  currentPassword: string;
+}): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE_URL}/auth/profile/username`, {
+    method: 'PUT',
+    headers: await buildAuthHeaders(),
+    body: JSON.stringify(params),
+  });
+
+  const text = await res.text();
+
+  if (!res.ok) {
+    ensureSession(res);
+
+    if (res.status === 404 || res.status === 405) {
+      throw new Error('Endpoint para alterar usuario ainda nao existe no backend.');
+    }
+
+    throw new Error(parseErrorMessage(res.status, text));
+  }
+
+  return parseJson<AuthResponse>(text);
+}
+
+export async function updatePassword(params: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE_URL}/auth/profile/password`, {
+    method: 'PUT',
+    headers: await buildAuthHeaders(),
+    body: JSON.stringify(params),
+  });
+
+  const text = await res.text();
+
+  if (!res.ok) {
+    ensureSession(res);
+
+    if (res.status === 404 || res.status === 405) {
+      throw new Error('Endpoint para alterar senha ainda nao existe no backend.');
+    }
+
+    throw new Error(parseErrorMessage(res.status, text));
+  }
+
+  return parseJson<AuthResponse>(text);
 }

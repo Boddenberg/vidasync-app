@@ -1,14 +1,20 @@
 /**
- * Contexto de autenticação do VidaSync
- *
- * Gerencia login, signup, logout e persistência do userId via AsyncStorage.
- * Todas as telas que precisam saber se o usuário está logado usam useAuth().
+ * Contexto de autenticacao do app.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-import { login as apiLogin, signup as apiSignup, updateProfile as apiUpdateProfile, SessionExpiredError } from '@/services/auth';
+import {
+  checkUsernameAvailability as apiCheckUsernameAvailability,
+  login as apiLogin,
+  SessionExpiredError,
+  signup as apiSignup,
+  updatePassword as apiUpdatePassword,
+  updateProfile as apiUpdateProfile,
+  updateUsername as apiUpdateUsername,
+  type UsernameAvailabilityResponse,
+} from '@/services/auth';
 import type { AuthResponse, AuthUser } from '@/types/nutrition';
 
 const STORAGE_KEY_USER_ID = '@vidasync:userId';
@@ -28,17 +34,14 @@ function asTrimmedString(value: unknown): string {
 }
 
 type AuthState = {
-  /** Usuário logado (null = não autenticado) */
   user: AuthUser | null;
-  /** Ainda carregando do storage */
   loading: boolean;
-  /** Faz login */
   login: (username: string, password: string) => Promise<void>;
-  /** Cria conta */
   signup: (username: string, password: string, profileImage?: string | null) => Promise<void>;
-  /** Atualiza perfil */
-  updateProfile: (params: { username?: string; password?: string; profileImage?: string | null }) => Promise<void>;
-  /** Desloga */
+  updateProfile: (params: { profileImage?: string | null }) => Promise<void>;
+  checkUsernameAvailability: (username: string) => Promise<UsernameAvailabilityResponse>;
+  updateUsername: (params: { username: string; currentPassword: string }) => Promise<void>;
+  updatePassword: (params: { currentPassword: string; newPassword: string }) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -48,6 +51,9 @@ const AuthContext = createContext<AuthState>({
   login: async () => {},
   signup: async () => {},
   updateProfile: async () => {},
+  checkUsernameAvailability: async () => ({ username: '', available: false }),
+  updateUsername: async () => {},
+  updatePassword: async () => {},
   logout: async () => {},
 });
 
@@ -55,7 +61,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Restaura sessão do storage ao abrir o app
+  const clearStoredSession = useCallback(async () => {
+    await AsyncStorage.multiRemove([
+      STORAGE_KEY_USER_ID,
+      STORAGE_KEY_USERNAME,
+      STORAGE_KEY_PROFILE_IMG,
+      STORAGE_KEY_ACCESS_TOKEN,
+    ]);
+    setUser(null);
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
@@ -73,44 +88,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (isValidUuid(storedUserId)) {
           const usernameToUse = storedUsername || FALLBACK_USERNAME;
-          // Evita derrubar sessao por username ausente em storage legado.
+
           if (!storedUsername) {
             await AsyncStorage.setItem(STORAGE_KEY_USERNAME, usernameToUse);
           }
-          setUser({ userId: storedUserId, username: usernameToUse, profileImageUrl: storedProfileImageUrl });
+
+          setUser({
+            userId: storedUserId,
+            username: usernameToUse,
+            profileImageUrl: storedProfileImageUrl,
+          });
         } else if (storedUserId || storedUsername || storedProfileImageUrl || storedAccessToken) {
-          // Sessao antiga/corrompida: evita enviar X-User-Id invalido e quebrar endpoints.
-          await AsyncStorage.multiRemove([
-            STORAGE_KEY_USER_ID,
-            STORAGE_KEY_USERNAME,
-            STORAGE_KEY_PROFILE_IMG,
-            STORAGE_KEY_ACCESS_TOKEN,
-          ]);
-          setUser(null);
+          await clearStoredSession();
         }
       } catch {
-        // ignora erro de leitura
+        // Ignora falhas de leitura do storage.
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [clearStoredSession]);
 
-  const persistUser = useCallback(async (u: AuthResponse) => {
-    const row = u as AuthResponse & Record<string, unknown>;
+  const persistUser = useCallback(async (payload: AuthResponse) => {
+    const row = payload as AuthResponse & Record<string, unknown>;
     const userId = asTrimmedString(row.userId) || asTrimmedString(row.user_id);
-    const username =
-      asTrimmedString(row.username) ||
-      asTrimmedString(row.user_name) ||
-      FALLBACK_USERNAME;
-    const profileImageUrl =
-      asTrimmedString(row.profileImageUrl) ||
-      asTrimmedString(row.profile_image_url) ||
-      null;
-    const accessToken =
-      asTrimmedString(row.accessToken) ||
-      asTrimmedString(row.access_token) ||
-      '';
+    const username = asTrimmedString(row.username) || asTrimmedString(row.user_name) || FALLBACK_USERNAME;
+    const profileImageUrl = asTrimmedString(row.profileImageUrl) || asTrimmedString(row.profile_image_url) || null;
+    const accessToken = asTrimmedString(row.accessToken) || asTrimmedString(row.access_token) || '';
 
     if (!isValidUuid(userId)) {
       throw new Error('Sessao invalida recebida do servidor. Faca login novamente.');
@@ -118,17 +122,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     await AsyncStorage.setItem(STORAGE_KEY_USER_ID, userId);
     await AsyncStorage.setItem(STORAGE_KEY_USERNAME, username);
+
     if (profileImageUrl) {
       await AsyncStorage.setItem(STORAGE_KEY_PROFILE_IMG, profileImageUrl);
     } else {
       await AsyncStorage.removeItem(STORAGE_KEY_PROFILE_IMG);
     }
-    // Salva accessToken quando presente (login/signup)
+
     if (accessToken) {
       await AsyncStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, accessToken);
     }
+
     setUser({ userId, username, profileImageUrl });
   }, []);
+
+  const handleProtectedAuthResponse = useCallback(async (request: () => Promise<AuthResponse>) => {
+    try {
+      const data = await request();
+      await persistUser(data);
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        await clearStoredSession();
+      }
+      throw err;
+    }
+  }, [clearStoredSession, persistUser]);
 
   const loginFn = useCallback(async (username: string, password: string) => {
     const data = await apiLogin({ username, password });
@@ -140,43 +158,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await persistUser(data);
   }, [persistUser]);
 
-  const updateProfileFn = useCallback(async (params: { username?: string; password?: string; profileImage?: string | null }) => {
+  const updateProfileFn = useCallback(async (params: { profileImage?: string | null }) => {
+    await handleProtectedAuthResponse(() => apiUpdateProfile(params));
+  }, [handleProtectedAuthResponse]);
+
+  const checkUsernameAvailabilityFn = useCallback(async (username: string) => {
     try {
-      const data = await apiUpdateProfile(params);
-      await persistUser(data);
+      return await apiCheckUsernameAvailability(username);
     } catch (err) {
       if (err instanceof SessionExpiredError) {
-        // Limpa sessão local — o app vai redirecionar para login
-        await AsyncStorage.multiRemove([STORAGE_KEY_USER_ID, STORAGE_KEY_USERNAME, STORAGE_KEY_PROFILE_IMG, STORAGE_KEY_ACCESS_TOKEN]);
-        setUser(null);
+        await clearStoredSession();
       }
-      throw err; // re-lança para o componente exibir a mensagem
+      throw err;
     }
-  }, [persistUser]);
+  }, [clearStoredSession]);
+
+  const updateUsernameFn = useCallback(async (params: { username: string; currentPassword: string }) => {
+    await handleProtectedAuthResponse(() => apiUpdateUsername(params));
+  }, [handleProtectedAuthResponse]);
+
+  const updatePasswordFn = useCallback(async (params: { currentPassword: string; newPassword: string }) => {
+    await handleProtectedAuthResponse(() => apiUpdatePassword(params));
+  }, [handleProtectedAuthResponse]);
 
   const logoutFn = useCallback(async () => {
-    await AsyncStorage.multiRemove([STORAGE_KEY_USER_ID, STORAGE_KEY_USERNAME, STORAGE_KEY_PROFILE_IMG, STORAGE_KEY_ACCESS_TOKEN]);
-    setUser(null);
-  }, []);
+    await clearStoredSession();
+  }, [clearStoredSession]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login: loginFn, signup: signupFn, updateProfile: updateProfileFn, logout: logoutFn }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login: loginFn,
+        signup: signupFn,
+        updateProfile: updateProfileFn,
+        checkUsernameAvailability: checkUsernameAvailabilityFn,
+        updateUsername: updateUsernameFn,
+        updatePassword: updatePasswordFn,
+        logout: logoutFn,
+      }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-/** Hook para acessar o contexto de autenticação */
 export function useAuth() {
   return useContext(AuthContext);
 }
 
-/** Retorna o userId atual (lê do AsyncStorage). Usado pelo api.ts */
 export async function getStoredUserId(): Promise<string | null> {
   return AsyncStorage.getItem(STORAGE_KEY_USER_ID);
 }
 
-/** Retorna o accessToken atual (lê do AsyncStorage). Usado pelo auth.ts */
 export async function getStoredAccessToken(): Promise<string | null> {
   return AsyncStorage.getItem(STORAGE_KEY_ACCESS_TOKEN);
 }
