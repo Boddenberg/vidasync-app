@@ -324,7 +324,7 @@ export function useHomeScreen({ onNavigate }: Props) {
   }
 
   const dashboardDateText = formatHomeDateLabel(selectedDate);
-  const heroTitle = hasAnyGoals ? 'Metas e macros' : 'Resumo do dia';
+  const heroTitle = 'Nutricao';
   const calorieBadgeValue = calorieGoal ? `${Math.round(calorieGoal.progress * 100)}%` : `${Math.round(progress * 100)}%`;
   const calorieBadgeLabel = calorieGoal ? 'da meta' : 'do plano';
   const calorieSummaryText = calorieGoal
