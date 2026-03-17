@@ -4,12 +4,12 @@ import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 
 export const s = StyleSheet.create({
   hydrationCard: {
-    backgroundColor: Brand.card,
-    borderRadius: 24,
+    backgroundColor: '#F8FCFF',
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#D9ECF9',
-    padding: 16,
-    gap: 12,
+    borderColor: '#D5EAF7',
+    padding: 14,
+    gap: 10,
     overflow: 'hidden',
     ...Shadows.soft,
   },
@@ -20,7 +20,7 @@ export const s = StyleSheet.create({
     width: 118,
     height: 118,
     borderRadius: 59,
-    backgroundColor: 'rgba(45,156,219,0.08)',
+    backgroundColor: 'rgba(45,156,219,0.06)',
   },
   loadingBox: {
     borderRadius: 18,
@@ -50,7 +50,7 @@ export const s = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 12,
-    backgroundColor: '#F7FBFF',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#D9ECF9',
     alignItems: 'center',
@@ -62,8 +62,8 @@ export const s = StyleSheet.create({
     gap: 4,
   },
   valueCurrent: {
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 28,
+    lineHeight: 32,
     fontWeight: '800',
     color: Brand.text,
   },
@@ -73,7 +73,7 @@ export const s = StyleSheet.create({
     fontWeight: '700',
   },
   trackShell: {
-    height: 8,
+    height: 6,
     borderRadius: Radii.pill,
     overflow: 'hidden',
     backgroundColor: '#D8EDF9',
@@ -85,7 +85,7 @@ export const s = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   waterBtn: {
     borderRadius: 14,
@@ -104,10 +104,10 @@ export const s = StyleSheet.create({
   waterBtnSecondary: {
     flex: 1,
     minWidth: 0,
-    minHeight: 40,
-    backgroundColor: '#F7FCFF',
+    minHeight: 38,
+    backgroundColor: '#FFFFFF',
     borderColor: '#D9ECF9',
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 8,
     justifyContent: 'center',
   },

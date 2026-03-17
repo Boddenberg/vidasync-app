@@ -125,13 +125,6 @@ export default function HomeScreen() {
         />
 
         <View style={s.metricsSection}>
-          <HomeMacroSection
-            protein={home.protein}
-            carbs={home.carbs}
-            fat={home.fat}
-            macroGoalItems={home.macroGoalItems}
-          />
-
           <HomeHydrationCard
             hydrationLoading={home.hydrationLoading}
             hydrationSaving={home.hydrationSaving}
@@ -150,6 +143,13 @@ export default function HomeScreen() {
             onDraftChange={home.handleHydrationGoalDraftChange}
             onCommitGoal={home.handleHydrationGoalCommit}
             onQuickAction={(deltaMl) => home.sendHydrationUpdate({ deltaMl })}
+          />
+
+          <HomeMacroSection
+            protein={home.protein}
+            carbs={home.carbs}
+            fat={home.fat}
+            macroGoalItems={home.macroGoalItems}
           />
         </View>
 

@@ -44,8 +44,6 @@ export function HomeMacroSection({ protein, carbs, fat, macroGoalItems }: Props)
 
   return (
     <View style={s.section}>
-      <Text style={s.title}>Macros</Text>
-
       <View style={s.grid}>
         {cards.map((card) => {
           const goal = goals.get(card.key);

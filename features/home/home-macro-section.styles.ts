@@ -4,14 +4,7 @@ import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 
 export const s = StyleSheet.create({
   section: {
-    gap: 12,
-  },
-  title: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    gap: 0,
   },
   grid: {
     flexDirection: 'row',
@@ -21,13 +14,13 @@ export const s = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     borderRadius: 22,
-    backgroundColor: Brand.card,
+    backgroundColor: '#FCFDFC',
     borderWidth: 1,
-    borderColor: 'rgba(21,32,24,0.08)',
+    borderColor: 'rgba(20,108,56,0.07)',
     paddingHorizontal: 15,
-    paddingVertical: 16,
-    gap: 12,
-    ...Shadows.soft,
+    paddingVertical: 15,
+    gap: 10,
+    ...Shadows.card,
   },
   labelRow: {
     flexDirection: 'row',

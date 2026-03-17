@@ -4,12 +4,12 @@ import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 
 export const s = StyleSheet.create({
   hero: {
-    backgroundColor: Brand.card,
+    backgroundColor: '#FCFDFC',
     borderRadius: Radii.xxl,
     borderWidth: 1,
-    borderColor: 'rgba(21,32,24,0.08)',
-    padding: 26,
-    gap: 22,
+    borderColor: 'rgba(20,108,56,0.08)',
+    padding: 24,
+    gap: 20,
     overflow: 'hidden',
     ...Shadows.card,
   },
@@ -20,7 +20,7 @@ export const s = StyleSheet.create({
     width: 212,
     height: 212,
     borderRadius: 106,
-    backgroundColor: 'rgba(31,167,80,0.08)',
+    backgroundColor: 'rgba(31,167,80,0.10)',
   },
   heroGlowBottom: {
     position: 'absolute',
@@ -29,7 +29,7 @@ export const s = StyleSheet.create({
     width: 164,
     height: 164,
     borderRadius: 82,
-    backgroundColor: 'rgba(255,122,89,0.06)',
+    backgroundColor: 'rgba(255,122,89,0.05)',
   },
   heroHeader: {
     flexDirection: 'row',
@@ -46,7 +46,7 @@ export const s = StyleSheet.create({
   },
   goalAction: {
     borderRadius: Radii.pill,
-    backgroundColor: '#F6FBF7',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(20,108,56,0.08)',
     paddingHorizontal: 13,
@@ -59,7 +59,7 @@ export const s = StyleSheet.create({
   },
   loadingBox: {
     borderRadius: 24,
-    backgroundColor: '#FBFDFC',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(21,32,24,0.08)',
     padding: 16,
@@ -104,12 +104,12 @@ export const s = StyleSheet.create({
   },
   mealBadge: {
     minWidth: 90,
-    borderRadius: 20,
-    backgroundColor: '#FFF6F1',
+    borderRadius: 18,
+    backgroundColor: '#FFF8F4',
     borderWidth: 1,
-    borderColor: '#FFE0D6',
+    borderColor: '#FFE6DE',
     paddingHorizontal: 13,
-    paddingVertical: 12,
+    paddingVertical: 11,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
@@ -131,12 +131,12 @@ export const s = StyleSheet.create({
     height: 10,
     borderRadius: Radii.pill,
     overflow: 'hidden',
-    backgroundColor: '#E5F2E8',
+    backgroundColor: '#E8F3EA',
   },
   fill: {
     height: '100%',
     borderRadius: Radii.pill,
-    backgroundColor: Brand.green,
+    backgroundColor: Brand.greenDark,
   },
   heroSecondaryText: {
     ...Typography.helper,
