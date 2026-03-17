@@ -4,14 +4,8 @@ import { Animated, Modal, Pressable, Text, View } from 'react-native';
 import { HomeHydrationButton } from '@/features/home/home-hydration-button';
 import { HomeHydrationGoalSlider } from '@/features/home/home-hydration-goal-slider';
 import { s } from '@/features/home/home-hydration-card.styles';
-import {
-  formatLiters,
-  HYDRATION_QUICK_ACTIONS,
-} from '@/features/home/home-utils';
-import {
-  HYDRATION_GOAL_MAX_ML,
-  HYDRATION_GOAL_MIN_ML,
-} from '@/utils/hydration';
+import { formatLiters, HYDRATION_QUICK_ACTIONS } from '@/features/home/home-utils';
+import { HYDRATION_GOAL_MAX_ML, HYDRATION_GOAL_MIN_ML } from '@/utils/hydration';
 
 type Props = {
   hydrationLoading: boolean;
@@ -52,8 +46,7 @@ export function HomeHydrationCard({
   onCommitGoal,
   onQuickAction,
 }: Props) {
-  const addActions = HYDRATION_QUICK_ACTIONS.filter((action) => action.tone === 'positive');
-  const correctionActions = HYDRATION_QUICK_ACTIONS.filter((action) => action.tone === 'negative');
+  const quickActions = HYDRATION_QUICK_ACTIONS.filter((action) => action.tone === 'positive');
 
   return (
     <View style={s.hydrationCard}>
@@ -66,8 +59,8 @@ export function HomeHydrationCard({
             <Ionicons name="water-outline" size={18} color="#0B6B94" />
           </View>
           <View style={s.hydrationHeaderText}>
-            <Text style={s.hydrationTitle}>Hidratação</Text>
-            <Text style={s.hydrationHeaderHint}>{hydrationGoal ? `Meta ${formatLiters(hydrationGoal)}` : 'Ajuste a meta na engrenagem'}</Text>
+            <Text style={s.hydrationTitle}>Hidratacao</Text>
+            <Text style={s.hydrationHeaderHint}>{hydrationGoal ? `Meta ${formatLiters(hydrationGoal)}` : 'Defina sua meta'}</Text>
           </View>
         </View>
 
@@ -78,7 +71,7 @@ export function HomeHydrationCard({
 
       {hydrationLoading ? (
         <View style={s.loadingBox}>
-          <Text style={s.loadingText}>Carregando água desta data...</Text>
+          <Text style={s.loadingText}>Carregando agua...</Text>
         </View>
       ) : (
         <>
@@ -98,9 +91,7 @@ export function HomeHydrationCard({
                 <Text style={[s.hydrationProgressValue, goalReached && s.hydrationProgressValueDone]}>
                   {Math.round(hydrationProgress * 100)}%
                 </Text>
-                <Text style={[s.hydrationProgressLabel, goalReached && s.hydrationProgressLabelDone]}>
-                  progresso
-                </Text>
+                <Text style={[s.hydrationProgressLabel, goalReached && s.hydrationProgressLabelDone]}>progresso</Text>
               </View>
 
               <View style={[s.hydrationSummaryChip, goalReached && s.hydrationSummaryChipDone]}>
@@ -110,7 +101,7 @@ export function HomeHydrationCard({
                   color={goalReached ? '#166534' : '#0B6B94'}
                 />
                 <Text style={[s.hydrationSummaryChipText, goalReached && s.hydrationSummaryChipTextDone]}>
-                  {goalReached ? 'Meta concluída' : hydrationGoal ? 'Em andamento' : 'Sem meta'}
+                  {goalReached ? 'Meta concluida' : hydrationGoal ? 'Em andamento' : 'Sem meta'}
                 </Text>
               </View>
             </View>
@@ -131,18 +122,16 @@ export function HomeHydrationCard({
 
           <View style={s.hydrationActionsSection}>
             <View style={s.hydrationSectionHeader}>
-              <Text style={s.hydrationSectionTitle}>Adicionar água</Text>
-              <Text style={s.hydrationSectionHint}>registro rápido</Text>
+              <Text style={s.hydrationSectionTitle}>Adicionar agua</Text>
             </View>
 
             <View style={s.hydrationPrimaryActions}>
-              {addActions.map((action) => (
+              {quickActions.map((action) => (
                 <HomeHydrationButton
                   key={action.label}
                   label={action.label}
                   tone={action.tone}
                   variant="primary"
-                  eyebrow="Adicionar"
                   onPress={() => onQuickAction(action.deltaMl)}
                   disabled={hydrationSaving}
                 />
@@ -150,47 +139,19 @@ export function HomeHydrationCard({
             </View>
           </View>
 
-          <View style={s.hydrationActionsSection}>
-            <View style={s.hydrationSectionHeader}>
-              <Text style={s.hydrationSectionTitle}>Corrigir ajuste</Text>
-              <Text style={s.hydrationSectionHint}>usar so se precisar</Text>
-            </View>
-
-            <View style={s.hydrationSecondaryActions}>
-              {correctionActions.map((action) => (
-                <HomeHydrationButton
-                  key={action.label}
-                  label={action.label}
-                  tone={action.tone}
-                  variant="secondary"
-                  onPress={() => onQuickAction(action.deltaMl)}
-                  disabled={hydrationSaving}
-                />
-              ))}
-            </View>
-          </View>
-
-          <Modal
-            visible={hydrationGoalMenuOpen}
-            transparent
-            animationType="fade"
-            onRequestClose={onCloseGoalMenu}>
+          <Modal visible={hydrationGoalMenuOpen} transparent animationType="fade" onRequestClose={onCloseGoalMenu}>
             <View style={s.hydrationGoalModalOverlay}>
               <Pressable style={s.hydrationGoalModalBackdrop} onPress={onCloseGoalMenu} />
 
               <View style={s.hydrationGoalMenu}>
                 <View style={s.hydrationGoalMenuHeader}>
                   <View style={s.hydrationGoalMenuCopy}>
-                    <Text style={s.hydrationGoalMenuTitle}>Meta diária</Text>
-                    <Text style={s.hydrationGoalMenuHint}>
-                      Arraste com calma entre 1L e 10L. A meta salva quando você soltar.
-                    </Text>
+                    <Text style={s.hydrationGoalMenuTitle}>Meta diaria</Text>
+                    <Text style={s.hydrationGoalMenuHint}>Deslize para ajustar de 1L a 10L.</Text>
                   </View>
                   <View style={s.hydrationGoalValueBadge}>
                     <Text style={s.hydrationGoalValue}>{formatLiters(hydrationGoalDraftMl)}</Text>
-                    <Text style={s.hydrationGoalValueLabel}>
-                      {hydrationSaving ? 'salvando' : 'meta atual'}
-                    </Text>
+                    <Text style={s.hydrationGoalValueLabel}>{hydrationSaving ? 'salvando' : 'meta atual'}</Text>
                   </View>
                 </View>
 

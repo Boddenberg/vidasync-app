@@ -9,8 +9,6 @@ import { extractNum, toDateStr, todayStr } from '@/utils/helpers';
 export const HYDRATION_QUICK_ACTIONS = [
   { label: '+200 ml', deltaMl: 200, tone: 'positive' as const },
   { label: '+1 litro', deltaMl: 1000, tone: 'positive' as const },
-  { label: '-300 ml', deltaMl: -300, tone: 'negative' as const },
-  { label: '-500 ml', deltaMl: -500, tone: 'negative' as const },
 ];
 
 export type GoalProgress = {
@@ -89,19 +87,20 @@ export function formatHomeDateLabel(date: string): string {
   const parsed = parseDateInput(date);
   const shortDate = parsed.toLocaleDateString('pt-BR', {
     day: 'numeric',
-    month: 'long',
+    month: 'short',
   });
+  const compactDate = shortDate.replace('.', '');
 
   if (isTodayDate(date)) {
-    return `Hoje, ${shortDate}`;
+    return `Hoje, ${compactDate}`;
   }
 
   if (date === shiftDate(todayStr(), -1)) {
-    return `Ontem, ${shortDate}`;
+    return `Ontem, ${compactDate}`;
   }
 
-  const weekday = parsed.toLocaleDateString('pt-BR', { weekday: 'long' });
-  return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${shortDate}`;
+  const weekday = parsed.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+  return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${compactDate}`;
 }
 
 export function formatDateChip(date: string): string {

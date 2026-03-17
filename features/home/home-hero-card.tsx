@@ -24,12 +24,11 @@ type Props = {
   dayWidth: Animated.AnimatedInterpolation<string | number>;
   goalsError: string | null;
   onOpenGoals: () => void;
-  onOpenCalendar: () => void;
 };
 
 export function HomeHeroCard({
   mealsCount,
-  heroTitle,
+  heroTitle: _heroTitle,
   goalsLoading,
   hasAnyGoals,
   calories,
@@ -39,19 +38,24 @@ export function HomeHeroCard({
   calorieBadgeValue,
   calorieBadgeLabel,
   calorieSummaryText,
-  calorieSecondaryText,
+  calorieSecondaryText: _calorieSecondaryText,
   macroGoalItems,
   mealSummaries,
   dayWidth,
   goalsError,
   onOpenGoals,
-  onOpenCalendar,
 }: Props) {
-  const heroBadgeLabel = mealsCount === 1 ? 'refeição' : 'refeições';
+  const heroBadgeLabel = mealsCount === 1 ? 'refeicao' : 'refeicoes';
   const hasConsumedMetrics = mealsCount > 0;
+  const compactCalorieInsight = calorieSummaryText
+    .replace(/Meta .*conclu.*$/i, 'Meta batida')
+    .replace(/kcal restantes?\.?/i, 'kcal livres')
+    .replace(/para esta data\.?/i, '')
+    .replace(/Cadastre metas.*$/i, 'Defina suas metas')
+    .trim();
   const consumedMetrics = [
     { label: 'Calorias', value: calories, unit: ' kcal', color: Brand.greenDark, bg: Brand.surfaceSoft },
-    { label: 'Proteína', value: protein, unit: 'g', color: Brand.macroProtein, bg: Brand.macroProteinBg },
+    { label: 'Proteina', value: protein, unit: 'g', color: Brand.macroProtein, bg: Brand.macroProteinBg },
     { label: 'Carboidrato', value: carbs, unit: 'g', color: Brand.macroCarb, bg: Brand.macroCarbBg },
     { label: 'Gordura', value: fat, unit: 'g', color: Brand.macroFat, bg: Brand.macroFatBg },
   ];
@@ -63,13 +67,7 @@ export function HomeHeroCard({
 
       <View style={s.heroTop}>
         <View style={s.heroCopy}>
-          <Text style={s.heroLabel}>Resumo nutricional</Text>
-          <Text style={s.heroTitle}>{heroTitle}</Text>
-          <Text style={s.heroSubtitle}>
-            {mealsCount > 0
-              ? 'Calorias, metas e períodos do dia prontos para bater o olho.'
-              : 'Assim que você registrar refeições, este bloco vira o centro do seu dia.'}
-          </Text>
+          <Text style={s.heroTitle}>Meu dia</Text>
         </View>
 
         <View style={s.heroBadge}>
@@ -80,23 +78,23 @@ export function HomeHeroCard({
 
       {goalsLoading ? (
         <View style={s.loadingBox}>
-          <Text style={s.loadingText}>Carregando metas desta data...</Text>
+          <Text style={s.loadingText}>Carregando metas...</Text>
         </View>
       ) : hasAnyGoals ? (
         <>
           <View style={s.calorieSpotlight}>
             <View style={s.calorieSpotlightCopy}>
-              <Text style={s.calorieSpotlightLabel}>Você consumiu</Text>
+              <Text style={s.calorieSpotlightLabel}>Calorias</Text>
               <View style={s.calorieSpotlightRow}>
                 <Text style={s.calorieSpotlightValue}>{calories}</Text>
                 <Text style={s.calorieSpotlightUnit}>kcal</Text>
               </View>
-              <Text style={s.calorieSpotlightHint}>{calorieSecondaryText}</Text>
+              <Text style={s.calorieSpotlightHint}>{compactCalorieInsight}</Text>
             </View>
 
             <View style={s.calorieBadge}>
               <View style={s.calorieBadgeIcon}>
-                <Ionicons name="sparkles-outline" size={16} color={Brand.greenDark} />
+                <Ionicons name="sparkles-outline" size={16} color={Brand.indigo} />
               </View>
               <Text style={s.calorieBadgeValue}>{calorieBadgeValue}</Text>
               <Text style={s.calorieBadgeLabel}>{calorieBadgeLabel}</Text>
@@ -107,21 +105,7 @@ export function HomeHeroCard({
             <Animated.View style={[s.fill, { width: dayWidth }]} />
           </View>
 
-          <View style={s.heroMetaRow}>
-            <View style={[s.heroMetaChip, s.heroMetaChipPrimary]}>
-              <Text style={[s.heroMetaChipText, s.heroMetaChipTextPrimary]}>{calorieSummaryText}</Text>
-            </View>
-            <View style={s.heroMetaChip}>
-              <Text style={s.heroMetaChipText}>{calorieSecondaryText}</Text>
-            </View>
-          </View>
-
           <View style={s.macroSection}>
-            <View style={s.rowBetween}>
-              <Text style={s.sectionMiniTitle}>Macros do dia</Text>
-              {macroGoalItems.length > 0 ? <Text style={s.counter}>{macroGoalItems.length} ativos</Text> : null}
-            </View>
-
             {macroGoalItems.length > 0 ? (
               macroGoalItems.map((item) => (
                 <HomeMacroBar
@@ -136,20 +120,18 @@ export function HomeHeroCard({
                 />
               ))
             ) : (
-              <Text style={s.sectionSub}>
-                Cadastre proteína, carboidrato e gordura para acompanhar os macros com mais clareza.
-              </Text>
+              <Text style={s.sectionSub}>Defina suas metas para acompanhar melhor o dia.</Text>
             )}
           </View>
         </>
       ) : (
         <>
           <View style={s.emptyGoalState}>
-            <Text style={s.emptyGoalTitle}>Consumo do dia</Text>
+            <Text style={s.emptyGoalTitle}>Panorama</Text>
             <Text style={s.emptyGoalText}>
               {hasConsumedMetrics
-                ? 'Sem meta cadastrada para esta data. Ainda assim, o resumo do que já entrou fica visível aqui.'
-                : 'Sem meta e sem registros ainda. Assim que você lançar uma refeição, o panorama aparece aqui.'}
+                ? 'Voce ainda nao definiu metas para esta data.'
+                : 'Registre uma refeicao para montar o panorama do dia.'}
             </Text>
           </View>
 
@@ -170,7 +152,7 @@ export function HomeHeroCard({
 
       <View style={s.mealSummarySection}>
         <View style={s.rowBetween}>
-          <Text style={s.sectionMiniTitle}>Períodos registrados</Text>
+          <Text style={s.sectionMiniTitle}>Refeicoes</Text>
           <Text style={s.counter}>
             {mealsCount > 0 ? `${mealsCount} ${mealsCount === 1 ? 'item' : 'itens'}` : 'Sem registros'}
           </Text>
@@ -194,26 +176,40 @@ export function HomeHeroCard({
                 </View>
 
                 <View style={s.mealSummaryMacroRow}>
-                  <MealMacroChip label="Prot" value={Math.round(item.protein)} unit="g" color={Brand.macroProtein} bg={Brand.macroProteinBg} />
-                  <MealMacroChip label="Carb" value={Math.round(item.carbs)} unit="g" color={Brand.macroCarb} bg={Brand.macroCarbBg} />
-                  <MealMacroChip label="Gord" value={Math.round(item.fat)} unit="g" color={Brand.macroFat} bg={Brand.macroFatBg} />
+                  <MealMacroChip
+                    label="Prot"
+                    value={Math.round(item.protein)}
+                    unit="g"
+                    color={Brand.macroProtein}
+                    bg={Brand.macroProteinBg}
+                  />
+                  <MealMacroChip
+                    label="Carb"
+                    value={Math.round(item.carbs)}
+                    unit="g"
+                    color={Brand.macroCarb}
+                    bg={Brand.macroCarbBg}
+                  />
+                  <MealMacroChip
+                    label="Gord"
+                    value={Math.round(item.fat)}
+                    unit="g"
+                    color={Brand.macroFat}
+                    bg={Brand.macroFatBg}
+                  />
                 </View>
               </View>
             ))}
           </View>
         ) : (
-          <Text style={s.sectionSub}>Os períodos aparecem aqui quando houver pratos registrados no dia.</Text>
+          <Text style={s.sectionSub}>Os periodos aparecem aqui quando houver registros no dia.</Text>
         )}
       </View>
 
       <View style={s.heroActions}>
         <Pressable style={({ pressed }) => [s.secondaryChip, pressed && s.pressed]} onPress={onOpenGoals}>
-          <Ionicons name="sparkles-outline" size={15} color={Brand.greenDark} />
+          <Ionicons name="sparkles-outline" size={15} color={Brand.indigo} />
           <Text style={s.secondaryChipText}>{hasAnyGoals ? 'Editar metas' : 'Criar metas'}</Text>
-        </Pressable>
-        <Pressable style={({ pressed }) => [s.secondaryChip, pressed && s.pressed]} onPress={onOpenCalendar}>
-          <Ionicons name="calendar-outline" size={15} color={Brand.greenDark} />
-          <Text style={s.secondaryChipText}>Trocar dia</Text>
         </Pressable>
       </View>
 

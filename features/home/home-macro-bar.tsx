@@ -13,7 +13,7 @@ type Props = {
   remaining: number;
 };
 
-export function HomeMacroBar({ label, consumed, goal, color, bg, unit, remaining }: Props) {
+export function HomeMacroBar({ label, consumed, goal, color, bg, unit, remaining: _remaining }: Props) {
   const progress = goal > 0 ? Math.min(consumed / goal, 1) : 0;
 
   return (
@@ -30,9 +30,6 @@ export function HomeMacroBar({ label, consumed, goal, color, bg, unit, remaining
       <View style={[s.trackShell, { backgroundColor: bg }]}>
         <View style={[s.trackFill, { width: `${Math.round(progress * 100)}%`, backgroundColor: color }]} />
       </View>
-      <Text style={s.macroRemaining}>
-        {remaining > 0 ? `${formatMetricValue(remaining, unit)} restantes` : 'Meta concluída'}
-      </Text>
     </View>
   );
 }

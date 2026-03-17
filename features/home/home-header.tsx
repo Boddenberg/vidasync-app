@@ -39,16 +39,15 @@ export function HomeHeader({
           </Pressable>
 
           <View style={s.profileCopy}>
-            <Text style={s.greeting}>
-              {greeting()}
-              {user ? `, ${user.username}` : ''}
-            </Text>
-            <Text style={s.subGreeting}>Seu resumo está pronto.</Text>
-
             <Pressable style={({ pressed }) => [s.dateChip, pressed && s.pressed]} onPress={onOpenCalendar}>
               <Ionicons name="calendar-outline" size={15} color={Brand.greenDark} />
               <Text style={s.dateChipText}>{dashboardDateText}</Text>
             </Pressable>
+
+            <Text style={s.greeting}>
+              {greeting()}
+              {user ? `, ${user.username}` : ''}
+            </Text>
           </View>
         </View>
 
@@ -95,7 +94,7 @@ const s = StyleSheet.create({
   },
   profileCopy: {
     flex: 1,
-    gap: 4,
+    gap: 8,
     paddingTop: 2,
   },
   avatarButton: {
@@ -125,11 +124,6 @@ const s = StyleSheet.create({
     color: Brand.text,
     fontWeight: '800',
     lineHeight: 34,
-  },
-  subGreeting: {
-    ...Typography.body,
-    color: Brand.textSecondary,
-    fontWeight: '500',
   },
   actions: {
     flexDirection: 'row',
@@ -175,7 +169,7 @@ const s = StyleSheet.create({
     borderRadius: Radii.pill,
     backgroundColor: Brand.surfaceSoft,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   dateChipText: {
     ...Typography.body,

@@ -201,7 +201,7 @@ export const s = StyleSheet.create({
     color: Brand.greenDark,
   },
   hydrationActionsSection: {
-    gap: 10,
+    gap: 8,
   },
   hydrationSectionHeader: {
     flexDirection: 'row',
@@ -222,7 +222,7 @@ export const s = StyleSheet.create({
   },
   hydrationPrimaryActions: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   hydrationSecondaryActions: {
     flexDirection: 'row',
@@ -236,11 +236,11 @@ export const s = StyleSheet.create({
   waterBtnPrimary: {
     flex: 1,
     minWidth: 0,
-    minHeight: 84,
+    minHeight: 68,
     backgroundColor: '#0B6B94',
     borderColor: '#0B6B94',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     justifyContent: 'center',
     ...Shadows.soft,
   },
@@ -257,7 +257,7 @@ export const s = StyleSheet.create({
   waterBtnPrimaryContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   waterBtnSecondaryContent: {
     flexDirection: 'row',
@@ -280,23 +280,13 @@ export const s = StyleSheet.create({
   },
   waterBtnTextBlock: {
     flex: 1,
-    gap: 2,
-  },
-  waterBtnEyebrow: {
-    ...Typography.caption,
-    color: 'rgba(255,255,255,0.76)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
-    fontWeight: '800',
-  },
-  waterBtnEyebrowNegative: {
-    color: Brand.danger,
+    gap: 0,
   },
   waterBtnText: {
     fontWeight: '800',
   },
   waterBtnTextPrimary: {
-    ...Typography.subtitle,
+    ...Typography.body,
     color: '#FFFFFF',
   },
   waterBtnTextPositive: {

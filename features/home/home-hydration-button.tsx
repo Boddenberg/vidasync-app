@@ -18,7 +18,7 @@ export function HomeHydrationButton({
   disabled,
   tone = 'positive',
   variant = 'primary',
-  eyebrow,
+  eyebrow: _eyebrow,
 }: Props) {
   const isPrimary = variant === 'primary';
 
@@ -47,9 +47,6 @@ export function HomeHydrationButton({
           </View>
 
           <View style={s.waterBtnTextBlock}>
-            {eyebrow ? (
-              <Text style={[s.waterBtnEyebrow, tone === 'negative' && s.waterBtnEyebrowNegative]}>{eyebrow}</Text>
-            ) : null}
             <Text style={[s.waterBtnText, tone === 'positive' ? s.waterBtnTextPrimary : s.waterBtnTextNegative]}>
               {label}
             </Text>

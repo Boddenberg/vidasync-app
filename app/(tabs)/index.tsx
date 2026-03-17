@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PanResponder, ScrollView, StatusBar, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,7 +18,7 @@ import { s } from '@/features/home/home-screen.styles';
 import { formatDateForModal } from '@/features/home/home-utils';
 import { useHomeScreen } from '@/features/home/use-home-screen';
 
-const HOME_SWIPE_THRESHOLD = 56;
+const HOME_SWIPE_THRESHOLD = 44;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -27,19 +27,40 @@ export default function HomeScreen() {
   const home = useHomeScreen({
     onNavigate: (route) => router.push(route as any),
   });
+
+  const swipeLockedRef = useRef(false);
+  const handlePreviousDateRef = useRef(home.handlePreviousDate);
+  const handleNextDateRef = useRef(home.handleNextDate);
+
+  useEffect(() => {
+    swipeLockedRef.current = home.hydrationGoalMenuOpen;
+  }, [home.hydrationGoalMenuOpen]);
+
+  useEffect(() => {
+    handlePreviousDateRef.current = home.handlePreviousDate;
+    handleNextDateRef.current = home.handleNextDate;
+  }, [home.handleNextDate, home.handlePreviousDate]);
+
+  const shouldHandleHorizontalSwipe = (dx: number, dy: number) =>
+    !swipeLockedRef.current && Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * 1.15;
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_event, gestureState) =>
-        Math.abs(gestureState.dx) > 16 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.35,
+        shouldHandleHorizontalSwipe(gestureState.dx, gestureState.dy),
+      onMoveShouldSetPanResponderCapture: (_event, gestureState) =>
+        shouldHandleHorizontalSwipe(gestureState.dx, gestureState.dy),
       onPanResponderRelease: (_event, gestureState) => {
-        if (gestureState.dx >= HOME_SWIPE_THRESHOLD) {
-          home.handlePreviousDate();
+        if (swipeLockedRef.current) return;
+
+        if (gestureState.dx >= HOME_SWIPE_THRESHOLD || gestureState.vx >= 0.38) {
+          handlePreviousDateRef.current();
           return;
         }
 
-        if (gestureState.dx <= -HOME_SWIPE_THRESHOLD) {
-          home.handleNextDate();
+        if (gestureState.dx <= -HOME_SWIPE_THRESHOLD || gestureState.vx <= -0.38) {
+          handleNextDateRef.current();
         }
       },
     }),
@@ -86,12 +107,6 @@ export default function HomeScreen() {
           dayWidth={home.dayWidth}
           goalsError={home.goalsError}
           onOpenGoals={() => home.setGoalsModalVisible(true)}
-          onOpenCalendar={() => home.setCalendarVisible(true)}
-        />
-
-        <HomeRegisterCard
-          selectedDate={home.selectedDate}
-          onOpenRegisterOptions={() => setRegisterOptionsVisible(true)}
         />
 
         <HomeHydrationCard
@@ -112,6 +127,11 @@ export default function HomeScreen() {
           onDraftChange={home.handleHydrationGoalDraftChange}
           onCommitGoal={home.handleHydrationGoalCommit}
           onQuickAction={(deltaMl) => home.sendHydrationUpdate({ deltaMl })}
+        />
+
+        <HomeRegisterCard
+          selectedDate={home.selectedDate}
+          onOpenRegisterOptions={() => setRegisterOptionsVisible(true)}
         />
       </ScrollView>
 
