@@ -2,14 +2,20 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { Brand } from '@/constants/theme';
 import type { AppNotification } from '@/services/notifications';
-import type { Meal, MealType } from '@/types/nutrition';
 import type { NutritionGoalsStatus } from '@/services/nutrition-goals';
+import type { Meal, MealType } from '@/types/nutrition';
 import { extractNum, toDateStr, todayStr } from '@/utils/helpers';
 
 export const HYDRATION_QUICK_ACTIONS = [
   { label: '+200 ml', deltaMl: 200, tone: 'positive' as const },
   { label: '+1 litro', deltaMl: 1000, tone: 'positive' as const },
 ];
+
+export const HOME_MACRO_TONES = {
+  protein: { color: '#4D6CFA', bg: '#EEF2FF' },
+  carbs: { color: '#F4A62A', bg: '#FFF4DD' },
+  fat: { color: '#E45858', bg: '#FDEAEA' },
+} as const;
 
 export type GoalProgress = {
   key: 'calories' | 'protein' | 'carbs' | 'fat';
@@ -46,11 +52,11 @@ const MEAL_SUMMARY_META: Record<
     bg: string;
   }
 > = {
-  breakfast: { label: 'Café da manhã', icon: 'sunny-outline', color: '#D97706', bg: '#FFF4DE' },
-  lunch: { label: 'Almoço', icon: 'restaurant-outline', color: Brand.greenDark, bg: '#EAF7EE' },
-  snack: { label: 'Lanche', icon: 'cafe-outline', color: '#C97A1C', bg: '#FFF2E1' },
-  dinner: { label: 'Jantar', icon: 'moon-outline', color: '#6D5BD0', bg: '#F1EEFF' },
-  supper: { label: 'Ceia', icon: 'bed-outline', color: '#4F46E5', bg: '#EEF2FF' },
+  breakfast: { label: 'Cafe da manha', icon: 'sunny-outline', color: Brand.macroCarb, bg: '#FFF5E1' },
+  lunch: { label: 'Almoco', icon: 'restaurant-outline', color: Brand.greenDark, bg: '#EAF8EE' },
+  snack: { label: 'Lanche', icon: 'cafe-outline', color: Brand.coral, bg: '#FFF1EB' },
+  dinner: { label: 'Jantar', icon: 'moon-outline', color: Brand.greenDark, bg: '#EEF8F1' },
+  supper: { label: 'Ceia', icon: 'bed-outline', color: Brand.textSecondary, bg: '#F3F6F4' },
 };
 
 const MEAL_SUMMARY_ORDER: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner', 'supper'];
@@ -167,9 +173,9 @@ export function buildGoalItems(
 ): GoalProgress[] {
   return [
     buildGoalProgress('calories', 'Calorias', ' kcal', calories, goals?.goals.calories ?? null, Brand.greenDark, '#E7F6EC'),
-    buildGoalProgress('protein', 'Proteína', 'g', protein, goals?.goals.protein ?? null, Brand.macroProtein, Brand.macroProteinBg),
-    buildGoalProgress('carbs', 'Carboidrato', 'g', carbs, goals?.goals.carbs ?? null, Brand.macroCarb, Brand.macroCarbBg),
-    buildGoalProgress('fat', 'Gordura', 'g', fat, goals?.goals.fat ?? null, Brand.macroFat, Brand.macroFatBg),
+    buildGoalProgress('protein', 'Proteina', 'g', protein, goals?.goals.protein ?? null, HOME_MACRO_TONES.protein.color, HOME_MACRO_TONES.protein.bg),
+    buildGoalProgress('carbs', 'Carboidrato', 'g', carbs, goals?.goals.carbs ?? null, HOME_MACRO_TONES.carbs.color, HOME_MACRO_TONES.carbs.bg),
+    buildGoalProgress('fat', 'Gordura', 'g', fat, goals?.goals.fat ?? null, HOME_MACRO_TONES.fat.color, HOME_MACRO_TONES.fat.bg),
   ].filter((item): item is GoalProgress => item !== null);
 }
 

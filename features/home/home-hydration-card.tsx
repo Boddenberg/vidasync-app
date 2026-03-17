@@ -32,9 +32,6 @@ export function HomeHydrationCard({
   hydrationSaving,
   hydrationMl,
   hydrationGoal,
-  hydrationProgress,
-  goalReached,
-  hydrationStatusText,
   hydrationGoalMenuOpen,
   hydrationGoalDraftMl,
   hydrationWidth,
@@ -47,27 +44,11 @@ export function HomeHydrationCard({
   onQuickAction,
 }: Props) {
   const quickActions = HYDRATION_QUICK_ACTIONS.filter((action) => action.tone === 'positive');
+  const goalLabel = hydrationGoal ? formatLiters(hydrationGoal) : '--';
 
   return (
     <View style={s.hydrationCard}>
-      <View pointerEvents="none" style={s.hydrationGlowLarge} />
-      <View pointerEvents="none" style={s.hydrationGlowSmall} />
-
-      <View style={s.hydrationHeaderRow}>
-        <View style={s.hydrationHeaderCopy}>
-          <View style={s.hydrationIconWrap}>
-            <Ionicons name="water-outline" size={18} color="#0B6B94" />
-          </View>
-          <View style={s.hydrationHeaderText}>
-            <Text style={s.hydrationTitle}>Hidratacao</Text>
-            <Text style={s.hydrationHeaderHint}>{hydrationGoal ? `Meta ${formatLiters(hydrationGoal)}` : 'Defina sua meta'}</Text>
-          </View>
-        </View>
-
-        <Pressable style={({ pressed }) => [s.hydrationSettingsButton, pressed && s.pressed]} onPress={onToggleGoalMenu}>
-          <Ionicons name="settings-outline" size={18} color="#0B6B94" />
-        </Pressable>
-      </View>
+      <View pointerEvents="none" style={s.hydrationGlow} />
 
       {hydrationLoading ? (
         <View style={s.loadingBox}>
@@ -75,68 +56,36 @@ export function HomeHydrationCard({
         </View>
       ) : (
         <>
-          <View style={s.hydrationTopRow}>
-            <View style={s.hydrationMetricGroup}>
-              <Text style={s.hydrationEyebrow}>Total do dia</Text>
-              <Animated.Text style={[s.hydrationHeroValue, { transform: [{ scale: hydrationScale }] }]}>
-                {formatLiters(hydrationMl)}
-              </Animated.Text>
-              <Text style={s.hydrationMetricHint}>
-                {hydrationGoal ? `de ${formatLiters(hydrationGoal)}` : 'sem meta definida'}
-              </Text>
-            </View>
+          <View style={s.headerRow}>
+            <Text style={s.title}>Agua</Text>
 
-            <View style={s.hydrationProgressColumn}>
-              <View style={[s.hydrationProgressBadge, goalReached && s.hydrationProgressBadgeDone]}>
-                <Text style={[s.hydrationProgressValue, goalReached && s.hydrationProgressValueDone]}>
-                  {Math.round(hydrationProgress * 100)}%
-                </Text>
-                <Text style={[s.hydrationProgressLabel, goalReached && s.hydrationProgressLabelDone]}>progresso</Text>
-              </View>
-
-              <View style={[s.hydrationSummaryChip, goalReached && s.hydrationSummaryChipDone]}>
-                <Ionicons
-                  name={goalReached ? 'checkmark-circle' : hydrationGoal ? 'water-outline' : 'settings-outline'}
-                  size={14}
-                  color={goalReached ? '#166534' : '#0B6B94'}
-                />
-                <Text style={[s.hydrationSummaryChipText, goalReached && s.hydrationSummaryChipTextDone]}>
-                  {goalReached ? 'Meta concluida' : hydrationGoal ? 'Em andamento' : 'Sem meta'}
-                </Text>
-              </View>
-            </View>
+            <Pressable style={({ pressed }) => [s.settingsButton, pressed && s.pressed]} onPress={onToggleGoalMenu}>
+              <Ionicons name="settings-outline" size={16} color="#2D9CDB" />
+            </Pressable>
           </View>
 
-          <View style={s.hydrationTrackShell}>
-            <Animated.View style={[s.hydrationTrackFill, { width: hydrationWidth }]} />
+          <View style={s.valueRow}>
+            <Animated.Text style={[s.valueCurrent, { transform: [{ scale: hydrationScale }] }]}>
+              {formatLiters(hydrationMl)}
+            </Animated.Text>
+            <Text style={s.valueGoal}> / {goalLabel}</Text>
           </View>
 
-          <View style={[s.hydrationStatusCard, goalReached && s.hydrationStatusCardDone]}>
-            <Ionicons
-              name={goalReached ? 'sparkles-outline' : hydrationGoal ? 'time-outline' : 'information-circle-outline'}
-              size={16}
-              color={goalReached ? '#166534' : '#0B6B94'}
-            />
-            <Text style={[s.hydrationStatus, goalReached && s.hydrationStatusDone]}>{hydrationStatusText}</Text>
+          <View style={s.trackShell}>
+            <Animated.View style={[s.trackFill, { width: hydrationWidth }]} />
           </View>
 
-          <View style={s.hydrationActionsSection}>
-            <View style={s.hydrationSectionHeader}>
-              <Text style={s.hydrationSectionTitle}>Adicionar agua</Text>
-            </View>
-
-            <View style={s.hydrationPrimaryActions}>
-              {quickActions.map((action) => (
-                <HomeHydrationButton
-                  key={action.label}
-                  label={action.label}
-                  tone={action.tone}
-                  variant="primary"
-                  onPress={() => onQuickAction(action.deltaMl)}
-                  disabled={hydrationSaving}
-                />
-              ))}
-            </View>
+          <View style={s.actionsRow}>
+            {quickActions.map((action) => (
+              <HomeHydrationButton
+                key={action.label}
+                label={action.label}
+                tone={action.tone}
+                variant="secondary"
+                onPress={() => onQuickAction(action.deltaMl)}
+                disabled={hydrationSaving}
+              />
+            ))}
           </View>
 
           <Modal visible={hydrationGoalMenuOpen} transparent animationType="fade" onRequestClose={onCloseGoalMenu}>

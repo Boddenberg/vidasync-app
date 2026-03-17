@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, Text, View } from 'react-native';
 
+import { Brand } from '@/constants/theme';
 import { s } from '@/features/home/home-hydration-card.styles';
 
 type Props = {
@@ -54,7 +55,11 @@ export function HomeHydrationButton({
         </View>
       ) : (
         <View style={s.waterBtnSecondaryContent}>
-          <Ionicons name={tone === 'positive' ? 'add' : 'remove'} size={15} color={tone === 'positive' ? '#0B6B94' : '#BE123C'} />
+          <Ionicons
+            name={tone === 'positive' ? 'add' : 'remove'}
+            size={14}
+            color={tone === 'positive' ? Brand.hydration : '#BE123C'}
+          />
           <Text style={[s.waterBtnText, tone === 'positive' ? s.waterBtnTextPositive : s.waterBtnTextSecondary]}>
             {label}
           </Text>
