@@ -12,6 +12,8 @@ import { Brand, Spacing } from '@/constants/theme';
 import { HomeHeader } from '@/features/home/home-header';
 import { HomeHeroCard } from '@/features/home/home-hero-card';
 import { HomeHydrationCard } from '@/features/home/home-hydration-card';
+import { HomeMacroSection } from '@/features/home/home-macro-section';
+import { HomeMealSummaryList } from '@/features/home/home-meal-summary-list';
 import { HomeRegisterCard } from '@/features/home/home-register-card';
 import { HomeRegisterOptionsSheet } from '@/features/home/home-register-options-sheet';
 import { s } from '@/features/home/home-screen.styles';
@@ -71,9 +73,28 @@ export default function HomeScreen() {
     setTimeout(action, 180);
   }
 
+  function openSearchRegister() {
+    router.push({ pathname: '/(tabs)/devtools', params: { tool: 'search', from: 'home' } } as any);
+  }
+
+  function openSavedDishesRegister() {
+    router.push({ pathname: '/(tabs)/explore', params: { from: 'home' } } as any);
+  }
+
+  function openPhotoRegister() {
+    router.push({ pathname: '/(tabs)/devtools', params: { tool: 'photo', from: 'home' } } as any);
+  }
+
+  function openManualRegister() {
+    home.setRegisterVisible(true);
+  }
+
   return (
     <View style={s.root} {...panResponder.panHandlers}>
       <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
+      <View pointerEvents="none" style={s.backgroundOrbTop} />
+      <View pointerEvents="none" style={s.backgroundOrbMid} />
+      <View pointerEvents="none" style={s.backgroundOrbBottom} />
 
       <ScrollView
         contentContainerStyle={[s.scroll, { paddingTop: insets.top + Spacing.sm, paddingBottom: 140 + insets.bottom }]}
@@ -95,65 +116,60 @@ export default function HomeScreen() {
           goalsLoading={home.goalsLoading}
           hasAnyGoals={home.hasAnyGoals}
           calories={home.calories}
-          protein={home.protein}
-          carbs={home.carbs}
-          fat={home.fat}
           calorieBadgeValue={home.calorieBadgeValue}
           calorieBadgeLabel={home.calorieBadgeLabel}
           calorieSummaryText={home.calorieSummaryText}
-          calorieSecondaryText={home.calorieSecondaryText}
-          macroGoalItems={home.macroGoalItems}
-          mealSummaries={home.mealSummaries}
           dayWidth={home.dayWidth}
           goalsError={home.goalsError}
           onOpenGoals={() => home.setGoalsModalVisible(true)}
         />
 
-        <HomeHydrationCard
-          hydrationLoading={home.hydrationLoading}
-          hydrationSaving={home.hydrationSaving}
-          hydrationMl={home.hydrationMl}
-          hydrationGoal={home.hydrationGoal}
-          hydrationProgress={home.hydrationProgress}
-          goalReached={Boolean(home.waterStatus?.goalReached)}
-          hydrationStatusText={home.hydrationStatusText}
-          hydrationGoalMenuOpen={home.hydrationGoalMenuOpen}
-          hydrationGoalDraftMl={home.hydrationGoalDraftMl}
-          hydrationWidth={home.hydrationWidth}
-          hydrationScale={home.hydrationScale}
-          hydrationError={home.hydrationError}
-          onToggleGoalMenu={() => home.setHydrationGoalMenuOpen((current) => !current)}
-          onCloseGoalMenu={() => home.setHydrationGoalMenuOpen(false)}
-          onDraftChange={home.handleHydrationGoalDraftChange}
-          onCommitGoal={home.handleHydrationGoalCommit}
-          onQuickAction={(deltaMl) => home.sendHydrationUpdate({ deltaMl })}
-        />
+        <View style={s.metricsSection}>
+          <HomeMacroSection
+            protein={home.protein}
+            carbs={home.carbs}
+            fat={home.fat}
+            macroGoalItems={home.macroGoalItems}
+          />
+
+          <HomeHydrationCard
+            hydrationLoading={home.hydrationLoading}
+            hydrationSaving={home.hydrationSaving}
+            hydrationMl={home.hydrationMl}
+            hydrationGoal={home.hydrationGoal}
+            hydrationProgress={home.hydrationProgress}
+            goalReached={Boolean(home.waterStatus?.goalReached)}
+            hydrationStatusText={home.hydrationStatusText}
+            hydrationGoalMenuOpen={home.hydrationGoalMenuOpen}
+            hydrationGoalDraftMl={home.hydrationGoalDraftMl}
+            hydrationWidth={home.hydrationWidth}
+            hydrationScale={home.hydrationScale}
+            hydrationError={home.hydrationError}
+            onToggleGoalMenu={() => home.setHydrationGoalMenuOpen((current) => !current)}
+            onCloseGoalMenu={() => home.setHydrationGoalMenuOpen(false)}
+            onDraftChange={home.handleHydrationGoalDraftChange}
+            onCommitGoal={home.handleHydrationGoalCommit}
+            onQuickAction={(deltaMl) => home.sendHydrationUpdate({ deltaMl })}
+          />
+        </View>
 
         <HomeRegisterCard
           selectedDate={home.selectedDate}
           onOpenRegisterOptions={() => setRegisterOptionsVisible(true)}
+          onOpenSearch={openSearchRegister}
+          onOpenPhoto={openPhotoRegister}
         />
+
+        <HomeMealSummaryList mealSummaries={home.mealSummaries} mealsCount={home.meals.length} />
       </ScrollView>
 
       <HomeRegisterOptionsSheet
         visible={registerOptionsVisible}
         onClose={() => setRegisterOptionsVisible(false)}
-        onOpenSearch={() =>
-          openRegisterDestination(() =>
-            router.push({ pathname: '/(tabs)/devtools', params: { tool: 'search', from: 'home' } } as any),
-          )
-        }
-        onOpenSavedDishes={() =>
-          openRegisterDestination(() =>
-            router.push({ pathname: '/(tabs)/explore', params: { from: 'home' } } as any),
-          )
-        }
-        onOpenPhoto={() =>
-          openRegisterDestination(() =>
-            router.push({ pathname: '/(tabs)/devtools', params: { tool: 'photo', from: 'home' } } as any),
-          )
-        }
-        onOpenManual={() => openRegisterDestination(() => home.setRegisterVisible(true))}
+        onOpenSearch={() => openRegisterDestination(openSearchRegister)}
+        onOpenSavedDishes={() => openRegisterDestination(openSavedDishesRegister)}
+        onOpenPhoto={() => openRegisterDestination(openPhotoRegister)}
+        onOpenManual={() => openRegisterDestination(openManualRegister)}
       />
 
       <RegisterMealModal
