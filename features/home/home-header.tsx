@@ -52,15 +52,21 @@ export function HomeHeader({
         </View>
 
         <View style={s.actions}>
-          <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} onPress={onOpenHistory}>
+          <Pressable style={({ pressed }) => [s.iconBtn, s.iconBtnPrimary, pressed && s.pressed]} onPress={onOpenHistory}>
             <Ionicons name="stats-chart" size={20} color={Brand.greenDark} />
           </Pressable>
 
-          <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} onPress={onOpenNotifications}>
+          <Pressable
+            style={({ pressed }) => [
+              s.iconBtn,
+              unreadNotificationsCount > 0 && s.iconBtnAlert,
+              pressed && s.pressed,
+            ]}
+            onPress={onOpenNotifications}>
             <Ionicons
               name={unreadNotificationsCount > 0 ? 'notifications' : 'notifications-outline'}
               size={20}
-              color={Brand.text}
+              color={unreadNotificationsCount > 0 ? Brand.coral : Brand.text}
             />
             {unreadNotificationsCount > 0 ? (
               <View style={s.notificationBadge}>
@@ -78,18 +84,19 @@ export function HomeHeader({
 
 const s = StyleSheet.create({
   header: {
-    gap: 14,
+    gap: 18,
+    paddingBottom: 6,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 14,
   },
   profile: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 14,
   },
   profileCopy: {
@@ -98,18 +105,23 @@ const s = StyleSheet.create({
     paddingTop: 2,
   },
   avatarButton: {
-    borderRadius: Radii.xl,
+    borderRadius: 24,
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: 'rgba(20,108,56,0.08)',
+    padding: 4,
+    overflow: 'hidden',
     ...Shadows.card,
   },
   avatar: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 56,
+    height: 56,
+    borderRadius: 20,
   },
   avatarFallback: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 56,
+    height: 56,
+    borderRadius: 20,
     backgroundColor: Brand.greenDark,
     alignItems: 'center',
     justifyContent: 'center',
@@ -120,39 +132,48 @@ const s = StyleSheet.create({
     fontWeight: '800',
   },
   greeting: {
-    ...Typography.title,
+    fontSize: 28,
+    lineHeight: 32,
     color: Brand.text,
     fontWeight: '800',
-    lineHeight: 34,
   },
   actions: {
     flexDirection: 'row',
-    gap: 10,
-    paddingTop: 2,
+    gap: 8,
   },
   iconBtn: {
-    width: 54,
-    height: 54,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 16,
     backgroundColor: Brand.card,
     borderWidth: 1,
-    borderColor: Brand.border,
+    borderColor: 'rgba(21,32,24,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     ...Shadows.card,
   },
+  iconBtnPrimary: {
+    backgroundColor: Brand.surfaceSoft,
+    borderColor: 'rgba(20,108,56,0.08)',
+  },
+  iconBtnAlert: {
+    backgroundColor: '#FFF4EF',
+    borderColor: '#FFDCCD',
+  },
   notificationBadge: {
     position: 'absolute',
-    top: 7,
-    right: 7,
-    minWidth: 17,
-    height: 17,
+    top: 6,
+    right: 6,
+    minWidth: 18,
+    height: 18,
     borderRadius: 9,
     paddingHorizontal: 4,
-    backgroundColor: Brand.danger,
+    backgroundColor: Brand.coral,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   notificationBadgeText: {
     ...Typography.caption,
@@ -167,12 +188,15 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderRadius: Radii.pill,
-    backgroundColor: Brand.surfaceSoft,
+    backgroundColor: '#FBFDFC',
+    borderWidth: 1,
+    borderColor: 'rgba(21,32,24,0.08)',
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
+    ...Shadows.soft,
   },
   dateChipText: {
-    ...Typography.body,
+    ...Typography.helper,
     color: Brand.greenDark,
     fontWeight: '700',
   },
