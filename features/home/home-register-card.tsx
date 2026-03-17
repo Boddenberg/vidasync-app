@@ -25,14 +25,13 @@ export function HomeRegisterCard({
       <View style={s.actionTop}>
         <Text style={s.actionEyebrow}>Registro rapido</Text>
         <View style={s.actionDateChip}>
-          <Ionicons name="calendar-outline" size={15} color={Brand.greenDark} />
           <Text style={s.actionDateText}>{formatDateChip(selectedDate)}</Text>
         </View>
       </View>
 
       <View style={s.actionBody}>
         <Text style={s.actionTitle}>Registrar refeicao</Text>
-        <Text style={s.actionSupport}>Proxima refeicao em poucos toques.</Text>
+        <Text style={s.actionSupport}>Adicione sua proxima refeicao.</Text>
       </View>
 
       <Pressable

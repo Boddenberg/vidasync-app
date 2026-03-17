@@ -20,7 +20,7 @@ export const s = StyleSheet.create({
   },
   counterBadge: {
     borderRadius: Radii.pill,
-    backgroundColor: '#F7FBF8',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(20,108,56,0.08)',
     paddingHorizontal: 12,
@@ -33,9 +33,9 @@ export const s = StyleSheet.create({
   },
   emptyCard: {
     borderRadius: 24,
-    backgroundColor: Brand.card,
+    backgroundColor: '#FCFDFC',
     borderWidth: 1,
-    borderColor: 'rgba(21,32,24,0.08)',
+    borderColor: 'rgba(20,108,56,0.08)',
     padding: 18,
     gap: 6,
     ...Shadows.soft,
@@ -54,12 +54,12 @@ export const s = StyleSheet.create({
   },
   card: {
     borderRadius: 22,
-    backgroundColor: Brand.card,
+    backgroundColor: '#FCFDFC',
     borderWidth: 1,
-    borderColor: 'rgba(21,32,24,0.08)',
-    padding: 15,
+    borderColor: 'rgba(20,108,56,0.08)',
+    padding: 14,
     gap: 10,
-    ...Shadows.soft,
+    ...Shadows.card,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -88,7 +88,7 @@ export const s = StyleSheet.create({
   },
   caloriesBadge: {
     borderRadius: Radii.pill,
-    backgroundColor: '#F7FBF8',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
