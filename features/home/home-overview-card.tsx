@@ -1,15 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Animated, Modal, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Modal, Pressable, Text, View } from 'react-native';
 
 import { HomeHydrationGoalSlider } from '@/features/home/home-hydration-goal-slider';
 import { s } from '@/features/home/home-overview-card.styles';
-import {
-  formatLiters,
-  formatMetricValue,
-  HOME_MACRO_TONES,
-  HYDRATION_QUICK_ACTIONS,
-  type GoalProgress,
-} from '@/features/home/home-utils';
+import { formatLiters, formatMetricValue, HOME_MACRO_TONES, type GoalProgress } from '@/features/home/home-utils';
 import { HYDRATION_GOAL_MAX_ML, HYDRATION_GOAL_MIN_ML } from '@/utils/hydration';
 
 type Props = {
@@ -21,18 +15,14 @@ type Props = {
   carbs: number;
   fat: number;
   calorieBadgeValue: string;
-  calorieBadgeLabel: string;
   calorieSummaryText: string;
-  calorieSecondaryText?: string;
   macroGoalItems: GoalProgress[];
   dayWidth: Animated.AnimatedInterpolation<string | number>;
   hydrationLoading: boolean;
   hydrationSaving: boolean;
   hydrationMl: number;
   hydrationGoal: number | null;
-  hydrationProgress: number;
   goalReached: boolean;
-  hydrationStatusText: string;
   hydrationWidth: Animated.AnimatedInterpolation<string | number>;
   hydrationScale: Animated.AnimatedInterpolation<string | number>;
   goalsError: string | null;
@@ -44,7 +34,6 @@ type Props = {
   onCloseGoalMenu: () => void;
   onDraftChange: (goalMl: number) => void;
   onCommitGoal: (goalMl: number) => void;
-  onQuickAction: (deltaMl: number) => void;
 };
 
 type MacroKey = 'protein' | 'carbs' | 'fat';
@@ -58,18 +47,14 @@ export function HomeOverviewCard({
   carbs,
   fat,
   calorieBadgeValue,
-  calorieBadgeLabel,
   calorieSummaryText,
-  calorieSecondaryText,
   macroGoalItems,
   dayWidth,
   hydrationLoading,
   hydrationSaving,
   hydrationMl,
   hydrationGoal,
-  hydrationProgress,
   goalReached,
-  hydrationStatusText,
   hydrationWidth,
   hydrationScale,
   goalsError,
@@ -81,24 +66,11 @@ export function HomeOverviewCard({
   onCloseGoalMenu,
   onDraftChange,
   onCommitGoal,
-  onQuickAction,
 }: Props) {
-  const { width } = useWindowDimensions();
   const mealCountLabel = mealsCount === 1 ? 'refeicao' : 'refeicoes';
-  const calorieSummary = goalsLoading ? 'Atualizando suas metas e referencias do dia...' : calorieSummaryText;
-  const nutritionSupport = goalsLoading
-    ? 'Os alvos aparecem assim que o painel sincronizar.'
-    : calorieSecondaryText ?? (hasAnyGoals ? `${calorieBadgeValue} ${calorieBadgeLabel}` : 'Defina metas para acompanhar melhor.');
+  const remainingText = goalsLoading ? 'Atualizando metas...' : calorieSummaryText;
   const progressBadgeValue = goalsLoading ? '...' : hasAnyGoals ? calorieBadgeValue : '--';
-  const progressBadgeLabel = goalsLoading ? 'carregando' : hasAnyGoals ? calorieBadgeLabel : 'sem meta';
-  const hydrationGoalLabel = hydrationGoal ? formatLiters(hydrationGoal) : '--';
-  const hydrationMeta = hydrationGoal
-    ? goalReached
-      ? 'Meta batida'
-      : `${Math.round(hydrationProgress * 100)}% da meta`
-    : 'Sem meta';
-  const hydrationSupport = hydrationLoading ? 'Carregando agua...' : hydrationStatusText;
-  const supportColumns = width >= 420 ? 3 : 2;
+  const waterGoalLabel = hydrationGoal ? formatLiters(hydrationGoal) : '--';
 
   const macroGoals = new Map<MacroKey, GoalProgress>();
   macroGoalItems.forEach((item) => {
@@ -107,23 +79,23 @@ export function HomeOverviewCard({
     }
   });
 
-  const macroCards = [
+  const macroItems = [
     {
       key: 'protein' as const,
       label: 'Proteina',
-      consumed: protein,
+      value: protein,
       tone: HOME_MACRO_TONES.protein,
     },
     {
       key: 'carbs' as const,
       label: 'Carbos',
-      consumed: carbs,
+      value: carbs,
       tone: HOME_MACRO_TONES.carbs,
     },
     {
       key: 'fat' as const,
       label: 'Gordura',
-      consumed: fat,
+      value: fat,
       tone: HOME_MACRO_TONES.fat,
     },
   ];
@@ -141,170 +113,96 @@ export function HomeOverviewCard({
         </Pressable>
       </View>
 
-      <View style={s.dashboardShell}>
-        <View style={s.heroRow}>
-          <View style={s.calorieSection}>
-            <Text style={s.sectionLabel}>Calorias</Text>
-            <View style={s.calorieValueRow}>
-              <Text style={s.calorieValue}>{calories}</Text>
-              <Text style={s.calorieUnit}>kcal</Text>
-            </View>
-            <Text numberOfLines={2} style={s.calorieSummary}>
-              {calorieSummary}
-            </Text>
-          </View>
-
-          <View style={s.secondaryColumn}>
-            <View style={[s.secondaryMetric, s.secondaryMetricGoal]}>
-              <Text style={s.secondaryLabel}>Meta</Text>
-              <Text style={s.secondaryValue}>{progressBadgeValue}</Text>
-              <Text numberOfLines={1} style={s.secondaryMeta}>
-                {progressBadgeLabel}
-              </Text>
-            </View>
-
-            <View style={[s.secondaryMetric, s.secondaryMetricMeals]}>
-              <Text style={s.secondaryLabel}>Refeicoes</Text>
-              <Text style={s.secondaryValue}>{mealsCount}</Text>
-              <Text numberOfLines={1} style={s.secondaryMeta}>
-                {mealCountLabel}
-              </Text>
-            </View>
+      <View style={s.summaryRow}>
+        <View style={s.calorieBlock}>
+          <Text style={s.overline}>Calorias</Text>
+          <View style={s.calorieValueRow}>
+            <Text style={s.calorieValue}>{calories}</Text>
+            <Text style={s.calorieUnit}>kcal</Text>
           </View>
         </View>
 
-        <View style={s.progressSection}>
-          <View style={s.progressHeader}>
-            <Text style={s.progressLabel}>Progresso diario</Text>
-            <Text numberOfLines={1} style={s.progressCaption}>
-              {nutritionSupport}
-            </Text>
+        <View style={s.badgesColumn}>
+          <View style={[s.badge, s.badgeGoal]}>
+            <Text style={s.badgeValue}>{progressBadgeValue}</Text>
+            <Text style={s.badgeLabel}>meta</Text>
           </View>
 
-          <View style={s.progressTrack}>
-            <Animated.View style={[s.progressFill, { width: dayWidth }]} />
+          <View style={[s.badge, s.badgeMeals]}>
+            <Text style={s.badgeValue}>{mealsCount}</Text>
+            <Text style={s.badgeLabel}>{mealCountLabel}</Text>
           </View>
         </View>
+      </View>
 
-        <View style={s.supportSection}>
-          <View style={s.supportSectionHeader}>
-            <Text style={s.supportSectionLabel}>Macros e agua</Text>
-            <Text numberOfLines={1} style={s.supportSectionCaption}>
-              {hydrationSupport}
-            </Text>
-          </View>
+      <View style={s.progressSection}>
+        <View style={s.progressTrack}>
+          <Animated.View style={[s.progressFill, { width: dayWidth }]} />
+        </View>
+        <Text numberOfLines={1} style={s.remainingText}>
+          {remainingText}
+        </Text>
+      </View>
 
-          <View style={s.supportGrid}>
-            {macroCards.map((card) => {
-              const goal = macroGoals.get(card.key);
-              const progressText = goal ? `${Math.round(goal.progress * 100)}%` : '0%';
-              const goalText = goal ? `Meta ${formatMetricValue(Math.round(goal.goal), 'g')}` : 'Sem meta';
+      <View style={s.divider} />
 
-              return (
-                <View
-                  key={card.key}
-                  style={[
-                    s.supportCell,
-                    supportColumns === 3 ? s.supportCellThree : s.supportCellTwo,
-                    {
-                      backgroundColor: card.tone.bg,
-                      borderColor: `${card.tone.color}20`,
-                    },
-                  ]}>
-                  <View style={s.supportHeader}>
-                    <View style={s.supportLabelRow}>
-                      <View style={[s.supportDot, { backgroundColor: card.tone.color }]} />
-                      <Text numberOfLines={1} style={s.supportLabel}>
-                        {card.label}
-                      </Text>
-                    </View>
-                  </View>
+      <View style={s.macroStrip}>
+        {macroItems.map((item) => {
+          const goal = macroGoals.get(item.key);
+          const progressText = goal ? `${Math.round(goal.progress * 100)}%` : '0%';
 
-                  <Text adjustsFontSizeToFit numberOfLines={1} style={s.supportValue}>
-                    {formatMetricValue(card.consumed, 'g')}
-                  </Text>
-
-                  <Text numberOfLines={1} style={s.supportMeta}>
-                    {goalText}
-                  </Text>
-
-                  <View style={[s.supportTrack, { backgroundColor: `${card.tone.color}20` }]}>
-                    <View style={[s.supportFill, { width: progressText, backgroundColor: card.tone.color }]} />
-                  </View>
-                </View>
-              );
-            })}
-
-            <View
-              style={[
-                s.supportCell,
-                supportColumns === 3 ? s.supportCellThree : s.supportCellTwo,
-                s.supportWaterCell,
-              ]}>
-              <View style={s.supportHeader}>
-                <View style={s.supportLabelRow}>
-                  <Ionicons name="water-outline" size={15} color="#2D9CDB" />
-                  <Text numberOfLines={1} style={s.supportLabel}>
-                    Agua
-                  </Text>
-                </View>
-
-                <Pressable style={({ pressed }) => [s.inlineAction, pressed && s.pressed]} onPress={onToggleGoalMenu}>
-                  <Ionicons name="options-outline" size={14} color="#2D9CDB" />
-                </Pressable>
-              </View>
-
-              <View style={s.waterValueRow}>
-                <Animated.Text style={[s.supportValue, s.supportWaterValue, { transform: [{ scale: hydrationScale }] }]}>
-                  {formatLiters(hydrationMl)}
-                </Animated.Text>
-                <Text numberOfLines={1} style={s.supportMetaInline}>
-                  / {hydrationGoalLabel}
+          return (
+            <View key={item.key} style={s.macroItem}>
+              <View style={s.macroHeader}>
+                <View style={[s.macroDot, { backgroundColor: item.tone.color }]} />
+                <Text numberOfLines={1} style={s.macroLabel}>
+                  {item.label}
                 </Text>
               </View>
 
-              <Text numberOfLines={1} style={s.supportMeta}>
-                {hydrationMeta}
+              <Text adjustsFontSizeToFit numberOfLines={1} style={s.macroValue}>
+                {formatMetricValue(item.value, 'g')}
               </Text>
 
-              <View style={s.supportTrackWater}>
-                <Animated.View style={[s.supportFillWater, { width: hydrationWidth }]} />
+              <View style={[s.macroTrack, { backgroundColor: `${item.tone.color}20` }]}>
+                <View style={[s.macroFill, { width: progressText, backgroundColor: item.tone.color }]} />
               </View>
             </View>
+          );
+        })}
+      </View>
+
+      <View style={s.divider} />
+
+      <View style={s.waterSection}>
+        <View style={s.waterHeader}>
+          <View style={s.waterLabelRow}>
+            <Ionicons name="water-outline" size={15} color={goalReached ? '#146C38' : '#2D9CDB'} />
+            <Text style={s.overline}>Agua</Text>
           </View>
 
-          <View style={s.controlsRow}>
-            {HYDRATION_QUICK_ACTIONS.map((action) => (
-              <Pressable
-                key={action.label}
-                disabled={hydrationSaving || hydrationLoading}
-                style={({ pressed }) => [
-                  s.controlChip,
-                  action.tone === 'positive' ? s.controlChipPositive : s.controlChipNegative,
-                  (hydrationSaving || hydrationLoading) && s.disabled,
-                  pressed && s.pressed,
-                ]}
-                onPress={() => onQuickAction(action.deltaMl)}>
-                <Ionicons
-                  name={action.tone === 'positive' ? 'add' : 'remove'}
-                  size={12}
-                  color={action.tone === 'positive' ? '#2D9CDB' : '#BE123C'}
-                />
-                <Text
-                  style={[
-                    s.controlChipText,
-                    action.tone === 'positive' ? s.controlChipTextPositive : s.controlChipTextNegative,
-                  ]}>
-                  {action.label}
-                </Text>
-              </Pressable>
-            ))}
+          <Pressable
+            disabled={hydrationSaving || hydrationLoading}
+            style={({ pressed }) => [s.waterAction, (hydrationSaving || hydrationLoading) && s.disabled, pressed && s.pressed]}
+            onPress={onToggleGoalMenu}>
+            <Ionicons name="options-outline" size={14} color="#2D9CDB" />
+          </Pressable>
+        </View>
 
-            <Pressable style={({ pressed }) => [s.controlChip, s.controlChipGoal, pressed && s.pressed]} onPress={onToggleGoalMenu}>
-              <Ionicons name="tune-outline" size={12} color="#146C38" />
-              <Text style={[s.controlChipText, s.controlChipTextGoal]}>Meta agua</Text>
-            </Pressable>
-          </View>
+        <View style={s.waterValueRow}>
+          <Animated.Text
+            style={[
+              s.waterValue,
+              goalReached ? s.waterValueDone : null,
+              { transform: [{ scale: hydrationScale }] },
+            ]}>
+            {formatLiters(hydrationMl)}
+          </Animated.Text>
+          <Text style={s.waterGoal}>/ {waterGoalLabel}</Text>
+        </View>
+
+        <View style={s.waterTrack}>
+          <Animated.View style={[s.waterFill, goalReached ? s.waterFillDone : null, { width: hydrationWidth }]} />
         </View>
       </View>
 

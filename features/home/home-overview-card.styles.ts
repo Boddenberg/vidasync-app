@@ -8,28 +8,28 @@ export const s = StyleSheet.create({
     borderRadius: Radii.xxl,
     borderWidth: 1,
     borderColor: 'rgba(20,108,56,0.08)',
-    padding: 18,
-    gap: 14,
+    padding: 16,
+    gap: 12,
     overflow: 'hidden',
     ...Shadows.card,
   },
   glowTop: {
     position: 'absolute',
-    top: -96,
-    right: -58,
-    width: 208,
-    height: 208,
-    borderRadius: 104,
-    backgroundColor: 'rgba(31,167,80,0.10)',
+    top: -92,
+    right: -56,
+    width: 204,
+    height: 204,
+    borderRadius: 102,
+    backgroundColor: 'rgba(31,167,80,0.08)',
   },
   glowBottom: {
     position: 'absolute',
-    left: -52,
-    bottom: -72,
-    width: 164,
-    height: 164,
-    borderRadius: 82,
-    backgroundColor: 'rgba(45,156,219,0.07)',
+    left: -48,
+    bottom: -66,
+    width: 148,
+    height: 148,
+    borderRadius: 74,
+    backgroundColor: 'rgba(45,156,219,0.06)',
   },
   header: {
     flexDirection: 'row',
@@ -38,40 +38,36 @@ export const s = StyleSheet.create({
     gap: 12,
   },
   title: {
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 26,
+    lineHeight: 30,
     color: Brand.text,
     fontWeight: '800',
-    letterSpacing: -0.6,
+    letterSpacing: -0.5,
   },
   action: {
-    alignSelf: 'flex-start',
     borderRadius: Radii.pill,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(20,108,56,0.08)',
-    paddingHorizontal: 13,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   actionText: {
     ...Typography.caption,
     color: Brand.greenDark,
     fontWeight: '800',
   },
-  dashboardShell: {
-    gap: 14,
-  },
-  heroRow: {
+  summaryRow: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 16,
+    alignItems: 'flex-start',
+    gap: 12,
   },
-  calorieSection: {
-    flex: 1.35,
+  calorieBlock: {
+    flex: 1,
     minWidth: 0,
-    gap: 8,
+    gap: 6,
   },
-  sectionLabel: {
+  overline: {
     ...Typography.caption,
     color: Brand.textSecondary,
     fontWeight: '800',
@@ -84,11 +80,11 @@ export const s = StyleSheet.create({
     gap: 6,
   },
   calorieValue: {
-    fontSize: 48,
-    lineHeight: 50,
+    fontSize: 46,
+    lineHeight: 48,
     color: Brand.text,
     fontWeight: '800',
-    letterSpacing: -1.2,
+    letterSpacing: -1,
   },
   calorieUnit: {
     ...Typography.helper,
@@ -96,74 +92,39 @@ export const s = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 7,
   },
-  calorieSummary: {
+  badgesColumn: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  badge: {
+    minWidth: 88,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 1,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  badgeGoal: {
+    backgroundColor: '#EEF8F1',
+    borderColor: '#D6EBD9',
+  },
+  badgeMeals: {
+    backgroundColor: '#FFF4ED',
+    borderColor: '#FFDCCE',
+  },
+  badgeValue: {
     ...Typography.body,
     color: Brand.text,
-    fontWeight: '700',
-    lineHeight: 21,
+    fontWeight: '800',
   },
-  secondaryColumn: {
-    flex: 1,
-    minWidth: 112,
-    gap: 10,
-  },
-  secondaryMetric: {
-    flex: 1,
-    minHeight: 72,
-    justifyContent: 'center',
-    paddingLeft: 12,
-    paddingVertical: 4,
-    gap: 2,
-    borderLeftWidth: 3,
-  },
-  secondaryMetricGoal: {
-    borderLeftColor: Brand.greenDark,
-  },
-  secondaryMetricMeals: {
-    borderLeftColor: Brand.coral,
-  },
-  secondaryLabel: {
+  badgeLabel: {
     ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  secondaryValue: {
-    fontSize: 24,
-    lineHeight: 28,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  secondaryMeta: {
-    ...Typography.helper,
     color: Brand.textSecondary,
     fontWeight: '700',
   },
   progressSection: {
     gap: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(21,32,24,0.08)',
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  progressLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  progressCaption: {
-    flex: 1,
-    ...Typography.helper,
-    color: Brand.textSecondary,
-    textAlign: 'right',
   },
   progressTrack: {
     height: 8,
@@ -176,110 +137,69 @@ export const s = StyleSheet.create({
     borderRadius: Radii.pill,
     backgroundColor: Brand.greenDark,
   },
-  supportSection: {
-    gap: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(21,32,24,0.08)',
+  remainingText: {
+    ...Typography.helper,
+    color: Brand.text,
+    fontWeight: '700',
   },
-  supportSectionHeader: {
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(21,32,24,0.08)',
+  },
+  macroStrip: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'stretch',
     gap: 10,
   },
-  supportSectionLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  supportSectionCaption: {
-    flex: 1,
-    ...Typography.helper,
-    color: Brand.textSecondary,
-    textAlign: 'right',
-  },
-  supportGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    overflow: 'hidden',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(21,32,24,0.05)',
-    backgroundColor: '#FFFFFF',
-  },
-  supportCell: {
-    minWidth: 0,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    gap: 8,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-  },
-  supportCellTwo: {
-    width: '50%',
-  },
-  supportCellThree: {
-    width: '33.3333%',
-  },
-  supportWaterCell: {
-    backgroundColor: '#F3FAFF',
-    borderColor: '#D8ECF8',
-  },
-  supportHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  supportLabelRow: {
+  macroItem: {
     flex: 1,
     minWidth: 0,
+    gap: 6,
+  },
+  macroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 6,
   },
-  supportDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  macroDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
-  supportLabel: {
+  macroLabel: {
     ...Typography.caption,
     color: Brand.textSecondary,
-    fontWeight: '800',
+    fontWeight: '700',
   },
-  supportValue: {
-    fontSize: 20,
-    lineHeight: 24,
+  macroValue: {
+    ...Typography.body,
     color: Brand.text,
     fontWeight: '800',
   },
-  supportWaterValue: {
-    color: Brand.hydration,
-  },
-  supportMeta: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  supportMetaInline: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  supportTrack: {
-    height: 5,
+  macroTrack: {
+    height: 4,
     borderRadius: Radii.pill,
     overflow: 'hidden',
   },
-  supportFill: {
+  macroFill: {
     height: '100%',
     borderRadius: Radii.pill,
   },
-  inlineAction: {
+  waterSection: {
+    gap: 8,
+  },
+  waterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  waterLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  waterAction: {
     width: 28,
     height: 28,
     borderRadius: 10,
@@ -294,59 +214,33 @@ export const s = StyleSheet.create({
     alignItems: 'baseline',
     gap: 4,
   },
-  supportTrackWater: {
-    height: 5,
+  waterValue: {
+    fontSize: 22,
+    lineHeight: 26,
+    color: Brand.hydration,
+    fontWeight: '800',
+  },
+  waterValueDone: {
+    color: Brand.greenDark,
+  },
+  waterGoal: {
+    ...Typography.helper,
+    color: Brand.textSecondary,
+    fontWeight: '700',
+  },
+  waterTrack: {
+    height: 6,
     borderRadius: Radii.pill,
     overflow: 'hidden',
     backgroundColor: '#D8EDF9',
   },
-  supportFillWater: {
+  waterFill: {
     height: '100%',
     borderRadius: Radii.pill,
     backgroundColor: Brand.hydration,
   },
-  controlsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(21,32,24,0.08)',
-  },
-  controlChip: {
-    minHeight: 34,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  controlChipPositive: {
-    backgroundColor: '#F2FAFF',
-    borderColor: '#CFE8F6',
-  },
-  controlChipNegative: {
-    backgroundColor: '#FFF4F6',
-    borderColor: '#F7D6DC',
-  },
-  controlChipGoal: {
-    backgroundColor: '#EEF8F1',
-    borderColor: '#D6EBD9',
-  },
-  controlChipText: {
-    ...Typography.caption,
-    fontWeight: '800',
-  },
-  controlChipTextPositive: {
-    color: '#2D9CDB',
-  },
-  controlChipTextNegative: {
-    color: '#BE123C',
-  },
-  controlChipTextGoal: {
-    color: Brand.greenDark,
+  waterFillDone: {
+    backgroundColor: Brand.greenDark,
   },
   hydrationGoalModalOverlay: {
     flex: 1,

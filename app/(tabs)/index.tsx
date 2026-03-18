@@ -117,18 +117,14 @@ export default function HomeScreen() {
           carbs={home.carbs}
           fat={home.fat}
           calorieBadgeValue={home.calorieBadgeValue}
-          calorieBadgeLabel={home.calorieBadgeLabel}
           calorieSummaryText={home.calorieSummaryText}
-          calorieSecondaryText={home.calorieSecondaryText}
           macroGoalItems={home.macroGoalItems}
           dayWidth={home.dayWidth}
           hydrationLoading={home.hydrationLoading}
           hydrationSaving={home.hydrationSaving}
           hydrationMl={home.hydrationMl}
           hydrationGoal={home.hydrationGoal}
-          hydrationProgress={home.hydrationProgress}
           goalReached={Boolean(home.waterStatus?.goalReached)}
-          hydrationStatusText={home.hydrationStatusText}
           hydrationWidth={home.hydrationWidth}
           hydrationScale={home.hydrationScale}
           goalsError={home.goalsError}
@@ -140,7 +136,6 @@ export default function HomeScreen() {
           onCloseGoalMenu={() => home.setHydrationGoalMenuOpen(false)}
           onDraftChange={home.handleHydrationGoalDraftChange}
           onCommitGoal={home.handleHydrationGoalCommit}
-          onQuickAction={(deltaMl) => home.sendHydrationUpdate({ deltaMl })}
         />
 
         <HomeRegisterCard
