@@ -198,11 +198,6 @@ export const s = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.7,
   },
-  macroSupport: {
-    ...Typography.caption,
-    color: Brand.textMuted,
-    fontWeight: '700',
-  },
   macroGrid: {
     flexDirection: 'row',
     gap: 8,

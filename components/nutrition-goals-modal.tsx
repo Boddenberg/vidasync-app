@@ -56,7 +56,7 @@ const GOAL_FIELDS: GoalFieldMeta[] = [
   {
     key: 'calories',
     label: 'Calorias',
-    helper: 'Energia total para o dia.',
+    helper: 'Energia diaria.',
     placeholder: 'Ex.: 2400',
     suffix: ' kcal',
     accent: Brand.coral,
@@ -66,7 +66,7 @@ const GOAL_FIELDS: GoalFieldMeta[] = [
   {
     key: 'protein',
     label: 'Proteina',
-    helper: 'Foco em recuperacao e saciedade.',
+    helper: 'Recuperacao e saciedade.',
     placeholder: 'Ex.: 150',
     suffix: 'g',
     accent: Brand.greenDark,
@@ -76,7 +76,7 @@ const GOAL_FIELDS: GoalFieldMeta[] = [
   {
     key: 'carbs',
     label: 'Carboidrato',
-    helper: 'Combustivel para treino e rotina.',
+    helper: 'Combustivel para treino.',
     placeholder: 'Ex.: 220',
     suffix: 'g',
     accent: Brand.orange,
@@ -86,7 +86,7 @@ const GOAL_FIELDS: GoalFieldMeta[] = [
   {
     key: 'fat',
     label: 'Gordura',
-    helper: 'Equilibrio e suporte hormonal.',
+    helper: 'Equilibrio hormonal.',
     placeholder: 'Ex.: 80',
     suffix: 'g',
     accent: '#D45A67',
@@ -118,9 +118,7 @@ function formatGoalValue(value: number | null, suffix: string): string {
 
 export function NutritionGoalsModal({
   visible,
-  dateLabel,
   currentGoals,
-  goalInherited = false,
   saving = false,
   onSave,
   onClose,
@@ -153,12 +151,7 @@ export function NutritionGoalsModal({
     return next;
   }, [drafts]);
 
-  const changeCount = Object.keys(updates).length;
-  const hasChanges = changeCount > 0;
-  const statusCopy = goalInherited ? 'Base herdada do plano atual' : 'Metas personalizadas para este dia';
-  const footerCopy = hasChanges
-    ? `${changeCount} ajuste${changeCount > 1 ? 's' : ''} pronto${changeCount > 1 ? 's' : ''} para salvar.`
-    : 'Preencha somente o que voce quer alterar. Campos vazios ficam como estao.';
+  const hasChanges = Object.keys(updates).length > 0;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -178,86 +171,35 @@ export function NutritionGoalsModal({
               <View style={s.eyebrowBadge}>
                 <Text style={s.eyebrow}>Ajustar metas</Text>
               </View>
-              <View style={[s.statusBadge, goalInherited ? s.statusBadgeMuted : s.statusBadgeWarm]}>
-                <Text style={[s.statusBadgeText, goalInherited ? s.statusBadgeTextMuted : s.statusBadgeTextWarm]}>
-                  {goalInherited ? 'Base herdada' : 'Edicao do dia'}
-                </Text>
-              </View>
             </View>
 
-            <Text style={s.title}>Seu painel nutricional</Text>
-            <Text style={s.subtitle}>
-              Atualize so o que mudou, sem cara de formulario pesado. O restante continua igual.
-            </Text>
-
-            <View style={s.heroMetaRow}>
-              <View style={s.heroMetaCard}>
-                <Text style={s.heroMetaLabel}>Data</Text>
-                <Text style={s.heroMetaValue}>{dateLabel}</Text>
-              </View>
-              <View style={s.heroMetaCard}>
-                <Text style={s.heroMetaLabel}>Status</Text>
-                <Text style={s.heroMetaValue}>{statusCopy}</Text>
-              </View>
-            </View>
+            <Text style={s.title}>Painel nutricional</Text>
           </View>
 
           <ScrollView
             contentContainerStyle={s.body}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
-            <View style={s.sectionCard}>
-              <View style={s.sectionHeader}>
-                <Text style={s.sectionEyebrow}>Metas atuais</Text>
-                <Text style={s.sectionSubtitle}>Use estes valores como referencia antes de editar.</Text>
-              </View>
-
-              <View style={s.currentWrap}>
-                {GOAL_FIELDS.map((field) => (
-                  <GoalChip
-                    key={field.key}
-                    label={field.label}
-                    helper={field.helper}
-                    value={formatGoalValue(currentGoals?.[field.key] ?? null, field.suffix)}
-                    accent={field.accent}
-                    surface={field.surface}
-                    border={field.border}
-                  />
-                ))}
-              </View>
-            </View>
-
-            <View style={s.sectionCard}>
-              <View style={s.sectionHeader}>
-                <Text style={s.sectionEyebrow}>Novos valores</Text>
-                <Text style={s.sectionSubtitle}>Preencha apenas os campos que voce quer trocar hoje.</Text>
-              </View>
-
-              <View style={s.grid}>
-                {GOAL_FIELDS.map((field) => (
-                  <GoalFieldCard
-                    key={field.key}
-                    label={field.label}
-                    helper={field.helper}
-                    value={drafts[field.key]}
-                    placeholder={field.placeholder}
-                    currentValue={currentGoals?.[field.key] ?? null}
-                    suffix={field.suffix}
-                    accent={field.accent}
-                    surface={field.surface}
-                    border={field.border}
-                    onChangeText={(value) => setDraftValue(field.key, value)}
-                  />
-                ))}
-              </View>
+            <View style={s.grid}>
+              {GOAL_FIELDS.map((field) => (
+                <GoalFieldCard
+                  key={field.key}
+                  label={field.label}
+                  helper={field.helper}
+                  value={drafts[field.key]}
+                  placeholder={field.placeholder}
+                  currentValue={currentGoals?.[field.key] ?? null}
+                  suffix={field.suffix}
+                  accent={field.accent}
+                  surface={field.surface}
+                  border={field.border}
+                  onChangeText={(value) => setDraftValue(field.key, value)}
+                />
+              ))}
             </View>
           </ScrollView>
 
           <View style={s.actions}>
-            <View style={s.footerSummary}>
-              <Text style={s.footerSummaryText}>{footerCopy}</Text>
-            </View>
-
             <View style={s.actionRow}>
               <View style={s.primaryAction}>
                 <AppButton
@@ -281,33 +223,6 @@ export function NutritionGoalsModal({
         </View>
       </KeyboardAvoidingView>
     </Modal>
-  );
-}
-
-function GoalChip({
-  label,
-  helper,
-  value,
-  accent,
-  surface,
-  border,
-}: {
-  label: string;
-  helper: string;
-  value: string;
-  accent: string;
-  surface: string;
-  border: string;
-}) {
-  return (
-    <View style={[s.goalChip, { backgroundColor: surface, borderColor: border }]}>
-      <View style={s.goalChipTop}>
-        <View style={[s.goalDot, { backgroundColor: accent }]} />
-        <Text style={s.goalChipLabel}>{label}</Text>
-      </View>
-      <Text style={s.goalChipValue}>{value}</Text>
-      <Text style={s.goalChipHelper}>{helper}</Text>
-    </View>
   );
 }
 
@@ -337,13 +252,11 @@ function GoalFieldCard({
   const parsedValue = parseGoalInput(value);
   const hasDraft = value.trim().length > 0;
   const currentText = formatGoalValue(currentValue, suffix);
-  const helperText = hasDraft
+  const feedbackText = hasDraft
     ? parsedValue !== null
       ? `Novo alvo: ${formatGoalValue(parsedValue, suffix)}`
       : 'Digite um numero valido maior que zero.'
-    : currentValue === null
-      ? 'Sem meta definida ainda. Preencha se quiser criar uma.'
-      : `Se deixar vazio, mantemos ${currentText}.`;
+    : null;
 
   return (
     <View style={[s.fieldCard, hasDraft && { borderColor: accent }]}>
@@ -357,7 +270,7 @@ function GoalFieldCard({
         </View>
 
         <View style={[s.fieldCurrentBadge, { backgroundColor: surface, borderColor: border }]}>
-          <Text style={[s.fieldCurrentBadgeText, { color: accent }]} numberOfLines={2}>
+          <Text style={[s.fieldCurrentBadgeText, { color: accent }]} numberOfLines={1}>
             {currentText}
           </Text>
         </View>
@@ -371,7 +284,9 @@ function GoalFieldCard({
         style={[s.fieldInput, hasDraft && { borderColor: accent }]}
       />
 
-      <Text style={[s.fieldFootnote, hasDraft && parsedValue === null && s.fieldFootnoteError]}>{helperText}</Text>
+      {feedbackText ? (
+        <Text style={[s.fieldFootnote, parsedValue === null && s.fieldFootnoteError]}>{feedbackText}</Text>
+      ) : null}
     </View>
   );
 }
@@ -381,7 +296,7 @@ const s = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 24,
+    paddingVertical: 20,
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -392,9 +307,9 @@ const s = StyleSheet.create({
     borderRadius: Radii.xxl,
     borderWidth: 1,
     borderColor: 'rgba(20,108,56,0.10)',
-    padding: 20,
-    gap: 16,
-    maxHeight: '92%',
+    padding: 18,
+    gap: 14,
+    maxHeight: '88%',
     overflow: 'hidden',
     ...Shadows.floating,
   },
@@ -424,7 +339,7 @@ const s = StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
-    gap: 12,
+    gap: 10,
   },
   headerBadges: {
     flexDirection: 'row',
@@ -440,13 +355,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    borderRadius: Radii.pill,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
   eyebrow: {
     ...Typography.caption,
     color: Brand.greenDark,
@@ -454,139 +362,26 @@ const s = StyleSheet.create({
     letterSpacing: 0.7,
     fontWeight: '800',
   },
-  statusBadgeWarm: {
-    backgroundColor: '#FFF4ED',
-    borderColor: '#FFD9CC',
-  },
-  statusBadgeMuted: {
-    backgroundColor: '#F3F6F4',
-    borderColor: Brand.border,
-  },
-  statusBadgeText: {
-    ...Typography.caption,
-    fontWeight: '800',
-  },
-  statusBadgeTextWarm: {
-    color: Brand.coral,
-  },
-  statusBadgeTextMuted: {
-    color: Brand.textSecondary,
-  },
   title: {
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 28,
+    lineHeight: 32,
     color: Brand.text,
     fontWeight: '800',
     letterSpacing: -0.8,
   },
-  subtitle: {
-    ...Typography.body,
-    color: Brand.textSecondary,
-  },
-  heroMetaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  heroMetaCard: {
-    flex: 1,
-    minWidth: '47%',
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(21,32,24,0.08)',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 4,
-  },
-  heroMetaLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    textTransform: 'uppercase',
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  heroMetaValue: {
-    ...Typography.helper,
-    color: Brand.text,
-    fontWeight: '700',
-  },
   body: {
-    gap: 16,
-    paddingBottom: 4,
-  },
-  sectionCard: {
-    borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    borderWidth: 1,
-    borderColor: 'rgba(21,32,24,0.08)',
-    padding: 16,
-    gap: 14,
-  },
-  sectionHeader: {
-    gap: 4,
-  },
-  sectionEyebrow: {
-    ...Typography.caption,
-    color: Brand.greenDark,
-    textTransform: 'uppercase',
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  sectionSubtitle: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
-  },
-  currentWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  goalChip: {
-    minWidth: '47%',
-    borderRadius: 22,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 10,
-  },
-  goalChipTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  goalDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  goalChipLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    textTransform: 'uppercase',
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  goalChipValue: {
-    fontSize: 22,
-    lineHeight: 26,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  goalChipHelper: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
+    paddingBottom: 2,
   },
   grid: {
-    gap: 12,
+    gap: 10,
   },
   fieldCard: {
     borderRadius: 22,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(21,32,24,0.08)',
-    padding: 14,
-    gap: 12,
+    padding: 12,
+    gap: 10,
   },
   fieldHeader: {
     flexDirection: 'row',
@@ -619,11 +414,11 @@ const s = StyleSheet.create({
     color: Brand.textSecondary,
   },
   fieldCurrentBadge: {
-    maxWidth: '42%',
+    maxWidth: '38%',
     borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 7,
   },
   fieldCurrentBadgeText: {
     ...Typography.caption,
@@ -644,20 +439,7 @@ const s = StyleSheet.create({
     color: Brand.danger,
   },
   actions: {
-    gap: 10,
-  },
-  footerSummary: {
-    borderRadius: 18,
-    backgroundColor: '#F4FAF5',
-    borderWidth: 1,
-    borderColor: '#DDEFE1',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  footerSummaryText: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
-    fontWeight: '700',
+    gap: 8,
   },
   actionRow: {
     flexDirection: 'row',

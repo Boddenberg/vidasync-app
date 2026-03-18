@@ -87,7 +87,7 @@ export function HomeOverviewCard({
     },
     {
       key: 'carbs' as const,
-      label: 'Carboidrato',
+      label: 'Carbos',
       consumed: carbs,
       tone: HOME_MACRO_TONES.carbs,
     },
@@ -150,7 +150,6 @@ export function HomeOverviewCard({
       <View style={s.macroSection}>
         <View style={s.macroHeader}>
           <Text style={s.macroTitle}>Macros</Text>
-          <Text style={s.macroSupport}>Agora os 3 ficam juntos no mesmo bloco</Text>
         </View>
 
         <View style={s.macroGrid}>
@@ -172,7 +171,9 @@ export function HomeOverviewCard({
                 <View style={s.macroTop}>
                   <View style={s.macroLabelRow}>
                     <View style={[s.macroDot, { backgroundColor: card.tone.color }]} />
-                    <Text style={s.macroLabel}>{card.label}</Text>
+                    <Text adjustsFontSizeToFit numberOfLines={1} style={s.macroLabel}>
+                      {card.label}
+                    </Text>
                   </View>
 
                   <Text style={s.macroValue}>{formatMetricValue(card.consumed, 'g')}</Text>

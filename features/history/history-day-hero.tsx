@@ -100,26 +100,26 @@ export function HistoryDayHero({
             <StatCard
               label="Pratos"
               value={`${mealCount}`}
-              hint={mealCount === 1 ? 'registro no dia' : 'registros no dia'}
+              hint="no dia"
               tone="meals"
             />
             <StatCard
               label="Água"
               value={waterStatus ? formatWaterLiters(waterStatus.consumedMl) : '0.0L'}
-              hint="consumidos no dia"
+              hint="hoje"
               tone="water"
             />
             <StatCard
               label="Ajustes"
               value={`${waterEvents.length}`}
-              hint={waterEvents.length === 1 ? 'movimento' : 'movimentos'}
+              hint={waterEvents.length === 1 ? 'ação' : 'ações'}
               tone="events"
             />
           </View>
 
           <View style={s.macroRow}>
             <MacroChip label="Proteína" value={`${protein}g`} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
-            <MacroChip label="Carboidrato" value={`${carbs}g`} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
+            <MacroChip label="Carbos" value={`${carbs}g`} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
             <MacroChip label="Gordura" value={`${fat}g`} color={Brand.macroFat} bg={Brand.macroFatBg} />
           </View>
         </>
@@ -147,9 +147,15 @@ function StatCard({
         tone === 'water' && s.statCardWater,
         tone === 'events' && s.statCardEvents,
       ]}>
-      <Text style={s.statLabel}>{label}</Text>
-      <Text style={s.statValue}>{value}</Text>
-      <Text style={s.statHint}>{hint}</Text>
+      <Text adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={1} style={s.statLabel}>
+        {label}
+      </Text>
+      <Text adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={1} style={s.statValue}>
+        {value}
+      </Text>
+      <Text adjustsFontSizeToFit minimumFontScale={0.8} numberOfLines={1} style={s.statHint}>
+        {hint}
+      </Text>
     </View>
   );
 }
@@ -167,7 +173,9 @@ function MacroChip({
 }) {
   return (
     <View style={[s.macroChip, { backgroundColor: bg }]}>
-      <Text style={[s.macroLabel, { color }]}>{label}</Text>
+      <Text adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={1} style={[s.macroLabel, { color }]}>
+        {label}
+      </Text>
       <Text style={[s.macroValue, { color }]}>{value}</Text>
     </View>
   );
