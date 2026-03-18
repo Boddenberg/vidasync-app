@@ -21,6 +21,10 @@ type Props = {
   onClose: () => void;
 };
 
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function useEditProfileModal({ onClose }: Props) {
   const router = useRouter();
   const {
@@ -214,34 +218,50 @@ export function useEditProfileModal({ onClose }: Props) {
   }
 
   function handlePickPhoto() {
+    clearMessages();
     setPhotoPickerVisible(true);
   }
 
-  async function pickFromCamera() {
+  async function runPhotoPicker(action: () => Promise<string | null>) {
+    clearMessages();
     setPhotoPickerVisible(false);
-    const uri = await pickDishImage(true);
-    if (uri) {
-      clearMessages();
+
+    // Wait for the action sheet/modal stack to close before launching native pickers.
+    await wait(180);
+
+    try {
+      const uri = await action();
+      if (!uri) return;
+
       setPhotoUri(uri);
       setPhotoChanged(true);
+    } catch (err: any) {
+      setError(err?.message ?? 'Nao foi possivel abrir o seletor de imagem.');
     }
+  }
+
+  async function pickFromCamera() {
+    await runPhotoPicker(() => pickDishImage(true));
   }
 
   async function pickFromGallery() {
-    setPhotoPickerVisible(false);
-    const uri = await pickDishImage(false);
-    if (uri) {
-      clearMessages();
-      setPhotoUri(uri);
-      setPhotoChanged(true);
-    }
+    await runPhotoPicker(() => pickDishImage(false));
   }
 
   function removePhoto() {
-    clearMessages();
-    setPhotoPickerVisible(false);
-    setPhotoUri(null);
-    setPhotoChanged(true);
+    Alert.alert('Remover foto', 'Tem certeza que deseja remover a foto do perfil?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Remover',
+        style: 'destructive',
+        onPress: () => {
+          clearMessages();
+          setPhotoPickerVisible(false);
+          setPhotoUri(null);
+          setPhotoChanged(true);
+        },
+      },
+    ]);
   }
 
   async function handleSavePhoto() {

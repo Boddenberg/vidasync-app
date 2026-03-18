@@ -6,6 +6,20 @@
 
 import * as ImagePicker from 'expo-image-picker';
 
+async function ensureGalleryPermission() {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    throw new Error('Permissao da galeria negada.');
+  }
+}
+
+async function ensureCameraPermission() {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) {
+    throw new Error('Permissao da camera negada.');
+  }
+}
+
 /**
  * Abre o picker de imagem (galeria ou câmera).
  * Retorna a imagem em base64 (com prefixo data:image/...), ou null se cancelou.
@@ -21,10 +35,10 @@ export async function pickDishImage(useCamera = false): Promise<string | null> {
   let result: ImagePicker.ImagePickerResult;
 
   if (useCamera) {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) return null;
+    await ensureCameraPermission();
     result = await ImagePicker.launchCameraAsync(options);
   } else {
+    await ensureGalleryPermission();
     result = await ImagePicker.launchImageLibraryAsync({
       ...options,
       mediaTypes: ['images'],
