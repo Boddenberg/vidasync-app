@@ -23,15 +23,15 @@ export function HomeRegisterCard({
       <View pointerEvents="none" style={s.actionGlow} />
 
       <View style={s.actionTop}>
-        <Text style={s.actionEyebrow}>Registro rapido</Text>
+        <Text style={s.actionEyebrow}>Registro rápido</Text>
         <View style={s.actionDateChip}>
           <Text style={s.actionDateText}>{formatDateChip(selectedDate)}</Text>
         </View>
       </View>
 
       <View style={s.actionBody}>
-        <Text style={s.actionTitle}>Registrar refeicao</Text>
-        <Text style={s.actionSupport}>Adicione sua proxima refeicao.</Text>
+        <Text style={s.actionTitle}>Registrar refeição</Text>
+        <Text style={s.actionSupport}>Adicione sua próxima refeição.</Text>
       </View>
 
       <Pressable
@@ -39,7 +39,7 @@ export function HomeRegisterCard({
         onPress={onOpenRegisterOptions}>
         <View style={s.actionPrimaryButtonContent}>
           <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-          <Text style={s.actionPrimaryButtonText}>Registrar refeicao</Text>
+          <Text style={s.actionPrimaryButtonText}>Registrar refeição</Text>
         </View>
       </Pressable>
 

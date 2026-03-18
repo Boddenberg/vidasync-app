@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Text, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 
 import { s } from '@/features/home/home-meal-summary-list.styles';
 import { HOME_MACRO_TONES, type MealSummary } from '@/features/home/home-utils';
@@ -15,7 +15,7 @@ export function HomeMealSummaryList({ mealSummaries, mealsCount }: Props) {
   return (
     <View style={s.section}>
       <View style={s.header}>
-        <Text style={s.title}>Refeicoes</Text>
+        <Text style={s.title}>Refeições</Text>
         <View style={s.counterBadge}>
           <Text style={s.counter}>{counterLabel}</Text>
         </View>
@@ -26,9 +26,13 @@ export function HomeMealSummaryList({ mealSummaries, mealsCount }: Props) {
           {mealSummaries.map((item) => (
             <View key={item.type} style={s.card}>
               <View style={s.cardHeader}>
-                <View style={[s.iconWrap, { backgroundColor: item.bg }]}>
-                  <Ionicons name={item.icon} size={15} color={item.color} />
-                </View>
+                {item.imageUrl ? (
+                  <Image source={{ uri: item.imageUrl }} style={s.thumb} />
+                ) : (
+                  <View style={[s.iconWrap, { backgroundColor: item.bg }]}>
+                    <Ionicons name={item.icon} size={15} color={item.color} />
+                  </View>
+                )}
 
                 <View style={s.copy}>
                   <Text style={s.label}>{item.label}</Text>
@@ -67,8 +71,8 @@ export function HomeMealSummaryList({ mealSummaries, mealsCount }: Props) {
         </View>
       ) : (
         <View style={s.emptyCard}>
-          <Text style={s.emptyTitle}>Nenhuma refeicao registrada</Text>
-          <Text style={s.emptyText}>Use o card acima para adicionar a primeira refeicao.</Text>
+          <Text style={s.emptyTitle}>Nenhuma refeição registrada</Text>
+          <Text style={s.emptyText}>Use o card acima para adicionar a primeira refeição.</Text>
         </View>
       )}
     </View>

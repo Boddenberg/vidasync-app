@@ -67,11 +67,17 @@ export const s = StyleSheet.create({
     gap: 12,
   },
   iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  thumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
   },
   copy: {
     flex: 1,

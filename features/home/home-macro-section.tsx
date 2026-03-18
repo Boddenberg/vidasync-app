@@ -24,7 +24,7 @@ export function HomeMacroSection({ protein, carbs, fat, macroGoalItems }: Props)
   const cards = [
     {
       key: 'protein' as const,
-      label: 'Proteina',
+      label: 'Proteína',
       consumed: protein,
       tone: HOME_MACRO_TONES.protein,
     },

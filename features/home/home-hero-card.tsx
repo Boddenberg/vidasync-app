@@ -35,7 +35,7 @@ export function HomeHeroCard({
   goalsError,
   onOpenGoals,
 }: Props) {
-  const mealCountLabel = mealsCount === 1 ? 'refeicao' : 'refeicoes';
+  const mealCountLabel = mealsCount === 1 ? 'refeição' : 'refeições';
   const secondaryLine = /restantes|conclu/i.test(calorieSummaryText)
     ? calorieSummaryText
         .replace(/Meta .*conclu.*$/i, 'Meta batida')
@@ -44,7 +44,7 @@ export function HomeHeroCard({
         .trim()
     : hasAnyGoals
       ? `${calorieBadgeValue} ${calorieBadgeLabel}`
-      : 'Defina sua meta diaria';
+      : 'Defina sua meta diária';
 
   return (
     <View style={s.hero}>

@@ -8,7 +8,9 @@ import { extractNum, toDateStr, todayStr } from '@/utils/helpers';
 
 export const HYDRATION_QUICK_ACTIONS = [
   { label: '+200 ml', deltaMl: 200, tone: 'positive' as const },
-  { label: '+1 litro', deltaMl: 1000, tone: 'positive' as const },
+  { label: '+500 ml', deltaMl: 500, tone: 'positive' as const },
+  { label: '-200 ml', deltaMl: -200, tone: 'negative' as const },
+  { label: '-500 ml', deltaMl: -500, tone: 'negative' as const },
 ];
 
 export const HOME_MACRO_TONES = {
@@ -36,6 +38,7 @@ export type MealSummary = {
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   bg: string;
+  imageUrl: string | null;
   count: number;
   calories: number;
   protein: number;
@@ -52,8 +55,8 @@ const MEAL_SUMMARY_META: Record<
     bg: string;
   }
 > = {
-  breakfast: { label: 'Cafe da manha', icon: 'sunny-outline', color: Brand.macroCarb, bg: '#FFF5E1' },
-  lunch: { label: 'Almoco', icon: 'restaurant-outline', color: Brand.greenDark, bg: '#EAF8EE' },
+  breakfast: { label: 'Café da manhã', icon: 'sunny-outline', color: Brand.macroCarb, bg: '#FFF5E1' },
+  lunch: { label: 'Almoço', icon: 'restaurant-outline', color: Brand.greenDark, bg: '#EAF8EE' },
   snack: { label: 'Lanche', icon: 'cafe-outline', color: Brand.coral, bg: '#FFF1EB' },
   dinner: { label: 'Jantar', icon: 'moon-outline', color: Brand.greenDark, bg: '#EEF8F1' },
   supper: { label: 'Ceia', icon: 'bed-outline', color: Brand.textSecondary, bg: '#F3F6F4' },
@@ -173,7 +176,7 @@ export function buildGoalItems(
 ): GoalProgress[] {
   return [
     buildGoalProgress('calories', 'Calorias', ' kcal', calories, goals?.goals.calories ?? null, Brand.greenDark, '#E7F6EC'),
-    buildGoalProgress('protein', 'Proteina', 'g', protein, goals?.goals.protein ?? null, HOME_MACRO_TONES.protein.color, HOME_MACRO_TONES.protein.bg),
+    buildGoalProgress('protein', 'Proteína', 'g', protein, goals?.goals.protein ?? null, HOME_MACRO_TONES.protein.color, HOME_MACRO_TONES.protein.bg),
     buildGoalProgress('carbs', 'Carboidrato', 'g', carbs, goals?.goals.carbs ?? null, HOME_MACRO_TONES.carbs.color, HOME_MACRO_TONES.carbs.bg),
     buildGoalProgress('fat', 'Gordura', 'g', fat, goals?.goals.fat ?? null, HOME_MACRO_TONES.fat.color, HOME_MACRO_TONES.fat.bg),
   ].filter((item): item is GoalProgress => item !== null);
@@ -190,6 +193,7 @@ export function buildMealSummaries(meals: Meal[]): MealSummary[] {
       icon: meta.icon,
       color: meta.color,
       bg: meta.bg,
+      imageUrl: null,
       count: 0,
       calories: 0,
       protein: 0,
@@ -203,6 +207,9 @@ export function buildMealSummaries(meals: Meal[]): MealSummary[] {
     if (!bucket) return;
 
     bucket.count += 1;
+    if (!bucket.imageUrl && meal.imageUrl) {
+      bucket.imageUrl = meal.imageUrl;
+    }
     bucket.calories += extractNum(meal.nutrition?.calories ?? '0');
     bucket.protein += extractNum(meal.nutrition?.protein ?? '0');
     bucket.carbs += extractNum(meal.nutrition?.carbs ?? '0');
