@@ -44,7 +44,12 @@ export function HomeHeader({
               <Text style={s.dateChipText}>{dashboardDateText}</Text>
             </Pressable>
 
-            <Text style={s.greeting}>
+            <Text
+              style={s.greeting}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              adjustsFontSizeToFit
+              minimumFontScale={0.78}>
               {greeting()}
               {user ? `, ${user.username}` : ''}
             </Text>
@@ -132,10 +137,11 @@ const s = StyleSheet.create({
     fontWeight: '800',
   },
   greeting: {
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 22,
+    lineHeight: 26,
     color: Brand.text,
     fontWeight: '800',
+    flexShrink: 1,
   },
   actions: {
     flexDirection: 'row',

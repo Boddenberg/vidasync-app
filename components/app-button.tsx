@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
 
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 
@@ -8,6 +8,7 @@ type Props = {
   loading?: boolean;
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'danger';
+  textStyle?: StyleProp<TextStyle>;
 };
 
 type ButtonPalette = {
@@ -48,7 +49,7 @@ function resolvePalette(variant: Props['variant']): ButtonPalette {
   };
 }
 
-export function AppButton({ title, onPress, loading, disabled, variant = 'primary' }: Props) {
+export function AppButton({ title, onPress, loading, disabled, variant = 'primary', textStyle }: Props) {
   const palette = resolvePalette(variant);
   const block = loading || disabled;
 
@@ -69,7 +70,13 @@ export function AppButton({ title, onPress, loading, disabled, variant = 'primar
       {loading ? (
         <ActivityIndicator color={palette.text} size="small" />
       ) : (
-        <Text style={[s.text, { color: palette.text }]}>{title}</Text>
+        <Text
+          style={[s.text, { color: palette.text }, textStyle]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.82}>
+          {title}
+        </Text>
       )}
     </Pressable>
   );
@@ -89,5 +96,7 @@ const s = StyleSheet.create({
     ...Typography.subtitle,
     fontWeight: '800',
     letterSpacing: 0.1,
+    textAlign: 'center',
+    flexShrink: 1,
   },
 });
