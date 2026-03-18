@@ -234,11 +234,15 @@ export const s = StyleSheet.create({
     ...Typography.subtitle,
     color: Brand.text,
     fontWeight: '800',
+    textAlign: 'center',
+    alignSelf: 'stretch',
   },
   macroGoal: {
     ...Typography.caption,
     color: Brand.textSecondary,
     fontWeight: '700',
+    textAlign: 'center',
+    alignSelf: 'stretch',
   },
   macroTrack: {
     height: 7,

@@ -26,8 +26,46 @@ export function HomeHeader({
 }: Props) {
   return (
     <View style={s.header}>
-      <View style={s.headerRow}>
-        <View style={s.profile}>
+      <View style={s.headerSurface}>
+        <View style={s.topRow}>
+          <Pressable style={({ pressed }) => [s.dateChip, pressed && s.pressed]} onPress={onOpenCalendar}>
+            <Ionicons name="calendar-outline" size={15} color={Brand.greenDark} />
+            <Text numberOfLines={1} style={s.dateChipText}>
+              {dashboardDateText}
+            </Text>
+          </Pressable>
+
+          <View style={s.actionsShell}>
+            <Pressable style={({ pressed }) => [s.iconBtn, s.iconBtnPrimary, pressed && s.pressed]} onPress={onOpenHistory}>
+              <Ionicons name="stats-chart" size={19} color={Brand.greenDark} />
+            </Pressable>
+
+            <View style={s.actionDivider} />
+
+            <Pressable
+              style={({ pressed }) => [
+                s.iconBtn,
+                unreadNotificationsCount > 0 && s.iconBtnAlert,
+                pressed && s.pressed,
+              ]}
+              onPress={onOpenNotifications}>
+              <Ionicons
+                name={unreadNotificationsCount > 0 ? 'notifications' : 'notifications-outline'}
+                size={19}
+                color={unreadNotificationsCount > 0 ? Brand.coral : Brand.text}
+              />
+              {unreadNotificationsCount > 0 ? (
+                <View style={s.notificationBadge}>
+                  <Text style={s.notificationBadgeText}>
+                    {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={s.identityRow}>
           <Pressable style={({ pressed }) => [s.avatarButton, pressed && s.pressed]} onPress={onOpenProfile}>
             {user?.profileImageUrl ? (
               <Image source={{ uri: user.profileImageUrl }} style={s.avatar} />
@@ -39,48 +77,16 @@ export function HomeHeader({
           </Pressable>
 
           <View style={s.profileCopy}>
-            <Pressable style={({ pressed }) => [s.dateChip, pressed && s.pressed]} onPress={onOpenCalendar}>
-              <Ionicons name="calendar-outline" size={15} color={Brand.greenDark} />
-              <Text style={s.dateChipText}>{dashboardDateText}</Text>
-            </Pressable>
-
+            <Text style={s.greetingLabel}>{greeting()}</Text>
             <Text
-              style={s.greeting}
+              style={s.username}
               numberOfLines={1}
               ellipsizeMode="tail"
               adjustsFontSizeToFit
-              minimumFontScale={0.78}>
-              {greeting()}
-              {user ? `, ${user.username}` : ''}
+              minimumFontScale={0.8}>
+              {user?.username ?? 'Usuário'}
             </Text>
           </View>
-        </View>
-
-        <View style={s.actions}>
-          <Pressable style={({ pressed }) => [s.iconBtn, s.iconBtnPrimary, pressed && s.pressed]} onPress={onOpenHistory}>
-            <Ionicons name="stats-chart" size={20} color={Brand.greenDark} />
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              s.iconBtn,
-              unreadNotificationsCount > 0 && s.iconBtnAlert,
-              pressed && s.pressed,
-            ]}
-            onPress={onOpenNotifications}>
-            <Ionicons
-              name={unreadNotificationsCount > 0 ? 'notifications' : 'notifications-outline'}
-              size={20}
-              color={unreadNotificationsCount > 0 ? Brand.coral : Brand.text}
-            />
-            {unreadNotificationsCount > 0 ? (
-              <View style={s.notificationBadge}>
-                <Text style={s.notificationBadgeText}>
-                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
-                </Text>
-              </View>
-            ) : null}
-          </Pressable>
         </View>
       </View>
     </View>
@@ -89,29 +95,36 @@ export function HomeHeader({
 
 const s = StyleSheet.create({
   header: {
-    gap: 18,
-    paddingBottom: 6,
+    paddingBottom: 4,
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  headerSurface: {
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(20,108,56,0.08)',
+    padding: 16,
     gap: 14,
+    ...Shadows.card,
   },
-  profile: {
-    flex: 1,
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  identityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
   },
   profileCopy: {
     flex: 1,
-    gap: 8,
-    paddingTop: 2,
+    minWidth: 0,
+    gap: 3,
   },
   avatarButton: {
-    borderRadius: 24,
-    backgroundColor: Brand.card,
+    borderRadius: 25,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(20,108,56,0.08)',
     padding: 4,
@@ -119,14 +132,14 @@ const s = StyleSheet.create({
     ...Shadows.card,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 20,
+    width: 58,
+    height: 58,
+    borderRadius: 21,
   },
   avatarFallback: {
-    width: 56,
-    height: 56,
-    borderRadius: 20,
+    width: 58,
+    height: 58,
+    borderRadius: 21,
     backgroundColor: Brand.greenDark,
     alignItems: 'center',
     justifyContent: 'center',
@@ -136,41 +149,57 @@ const s = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
   },
-  greeting: {
-    fontSize: 22,
-    lineHeight: 26,
+  greetingLabel: {
+    ...Typography.caption,
+    color: Brand.greenDark,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  username: {
+    fontSize: 24,
+    lineHeight: 28,
     color: Brand.text,
     fontWeight: '800',
     flexShrink: 1,
   },
-  actions: {
+  actionsShell: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  iconBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
-    backgroundColor: Brand.card,
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(21,32,24,0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    ...Shadows.soft,
+  },
+  actionDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(21,32,24,0.08)',
+    marginVertical: 4,
+  },
+  iconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    ...Shadows.card,
   },
   iconBtnPrimary: {
-    backgroundColor: Brand.surfaceSoft,
-    borderColor: 'rgba(20,108,56,0.08)',
+    backgroundColor: '#EEF8F1',
   },
   iconBtnAlert: {
     backgroundColor: '#FFF4EF',
-    borderColor: '#FFDCCD',
   },
   notificationBadge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: 2,
+    right: 1,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
@@ -189,22 +218,23 @@ const s = StyleSheet.create({
     lineHeight: 12,
   },
   dateChip: {
-    alignSelf: 'flex-start',
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     borderRadius: Radii.pill,
-    backgroundColor: '#FBFDFC',
+    backgroundColor: '#EEF8F1',
     borderWidth: 1,
-    borderColor: 'rgba(21,32,24,0.08)',
+    borderColor: '#D8EAD9',
     paddingHorizontal: 14,
-    paddingVertical: 9,
-    ...Shadows.soft,
+    paddingVertical: 10,
   },
   dateChipText: {
     ...Typography.helper,
     color: Brand.greenDark,
     fontWeight: '700',
+    flexShrink: 1,
   },
   pressed: {
     opacity: 0.92,
