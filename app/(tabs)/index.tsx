@@ -10,9 +10,8 @@ import { NutritionGoalsModal } from '@/components/nutrition-goals-modal';
 import { RegisterMealModal } from '@/components/register-meal-modal';
 import { Brand, Spacing } from '@/constants/theme';
 import { HomeHeader } from '@/features/home/home-header';
-import { HomeHeroCard } from '@/features/home/home-hero-card';
 import { HomeHydrationCard } from '@/features/home/home-hydration-card';
-import { HomeMacroSection } from '@/features/home/home-macro-section';
+import { HomeOverviewCard } from '@/features/home/home-overview-card';
 import { HomeMealSummaryList } from '@/features/home/home-meal-summary-list';
 import { HomeRegisterCard } from '@/features/home/home-register-card';
 import { HomeRegisterOptionsSheet } from '@/features/home/home-register-options-sheet';
@@ -110,48 +109,49 @@ export default function HomeScreen() {
           onOpenCalendar={() => home.setCalendarVisible(true)}
         />
 
-        <HomeHeroCard
+        <HomeOverviewCard
           mealsCount={home.meals.length}
           heroTitle={home.heroTitle}
           goalsLoading={home.goalsLoading}
           hasAnyGoals={home.hasAnyGoals}
           calories={home.calories}
+          protein={home.protein}
+          carbs={home.carbs}
+          fat={home.fat}
           calorieBadgeValue={home.calorieBadgeValue}
           calorieBadgeLabel={home.calorieBadgeLabel}
           calorieSummaryText={home.calorieSummaryText}
+          calorieSecondaryText={home.calorieSecondaryText}
+          macroGoalItems={home.macroGoalItems}
           dayWidth={home.dayWidth}
+          hydrationLoading={home.hydrationLoading}
+          hydrationMl={home.hydrationMl}
+          hydrationGoal={home.hydrationGoal}
+          hydrationProgress={home.hydrationProgress}
+          hydrationStatusText={home.hydrationStatusText}
+          hydrationWidth={home.hydrationWidth}
+          hydrationScale={home.hydrationScale}
           goalsError={home.goalsError}
           onOpenGoals={() => home.setGoalsModalVisible(true)}
         />
 
-        <View style={s.metricsSection}>
-          <HomeHydrationCard
-            hydrationLoading={home.hydrationLoading}
-            hydrationSaving={home.hydrationSaving}
-            hydrationMl={home.hydrationMl}
-            hydrationGoal={home.hydrationGoal}
-            hydrationProgress={home.hydrationProgress}
-            goalReached={Boolean(home.waterStatus?.goalReached)}
-            hydrationStatusText={home.hydrationStatusText}
-            hydrationGoalMenuOpen={home.hydrationGoalMenuOpen}
-            hydrationGoalDraftMl={home.hydrationGoalDraftMl}
-            hydrationWidth={home.hydrationWidth}
-            hydrationScale={home.hydrationScale}
-            hydrationError={home.hydrationError}
-            onToggleGoalMenu={() => home.setHydrationGoalMenuOpen((current) => !current)}
-            onCloseGoalMenu={() => home.setHydrationGoalMenuOpen(false)}
-            onDraftChange={home.handleHydrationGoalDraftChange}
-            onCommitGoal={home.handleHydrationGoalCommit}
-            onQuickAction={(deltaMl) => home.sendHydrationUpdate({ deltaMl })}
-          />
-
-          <HomeMacroSection
-            protein={home.protein}
-            carbs={home.carbs}
-            fat={home.fat}
-            macroGoalItems={home.macroGoalItems}
-          />
-        </View>
+        <HomeHydrationCard
+          hydrationLoading={home.hydrationLoading}
+          hydrationSaving={home.hydrationSaving}
+          hydrationMl={home.hydrationMl}
+          hydrationGoal={home.hydrationGoal}
+          hydrationProgress={home.hydrationProgress}
+          goalReached={Boolean(home.waterStatus?.goalReached)}
+          hydrationStatusText={home.hydrationStatusText}
+          hydrationGoalMenuOpen={home.hydrationGoalMenuOpen}
+          hydrationGoalDraftMl={home.hydrationGoalDraftMl}
+          hydrationError={home.hydrationError}
+          onToggleGoalMenu={() => home.setHydrationGoalMenuOpen((current) => !current)}
+          onCloseGoalMenu={() => home.setHydrationGoalMenuOpen(false)}
+          onDraftChange={home.handleHydrationGoalDraftChange}
+          onCommitGoal={home.handleHydrationGoalCommit}
+          onQuickAction={(deltaMl) => home.sendHydrationUpdate({ deltaMl })}
+        />
 
         <HomeRegisterCard
           selectedDate={home.selectedDate}

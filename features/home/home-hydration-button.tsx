@@ -22,6 +22,13 @@ export function HomeHydrationButton({
   eyebrow: _eyebrow,
 }: Props) {
   const isPrimary = variant === 'primary';
+  const toneStyle = tone === 'positive'
+    ? isPrimary
+      ? s.waterBtnPrimaryPositive
+      : s.waterBtnSecondaryPositive
+    : isPrimary
+      ? s.waterBtnPrimaryNegative
+      : s.waterBtnSecondaryNegative;
 
   return (
     <Pressable
@@ -29,6 +36,7 @@ export function HomeHydrationButton({
       style={({ pressed }) => [
         s.waterBtn,
         isPrimary ? s.waterBtnPrimary : s.waterBtnSecondary,
+        toneStyle,
         disabled && s.disabled,
         pressed && s.pressed,
       ]}
