@@ -136,6 +136,7 @@ export default function HomeScreen() {
           onCloseGoalMenu={() => home.setHydrationGoalMenuOpen(false)}
           onDraftChange={home.handleHydrationGoalDraftChange}
           onCommitGoal={home.handleHydrationGoalCommit}
+          onQuickHydration={home.sendHydrationUpdate}
         />
 
         <HomeRegisterCard

@@ -3,7 +3,7 @@ import { Animated, Modal, Pressable, Text, View } from 'react-native';
 
 import { HomeHydrationGoalSlider } from '@/features/home/home-hydration-goal-slider';
 import { s } from '@/features/home/home-overview-card.styles';
-import { formatLiters, formatMetricValue, HOME_MACRO_TONES, type GoalProgress } from '@/features/home/home-utils';
+import { formatLiters, formatMetricValue, HOME_MACRO_TONES, HYDRATION_QUICK_ACTIONS, type GoalProgress } from '@/features/home/home-utils';
 import { HYDRATION_GOAL_MAX_ML, HYDRATION_GOAL_MIN_ML } from '@/utils/hydration';
 
 type Props = {
@@ -34,6 +34,7 @@ type Props = {
   onCloseGoalMenu: () => void;
   onDraftChange: (goalMl: number) => void;
   onCommitGoal: (goalMl: number) => void;
+  onQuickHydration: (params: { deltaMl?: number; goalMl?: number }) => void | Promise<void>;
 };
 
 type MacroKey = 'protein' | 'carbs' | 'fat';
@@ -66,6 +67,7 @@ export function HomeOverviewCard({
   onCloseGoalMenu,
   onDraftChange,
   onCommitGoal,
+  onQuickHydration,
 }: Props) {
   const mealCountLabel = mealsCount === 1 ? 'refeicao' : 'refeicoes';
   const remainingText = goalsLoading ? 'Atualizando metas...' : calorieSummaryText;
@@ -99,6 +101,7 @@ export function HomeOverviewCard({
       tone: HOME_MACRO_TONES.fat,
     },
   ];
+  const hydrationActions = HYDRATION_QUICK_ACTIONS;
 
   return (
     <View style={s.card}>
@@ -203,6 +206,40 @@ export function HomeOverviewCard({
 
         <View style={s.waterTrack}>
           <Animated.View style={[s.waterFill, goalReached ? s.waterFillDone : null, { width: hydrationWidth }]} />
+        </View>
+
+        <View style={s.waterActionsRow}>
+          {hydrationActions.map((action) => {
+            const isPositive = action.tone === 'positive';
+
+            return (
+              <Pressable
+                key={action.label}
+                disabled={hydrationSaving || hydrationLoading}
+                style={({ pressed }) => [
+                  s.waterQuickAction,
+                  isPositive ? s.waterQuickActionPositive : s.waterQuickActionNegative,
+                  (hydrationSaving || hydrationLoading) && s.disabled,
+                  pressed && s.pressed,
+                ]}
+                onPress={() => onQuickHydration({ deltaMl: action.deltaMl })}>
+                <View
+                  style={[
+                    s.waterQuickActionIcon,
+                    isPositive ? s.waterQuickActionIconPositive : s.waterQuickActionIconNegative,
+                  ]}>
+                  <Ionicons
+                    name={isPositive ? 'add' : 'remove'}
+                    size={12}
+                    color={isPositive ? '#FFFFFF' : '#BE123C'}
+                  />
+                </View>
+                <Text style={[s.waterQuickActionText, isPositive ? s.waterQuickActionTextPositive : s.waterQuickActionTextNegative]}>
+                  {action.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 

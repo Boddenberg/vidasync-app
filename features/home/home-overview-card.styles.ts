@@ -242,6 +242,53 @@ export const s = StyleSheet.create({
   waterFillDone: {
     backgroundColor: Brand.greenDark,
   },
+  waterActionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  waterQuickAction: {
+    minWidth: 82,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  waterQuickActionPositive: {
+    backgroundColor: '#EAF6FD',
+    borderColor: '#D7EAF7',
+  },
+  waterQuickActionNegative: {
+    backgroundColor: '#FFF3F5',
+    borderColor: '#F6D7DE',
+  },
+  waterQuickActionIcon: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waterQuickActionIconPositive: {
+    backgroundColor: Brand.hydration,
+  },
+  waterQuickActionIconNegative: {
+    backgroundColor: '#FFE3EA',
+  },
+  waterQuickActionText: {
+    ...Typography.caption,
+    fontWeight: '800',
+  },
+  waterQuickActionTextPositive: {
+    color: '#1E6B93',
+  },
+  waterQuickActionTextNegative: {
+    color: '#BE123C',
+  },
   hydrationGoalModalOverlay: {
     flex: 1,
     justifyContent: 'center',
