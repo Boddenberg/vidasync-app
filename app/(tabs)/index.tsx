@@ -10,7 +10,6 @@ import { NutritionGoalsModal } from '@/components/nutrition-goals-modal';
 import { RegisterMealModal } from '@/components/register-meal-modal';
 import { Brand, Spacing } from '@/constants/theme';
 import { HomeHeader } from '@/features/home/home-header';
-import { HomeHydrationCard } from '@/features/home/home-hydration-card';
 import { HomeOverviewCard } from '@/features/home/home-overview-card';
 import { HomeMealSummaryList } from '@/features/home/home-meal-summary-list';
 import { HomeRegisterCard } from '@/features/home/home-register-card';
@@ -111,7 +110,6 @@ export default function HomeScreen() {
 
         <HomeOverviewCard
           mealsCount={home.meals.length}
-          heroTitle={home.heroTitle}
           goalsLoading={home.goalsLoading}
           hasAnyGoals={home.hasAnyGoals}
           calories={home.calories}
@@ -125,27 +123,19 @@ export default function HomeScreen() {
           macroGoalItems={home.macroGoalItems}
           dayWidth={home.dayWidth}
           hydrationLoading={home.hydrationLoading}
-          hydrationMl={home.hydrationMl}
-          hydrationGoal={home.hydrationGoal}
-          hydrationProgress={home.hydrationProgress}
-          hydrationStatusText={home.hydrationStatusText}
-          hydrationWidth={home.hydrationWidth}
-          hydrationScale={home.hydrationScale}
-          goalsError={home.goalsError}
-          onOpenGoals={() => home.setGoalsModalVisible(true)}
-        />
-
-        <HomeHydrationCard
-          hydrationLoading={home.hydrationLoading}
           hydrationSaving={home.hydrationSaving}
           hydrationMl={home.hydrationMl}
           hydrationGoal={home.hydrationGoal}
           hydrationProgress={home.hydrationProgress}
           goalReached={Boolean(home.waterStatus?.goalReached)}
           hydrationStatusText={home.hydrationStatusText}
+          hydrationWidth={home.hydrationWidth}
+          hydrationScale={home.hydrationScale}
+          goalsError={home.goalsError}
           hydrationGoalMenuOpen={home.hydrationGoalMenuOpen}
           hydrationGoalDraftMl={home.hydrationGoalDraftMl}
           hydrationError={home.hydrationError}
+          onOpenGoals={() => home.setGoalsModalVisible(true)}
           onToggleGoalMenu={() => home.setHydrationGoalMenuOpen((current) => !current)}
           onCloseGoalMenu={() => home.setHydrationGoalMenuOpen(false)}
           onDraftChange={home.handleHydrationGoalDraftChange}

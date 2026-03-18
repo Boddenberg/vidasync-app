@@ -8,56 +8,41 @@ export const s = StyleSheet.create({
     borderRadius: Radii.xxl,
     borderWidth: 1,
     borderColor: 'rgba(20,108,56,0.08)',
-    padding: 22,
-    gap: 18,
+    padding: 18,
+    gap: 14,
     overflow: 'hidden',
     ...Shadows.card,
   },
   glowTop: {
     position: 'absolute',
-    top: -90,
-    right: -54,
-    width: 214,
-    height: 214,
-    borderRadius: 107,
+    top: -96,
+    right: -58,
+    width: 208,
+    height: 208,
+    borderRadius: 104,
     backgroundColor: 'rgba(31,167,80,0.10)',
   },
   glowBottom: {
     position: 'absolute',
-    left: -54,
-    bottom: -74,
-    width: 168,
-    height: 168,
-    borderRadius: 84,
-    backgroundColor: 'rgba(45,156,219,0.08)',
+    left: -52,
+    bottom: -72,
+    width: 164,
+    height: 164,
+    borderRadius: 82,
+    backgroundColor: 'rgba(45,156,219,0.07)',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
   },
-  headerCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  eyebrow: {
-    ...Typography.caption,
-    color: Brand.greenDark,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.9,
-  },
   title: {
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 28,
+    lineHeight: 32,
     color: Brand.text,
     fontWeight: '800',
-    letterSpacing: -0.7,
-  },
-  headerSupport: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
+    letterSpacing: -0.6,
   },
   action: {
     alignSelf: 'flex-start',
@@ -65,33 +50,28 @@ export const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(20,108,56,0.08)',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
   },
   actionText: {
     ...Typography.caption,
     color: Brand.greenDark,
     fontWeight: '800',
   },
-  nutritionPanel: {
-    borderRadius: 24,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(21,32,24,0.08)',
-    padding: 18,
+  dashboardShell: {
     gap: 14,
   },
-  nutritionTop: {
+  heroRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 14,
+    alignItems: 'stretch',
+    gap: 16,
   },
-  calorieBlock: {
-    flex: 1,
+  calorieSection: {
+    flex: 1.35,
+    minWidth: 0,
     gap: 8,
   },
-  panelLabel: {
+  sectionLabel: {
     ...Typography.caption,
     color: Brand.textSecondary,
     fontWeight: '800',
@@ -104,228 +84,345 @@ export const s = StyleSheet.create({
     gap: 6,
   },
   calorieValue: {
-    fontSize: 54,
-    lineHeight: 56,
+    fontSize: 48,
+    lineHeight: 50,
     color: Brand.text,
     fontWeight: '800',
+    letterSpacing: -1.2,
   },
   calorieUnit: {
     ...Typography.helper,
     color: Brand.textSecondary,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 7,
   },
-  nutritionBadges: {
-    alignItems: 'stretch',
+  calorieSummary: {
+    ...Typography.body,
+    color: Brand.text,
+    fontWeight: '700',
+    lineHeight: 21,
+  },
+  secondaryColumn: {
+    flex: 1,
+    minWidth: 112,
     gap: 10,
-    minWidth: 96,
   },
-  progressBadge: {
-    borderRadius: 18,
-    backgroundColor: '#EEF8F1',
-    borderWidth: 1,
-    borderColor: '#D6EBD9',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
+  secondaryMetric: {
+    flex: 1,
+    minHeight: 72,
+    justifyContent: 'center',
+    paddingLeft: 12,
+    paddingVertical: 4,
     gap: 2,
+    borderLeftWidth: 3,
   },
-  progressBadgeValue: {
-    ...Typography.subtitle,
-    color: Brand.greenDark,
-    fontWeight: '800',
+  secondaryMetricGoal: {
+    borderLeftColor: Brand.greenDark,
   },
-  progressBadgeLabel: {
+  secondaryMetricMeals: {
+    borderLeftColor: Brand.coral,
+  },
+  secondaryLabel: {
     ...Typography.caption,
     color: Brand.textSecondary,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
-  mealBadge: {
-    borderRadius: 18,
-    backgroundColor: '#FFF4ED',
-    borderWidth: 1,
-    borderColor: '#FFDCCE',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    gap: 2,
-  },
-  mealBadgeValue: {
-    ...Typography.subtitle,
-    color: Brand.coral,
+  secondaryValue: {
+    fontSize: 24,
+    lineHeight: 28,
+    color: Brand.text,
     fontWeight: '800',
   },
-  mealBadgeLabel: {
-    ...Typography.caption,
+  secondaryMeta: {
+    ...Typography.helper,
     color: Brand.textSecondary,
     fontWeight: '700',
-    textAlign: 'center',
   },
-  nutritionTrack: {
-    height: 10,
+  progressSection: {
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(21,32,24,0.08)',
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  progressLabel: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  progressCaption: {
+    flex: 1,
+    ...Typography.helper,
+    color: Brand.textSecondary,
+    textAlign: 'right',
+  },
+  progressTrack: {
+    height: 8,
     borderRadius: Radii.pill,
     overflow: 'hidden',
     backgroundColor: '#E8F3EA',
   },
-  nutritionFill: {
+  progressFill: {
     height: '100%',
     borderRadius: Radii.pill,
     backgroundColor: Brand.greenDark,
   },
-  nutritionSummary: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '700',
+  supportSection: {
+    gap: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(21,32,24,0.08)',
   },
-  nutritionSecondary: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
-  },
-  macroSection: {
+  supportSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 10,
   },
-  macroHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  macroTitle: {
+  supportSectionLabel: {
     ...Typography.caption,
     color: Brand.textSecondary,
     fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.7,
+    letterSpacing: 0.6,
   },
-  macroGrid: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  macroCard: {
+  supportSectionCaption: {
     flex: 1,
+    ...Typography.helper,
+    color: Brand.textSecondary,
+    textAlign: 'right',
+  },
+  supportGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    overflow: 'hidden',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(21,32,24,0.05)',
+    backgroundColor: '#FFFFFF',
+  },
+  supportCell: {
     minWidth: 0,
-    minHeight: 112,
-    borderRadius: 22,
     paddingHorizontal: 12,
     paddingVertical: 12,
+    gap: 8,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+  },
+  supportCellTwo: {
+    width: '50%',
+  },
+  supportCellThree: {
+    width: '33.3333%',
+  },
+  supportWaterCell: {
+    backgroundColor: '#F3FAFF',
+    borderColor: '#D8ECF8',
+  },
+  supportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
+    gap: 8,
   },
-  macroTop: {
-    gap: 6,
-  },
-  macroLabelRow: {
+  supportLabelRow: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
   },
-  macroDot: {
+  supportDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
-  macroLabel: {
+  supportLabel: {
     ...Typography.caption,
     color: Brand.textSecondary,
     fontWeight: '800',
   },
-  macroValue: {
-    ...Typography.subtitle,
+  supportValue: {
+    fontSize: 20,
+    lineHeight: 24,
     color: Brand.text,
     fontWeight: '800',
-    textAlign: 'center',
-    alignSelf: 'stretch',
   },
-  macroGoal: {
+  supportWaterValue: {
+    color: Brand.hydration,
+  },
+  supportMeta: {
     ...Typography.caption,
     color: Brand.textSecondary,
     fontWeight: '700',
-    textAlign: 'center',
-    alignSelf: 'stretch',
   },
-  macroTrack: {
-    height: 7,
+  supportMetaInline: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '700',
+  },
+  supportTrack: {
+    height: 5,
     borderRadius: Radii.pill,
     overflow: 'hidden',
   },
-  macroTrackBase: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: Radii.pill,
-  },
-  macroFill: {
+  supportFill: {
     height: '100%',
     borderRadius: Radii.pill,
   },
-  hydrationPanel: {
-    borderRadius: 24,
-    backgroundColor: '#F3FAFF',
+  inlineAction: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#D8ECF8',
-    padding: 18,
-    gap: 12,
-  },
-  hydrationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 10,
-  },
-  hydrationLabel: {
-    ...Typography.caption,
-    color: Brand.hydration,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  hydrationBadge: {
-    borderRadius: Radii.pill,
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D8ECF8',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  hydrationBadgeText: {
-    ...Typography.caption,
-    color: Brand.hydration,
-    fontWeight: '800',
-  },
-  hydrationValueRow: {
+  waterValueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 4,
   },
-  hydrationValue: {
-    fontSize: 32,
-    lineHeight: 36,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  hydrationGoal: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  hydrationTrack: {
-    height: 8,
+  supportTrackWater: {
+    height: 5,
     borderRadius: Radii.pill,
     overflow: 'hidden',
     backgroundColor: '#D8EDF9',
   },
-  hydrationFill: {
+  supportFillWater: {
     height: '100%',
     borderRadius: Radii.pill,
     backgroundColor: Brand.hydration,
   },
-  hydrationSupport: {
-    ...Typography.helper,
+  controlsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(21,32,24,0.08)',
+  },
+  controlChip: {
+    minHeight: 34,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  controlChipPositive: {
+    backgroundColor: '#F2FAFF',
+    borderColor: '#CFE8F6',
+  },
+  controlChipNegative: {
+    backgroundColor: '#FFF4F6',
+    borderColor: '#F7D6DC',
+  },
+  controlChipGoal: {
+    backgroundColor: '#EEF8F1',
+    borderColor: '#D6EBD9',
+  },
+  controlChipText: {
+    ...Typography.caption,
+    fontWeight: '800',
+  },
+  controlChipTextPositive: {
+    color: '#2D9CDB',
+  },
+  controlChipTextNegative: {
+    color: '#BE123C',
+  },
+  controlChipTextGoal: {
+    color: Brand.greenDark,
+  },
+  hydrationGoalModalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  hydrationGoalModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(16, 35, 26, 0.30)',
+  },
+  hydrationGoalMenu: {
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D9ECF9',
+    padding: 18,
+    gap: 14,
+    ...Shadows.floating,
+  },
+  hydrationGoalMenuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  hydrationGoalMenuCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  hydrationGoalMenuTitle: {
+    ...Typography.subtitle,
+    color: Brand.text,
+    fontWeight: '800',
+  },
+  hydrationGoalMenuHint: {
+    ...Typography.body,
     color: Brand.textSecondary,
-    lineHeight: 20,
+  },
+  hydrationGoalValueBadge: {
+    borderRadius: 18,
+    backgroundColor: '#EAF6FD',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 96,
+  },
+  hydrationGoalValue: {
+    ...Typography.subtitle,
+    color: '#2D9CDB',
+    fontWeight: '800',
+  },
+  hydrationGoalValueLabel: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '700',
+  },
+  hydrationGoalScale: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  hydrationGoalScaleLabel: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '700',
+  },
+  hydrationGoalScaleHint: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
   },
   error: {
     ...Typography.body,
     color: Brand.danger,
+  },
+  disabled: {
+    opacity: 0.45,
   },
   pressed: {
     opacity: 0.92,
