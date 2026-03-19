@@ -16,7 +16,7 @@ import {
   type NutritionGoalsStatus,
 } from '@/services/nutrition-goals';
 import { getWaterStatus, saveWaterStatus, type WaterStatus } from '@/services/water';
-import type { MealType, NutritionData } from '@/types/nutrition';
+import type { Meal, MealType, NutritionData } from '@/types/nutrition';
 import { buildFoodsString, extractNum, todayStr } from '@/utils/helpers';
 import { getHydrationGoalDraftMl, normalizeHydrationGoalMl } from '@/utils/hydration';
 import {
@@ -26,7 +26,6 @@ import {
   formatDateChip,
   formatHomeDateLabel,
   formatLiters,
-  isTodayDate,
   shiftDate,
   sortNotifications,
 } from '@/features/home/home-utils';
@@ -55,9 +54,11 @@ type Props = {
 export function useHomeScreen({ onNavigate }: Props) {
   const today = todayStr();
   const { user } = useAuth();
-  const { meals, totals, add, refresh, date: selectedDate, setDate } = useMeals();
+  const { meals, totals, add, edit, remove, refresh, date: selectedDate, setDate } = useMeals();
 
   const [registerVisible, setRegisterVisible] = useState(false);
+  const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
+  const [editVisible, setEditVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
@@ -180,6 +181,46 @@ export function useHomeScreen({ onNavigate }: Props) {
       params.imageBase64,
     );
     setRegisterVisible(false);
+  }
+
+  function handleEditMeal(meal: Meal) {
+    setEditingMeal(meal);
+    setEditVisible(true);
+  }
+
+  function handleCloseEditMeal() {
+    setEditingMeal(null);
+    setEditVisible(false);
+  }
+
+  async function handleEditSave(
+    id: string,
+    params: {
+      foods: string;
+      mealType: MealType;
+      time?: string;
+      nutrition: NutritionData;
+      imageBase64?: string | null;
+    },
+  ) {
+    const { imageBase64, ...mealParams } = params;
+
+    await edit(id, {
+      ...mealParams,
+      ...(imageBase64 ? { image: imageBase64 } : {}),
+    });
+
+    setEditingMeal(null);
+    setEditVisible(false);
+  }
+
+  async function handleDeleteMeal(meal: Meal) {
+    await remove(meal.id);
+
+    if (editingMeal?.id === meal.id) {
+      setEditingMeal(null);
+      setEditVisible(false);
+    }
   }
 
   async function sendHydrationUpdate(params: { deltaMl?: number; goalMl?: number }) {
@@ -374,6 +415,9 @@ export function useHomeScreen({ onNavigate }: Props) {
     canAdvanceDate,
     registerVisible,
     setRegisterVisible,
+    editingMeal,
+    editVisible,
+    setEditVisible,
     profileVisible,
     setProfileVisible,
     notificationsVisible,
@@ -422,6 +466,10 @@ export function useHomeScreen({ onNavigate }: Props) {
     handlePreviousDate,
     handleNextDate,
     handleSaveNew,
+    handleEditMeal,
+    handleCloseEditMeal,
+    handleEditSave,
+    handleDeleteMeal,
     handleOpenNotifications,
     handlePressNotification,
     handleMarkAllNotificationsRead,

@@ -1,16 +1,28 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image, Text, View } from 'react-native';
 
+import { MealCard } from '@/components/meal-card';
 import { s } from '@/features/home/home-meal-summary-list.styles';
 import { HOME_MACRO_TONES, type MealSummary } from '@/features/home/home-utils';
+import type { Meal } from '@/types/nutrition';
 
 type Props = {
   mealSummaries: MealSummary[];
+  meals: Meal[];
   mealsCount: number;
+  onEditMeal: (meal: Meal) => void;
+  onDeleteMeal: (meal: Meal) => void;
 };
 
-export function HomeMealSummaryList({ mealSummaries, mealsCount }: Props) {
+export function HomeMealSummaryList({
+  mealSummaries,
+  meals,
+  mealsCount,
+  onEditMeal,
+  onDeleteMeal,
+}: Props) {
   const counterLabel = mealsCount > 0 ? `${mealsCount} no dia` : 'Sem registros';
+  const sortedMeals = [...meals].sort((a, b) => (b.time ?? '').localeCompare(a.time ?? ''));
 
   return (
     <View style={s.section}>
@@ -75,6 +87,22 @@ export function HomeMealSummaryList({ mealSummaries, mealsCount }: Props) {
           <Text style={s.emptyText}>Use o card acima para adicionar a primeira refeição.</Text>
         </View>
       )}
+
+      {sortedMeals.length > 0 ? (
+        <View style={s.mealsSection}>
+          <Text style={s.mealsTitle}>Itens do dia</Text>
+          <View style={s.mealsList}>
+            {sortedMeals.map((meal) => (
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                onEdit={onEditMeal}
+                onDelete={async () => onDeleteMeal(meal)}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }

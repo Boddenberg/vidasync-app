@@ -152,7 +152,13 @@ export default function HomeScreen() {
           onOpenPhoto={openPhotoRegister}
         />
 
-        <HomeMealSummaryList mealSummaries={home.mealSummaries} mealsCount={home.meals.length} />
+        <HomeMealSummaryList
+          mealSummaries={home.mealSummaries}
+          meals={home.meals}
+          mealsCount={home.meals.length}
+          onEditMeal={home.handleEditMeal}
+          onDeleteMeal={home.handleDeleteMeal}
+        />
       </ScrollView>
 
       <HomeRegisterOptionsSheet
@@ -169,6 +175,14 @@ export default function HomeScreen() {
         defaultDate={home.selectedDate}
         onSave={home.handleSaveNew}
         onClose={() => home.setRegisterVisible(false)}
+      />
+      <RegisterMealModal
+        visible={home.editVisible}
+        editMeal={home.editingMeal}
+        defaultDate={home.selectedDate}
+        onSave={() => {}}
+        onEditSave={home.handleEditSave}
+        onClose={home.handleCloseEditMeal}
       />
       <EditProfileModal visible={home.profileVisible} onClose={() => home.setProfileVisible(false)} />
       <NotificationCenterModal

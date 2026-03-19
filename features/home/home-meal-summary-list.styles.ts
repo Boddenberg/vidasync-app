@@ -52,6 +52,17 @@ export const s = StyleSheet.create({
   list: {
     gap: 12,
   },
+  mealsSection: {
+    gap: 10,
+  },
+  mealsTitle: {
+    ...Typography.body,
+    color: Brand.text,
+    fontWeight: '800',
+  },
+  mealsList: {
+    gap: 12,
+  },
   card: {
     borderRadius: 22,
     backgroundColor: '#FCFDFC',
