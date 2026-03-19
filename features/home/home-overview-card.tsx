@@ -109,7 +109,7 @@ export function HomeOverviewCard({
       <View pointerEvents="none" style={s.glowBottom} />
 
       <View style={s.header}>
-        <Text style={s.title}>Panorama do dia</Text>
+        <Text style={s.title}>Meus dias</Text>
 
         <Pressable style={({ pressed }) => [s.action, pressed && s.pressed]} onPress={onOpenGoals}>
           <Text style={s.actionText}>{hasAnyGoals ? 'Metas' : 'Criar metas'}</Text>
@@ -181,7 +181,7 @@ export function HomeOverviewCard({
         <View style={s.waterHeader}>
           <View style={s.waterLabelRow}>
             <Ionicons name="water-outline" size={15} color={goalReached ? '#146C38' : '#2D9CDB'} />
-            <Text style={s.overline}>Agua</Text>
+            <Text style={s.overline}>Água</Text>
           </View>
 
           <Pressable

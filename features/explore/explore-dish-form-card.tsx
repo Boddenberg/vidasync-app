@@ -105,7 +105,7 @@ export function ExploreDishFormCard({
       <View style={s.weightRow}>
         <View style={s.weightInputWrap}>
           <AppInput
-            placeholder="Quantidade"
+            placeholder="Qtd."
             value={ingWeight}
             onChangeText={onChangeIngredientWeight}
             keyboardType="numeric"

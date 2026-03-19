@@ -56,7 +56,7 @@ export function HistoryDayHero({
 
       <View style={s.dayHeroHeader}>
         <View style={s.dayHeroCopy}>
-          <Text style={s.dayHeroEyebrow}>Panorama do dia</Text>
+          <Text style={s.dayHeroEyebrow}>Meu dia</Text>
           <Text style={s.dayHeroTitle}>{dayHeading(selectedDate)}</Text>
           <Text style={s.dayHeroHint}>{dayHeroHint}</Text>
         </View>
@@ -74,7 +74,9 @@ export function HistoryDayHero({
             <View style={s.calorieCard}>
               <Text style={s.calorieLabel}>Você consumiu</Text>
               <View style={s.kcalRow}>
-                <Text style={s.kcalValue}>{calories}</Text>
+                <Text adjustsFontSizeToFit minimumFontScale={0.92} numberOfLines={1} style={s.kcalValue}>
+                  {calories}
+                </Text>
                 <Text style={s.kcalUnit}>kcal</Text>
               </View>
             </View>
@@ -283,10 +285,10 @@ const s = StyleSheet.create({
     minWidth: 0,
   },
   kcalValue: {
-    fontSize: 44,
+    fontSize: 42,
     fontWeight: '800',
     color: Brand.text,
-    lineHeight: 46,
+    lineHeight: 44,
     flexShrink: 1,
   },
   kcalUnit: {
