@@ -6,6 +6,7 @@ import { AppInput } from '@/components/app-input';
 import { NutritionErrorModal } from '@/components/nutrition-error-modal';
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import { FOOD_CATEGORIES, type Unit } from '@/features/devtools/devtools-utils';
+import { CalculatedDishActionsCard } from '@/features/nutrition/calculated-dish-actions-card';
 import type { NutritionData } from '@/types/nutrition';
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
   queryWeight: string;
   queryUnit: Unit;
   units: Unit[];
+  initialDate?: string;
   loading: boolean;
   error: string | null;
   result: NutritionData | null;
@@ -22,6 +24,7 @@ type Props = {
   onSubmit: () => void;
   onClear: () => void;
   onResetError: () => void;
+  onMealSaved?: () => void;
 };
 
 export function DevtoolsSearchCard({
@@ -29,6 +32,7 @@ export function DevtoolsSearchCard({
   queryWeight,
   queryUnit,
   units,
+  initialDate,
   loading,
   error,
   result,
@@ -38,7 +42,10 @@ export function DevtoolsSearchCard({
   onSubmit,
   onClear,
   onResetError,
+  onMealSaved,
 }: Props) {
+  const resolvedFoods = queryWeight.trim() ? `${queryWeight.trim()}${queryUnit} de ${query.trim()}` : query.trim();
+
   return (
     <View style={s.card}>
       <Text style={s.sectionTitle}>Consulta de alimentos</Text>
@@ -105,6 +112,17 @@ export function DevtoolsSearchCard({
             <Text style={s.resultClear}>Limpar consulta</Text>
           </Pressable>
         </View>
+      ) : null}
+
+      {result ? (
+        <CalculatedDishActionsCard
+          nutritionData={result}
+          baseFoods={resolvedFoods}
+          initialDate={initialDate}
+          onMealSaved={onMealSaved}
+          title="Aproveitar esse alimento"
+          subtitle="Depois de calcular, voce pode registrar essa refeicao em um periodo do dia ou salvar em Meus pratos."
+        />
       ) : null}
 
       {error ? (

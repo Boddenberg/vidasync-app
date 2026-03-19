@@ -42,7 +42,12 @@ function useNetworkState() {
 export default function ToolsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const params = useLocalSearchParams<{ tool?: string | string[]; mode?: string | string[]; from?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    tool?: string | string[];
+    mode?: string | string[];
+    from?: string | string[];
+    date?: string | string[];
+  }>();
   const networkState = useNetworkState();
 
   const [view, setView] = useState<ToolView>('search');
@@ -58,6 +63,7 @@ export default function ToolsScreen() {
   const normalizedTool = normalizeToolParam(params.tool);
   const diagnosticsMode = normalizeModeParam(params.mode);
   const fromParam = Array.isArray(params.from) ? params.from[0] : params.from;
+  const dateParam = Array.isArray(params.date) ? params.date[0] : params.date;
   const hasAppliedInitialParam = useRef(false);
   const showLogsOnly = diagnosticsMode === 'logs';
   const showDeveloperDiagnostics = showLogsOnly || normalizedTool == null;
@@ -108,6 +114,7 @@ export default function ToolsScreen() {
       result,
       photoPreviewUri: payload?.photoPreviewUri ?? null,
       photoPayload: payload?.photoPayload ?? null,
+      targetDate: dateParam ?? null,
     });
     router.push('/review/assistida' as any);
   }
@@ -169,6 +176,7 @@ export default function ToolsScreen() {
             queryWeight={queryWeight}
             queryUnit={queryUnit}
             units={UNITS}
+            initialDate={dateParam}
             loading={nutrition.loading}
             error={nutrition.error}
             result={nutrition.data}
@@ -178,6 +186,12 @@ export default function ToolsScreen() {
             onSubmit={handleQuery}
             onClear={handleClearQuery}
             onResetError={() => nutrition.reset()}
+            onMealSaved={() => {
+              handleClearQuery();
+              if (isFromHome) {
+                router.replace('/(tabs)' as any);
+              }
+            }}
           />
         ) : null}
 

@@ -72,7 +72,10 @@ export default function HomeScreen() {
   }
 
   function openSearchRegister() {
-    router.push({ pathname: '/(tabs)/devtools', params: { tool: 'search', from: 'home' } } as any);
+    router.push({
+      pathname: '/(tabs)/devtools',
+      params: { tool: 'search', from: 'home', date: home.selectedDate },
+    } as any);
   }
 
   function openSavedDishesRegister() {
@@ -80,7 +83,10 @@ export default function HomeScreen() {
   }
 
   function openPhotoRegister() {
-    router.push({ pathname: '/(tabs)/devtools', params: { tool: 'photo', from: 'home' } } as any);
+    router.push({
+      pathname: '/(tabs)/devtools',
+      params: { tool: 'photo', from: 'home', date: home.selectedDate },
+    } as any);
   }
 
   function openManualRegister() {

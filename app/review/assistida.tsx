@@ -4,20 +4,18 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 
 import { AppButton } from '@/components/app-button';
 import { Brand } from '@/constants/theme';
+import { CalculatedDishActionsCard } from '@/features/nutrition/calculated-dish-actions-card';
 import { NutritionReviewEditor } from '@/features/review/nutrition-review-editor';
 import { PlanReviewEditor } from '@/features/review/plan-review-editor';
 import {
-  resolveFavoriteImagePayload,
   resolveNutritionTitle,
   screenCopy,
 } from '@/features/review/review-utils';
 import { useAsync } from '@/hooks/use-async';
-import { createFavorite } from '@/services/favorites';
 import { submitReviewAdjustments } from '@/services/review-feedback';
 import { clearReviewSession, getReviewSession } from '@/services/review-session';
 import type { NutritionCorrection } from '@/types/nutrition';
 import type { NutritionReviewDraft, PlanReviewDraft, ReviewDraft } from '@/types/review';
-import { buildFoodsString } from '@/utils/helpers';
 import { buildReviewDraft, buildReviewSubmitPayload } from '@/utils/review';
 
 export default function AssistedReviewScreen() {
@@ -26,7 +24,6 @@ export default function AssistedReviewScreen() {
 
   const [draft, setDraft] = useState<ReviewDraft | null>(session ? buildReviewDraft(session) : null);
   const resend = useAsync(submitReviewAdjustments);
-  const saveFavorite = useAsync(createFavorite);
 
   function closeReview() {
     clearReviewSession();
@@ -169,34 +166,13 @@ export default function AssistedReviewScreen() {
           };
         })()
       : null;
-
-  async function handleSaveToFavorites() {
-    if (!session || !draft || session.kind !== 'nutrition' || draft.kind !== 'nutrition') return;
-
-    const dishName =
-      nutritionContext?.title?.trim() ||
-      resolveNutritionTitle(session.result.detectedDishName, draft.items, []);
-    const itemsLabel = draft.items
-      .map((item) => item.name.trim())
-      .filter((item) => item.length > 0)
-      .join(', ');
-    const foods = itemsLabel.length > 0 ? buildFoodsString(dishName, itemsLabel) : dishName;
-    const favoriteImagePayload = await resolveFavoriteImagePayload(
-      nutritionPhotoPayload,
-      nutritionPhotoPreviewUri,
-    );
-
-    await saveFavorite.execute({
-      foods,
-      nutrition: {
-        calories: `${draft.summary.calories}`.trim(),
-        protein: `${draft.summary.protein}`.trim(),
-        carbs: `${draft.summary.carbs}`.trim(),
-        fat: `${draft.summary.fat}`.trim(),
-      },
-      imageBase64: favoriteImagePayload,
-    });
-  }
+  const nutritionFoodsLabel =
+    draft.kind === 'nutrition'
+      ? draft.items
+          .map((item) => item.name.trim())
+          .filter((item) => item.length > 0)
+          .join(', ')
+      : '';
 
   return (
     <View style={s.root}>
@@ -257,15 +233,21 @@ export default function AssistedReviewScreen() {
           </View>
         ) : null}
 
-        {draft.kind === 'nutrition' ? (
-          <View style={s.card}>
-            <Text style={s.sectionTitle}>Quer guardar essa refeição?</Text>
-            <AppButton title="Salvar em Meus pratos" onPress={handleSaveToFavorites} loading={saveFavorite.loading} />
-            {saveFavorite.error ? <Text style={s.errorText}>{saveFavorite.error}</Text> : null}
-            {saveFavorite.data ? (
-              <Text style={s.successText}>Pronto! Essa refeição foi salva em Meus pratos.</Text>
-            ) : null}
-          </View>
+        {draft.kind === 'nutrition' && nutritionContext ? (
+          <CalculatedDishActionsCard
+            nutritionData={{
+              calories: `${draft.summary.calories}`.trim(),
+              protein: `${draft.summary.protein}`.trim(),
+              carbs: `${draft.summary.carbs}`.trim(),
+              fat: `${draft.summary.fat}`.trim(),
+            }}
+            baseFoods={nutritionFoodsLabel}
+            initialDishName={nutritionContext.title}
+            initialDate={session.kind === 'nutrition' ? session.targetDate ?? undefined : undefined}
+            imagePayload={nutritionPhotoPayload}
+            title="Quer guardar essa refeicao?"
+            subtitle="Depois da revisao, voce pode registrar essa refeicao em um periodo do dia ou salvar em Meus pratos."
+          />
         ) : null}
       </ScrollView>
 

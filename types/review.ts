@@ -11,6 +11,7 @@ export type ReviewSession =
       result: NutritionAnalysisResult;
       photoPreviewUri?: string | null;
       photoPayload?: string | null;
+      targetDate?: string | null;
     }
   | {
       kind: 'plan';
@@ -68,12 +69,12 @@ export type ReviewSubmitPayload =
       observation: string | null;
       adjustments: {
         summary: NutritionData;
-        items: Array<{
+        items: {
           name: string;
           nutrition: NutritionData;
           precisa_revisao: boolean;
           warnings: string[];
-        }>;
+        }[];
       };
     }
   | {
@@ -87,10 +88,10 @@ export type ReviewSubmitPayload =
       observation: string | null;
       adjustments: {
         extracted_text: string | null;
-        sections: Array<{
+        sections: {
           title: string;
           text: string;
-        }>;
+        }[];
       };
     };
 
