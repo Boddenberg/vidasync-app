@@ -1,6 +1,6 @@
 import { Brand } from '@/constants/theme';
 
-export type ProfileStep = 'overview' | 'username' | 'password';
+export type ProfileStep = 'overview' | 'username' | 'password' | 'bmi';
 export type UsernameCheckState =
   | 'idle'
   | 'checking'

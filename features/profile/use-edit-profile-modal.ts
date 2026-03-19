@@ -199,7 +199,7 @@ export function useEditProfileModal({ onClose }: Props) {
     clearMessages();
     if (step === 'username') {
       resetUsernameFlow();
-    } else {
+    } else if (step === 'password') {
       resetPasswordFlow();
     }
     setStep('overview');
@@ -215,6 +215,11 @@ export function useEditProfileModal({ onClose }: Props) {
     clearMessages();
     resetPasswordFlow();
     setStep('password');
+  }
+
+  function openBmiFlow() {
+    clearMessages();
+    setStep('bmi');
   }
 
   function handlePickPhoto() {
@@ -377,8 +382,7 @@ export function useEditProfileModal({ onClose }: Props) {
   }
 
   function handleOpenBmi() {
-    handleClose();
-    router.push('/tools/imc' as any);
+    openBmiFlow();
   }
 
   function handleOpenLogs() {
@@ -387,7 +391,13 @@ export function useEditProfileModal({ onClose }: Props) {
   }
 
   const title =
-    step === 'overview' ? 'Editar perfil' : step === 'username' ? 'Alterar usuário' : 'Alterar senha';
+    step === 'overview'
+      ? 'Editar perfil'
+      : step === 'username'
+        ? 'Alterar usuário'
+        : step === 'password'
+          ? 'Alterar senha'
+          : 'Calculadora de IMC';
 
   return {
     step,

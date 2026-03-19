@@ -3,6 +3,7 @@ import { Image, Pressable, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
+import { BmiCalculatorCard } from '@/components/health/bmi-calculator-card';
 import { Brand } from '@/constants/theme';
 import { s } from '@/features/profile/edit-profile-modal.styles';
 
@@ -294,6 +295,17 @@ export function EditProfilePasswordStep({
 
       <AppButton title="Confirmar nova senha" onPress={onSubmit} loading={loading} disabled={!canSubmitPassword} />
       <AppButton title="Cancelar" onPress={onCancel} variant="secondary" disabled={loading} />
+    </View>
+  );
+}
+
+export function EditProfileBmiStep() {
+  return (
+    <View style={s.formCard}>
+      <BmiCalculatorCard
+        title="Calculadora de IMC"
+        subtitle="Use peso e altura para uma leitura rapida sem sair dos ajustes do perfil."
+      />
     </View>
   );
 }

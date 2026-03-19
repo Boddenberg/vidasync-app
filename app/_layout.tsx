@@ -93,7 +93,18 @@ export default function RootLayout() {
               headerStyle: { backgroundColor: Brand.bg },
             }}
           />
-          <Stack.Screen name="tools/imc" options={{ title: 'Calculadora de IMC' }} />
+          <Stack.Screen
+            name="tools/imc"
+            options={{
+              title: 'Calculadora de IMC',
+              headerBackTitle: '',
+              headerBackButtonDisplayMode: 'minimal',
+              headerTintColor: Brand.greenDark,
+              headerTitleStyle: { fontWeight: '700' },
+              headerShadowVisible: false,
+              headerStyle: { backgroundColor: Brand.bg },
+            }}
+          />
           <Stack.Screen name="nutrition/review" options={{ title: 'Revisão nutricional' }} />
           <Stack.Screen name="plan/review" options={{ title: 'Revisão do plano' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />

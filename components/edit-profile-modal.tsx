@@ -5,6 +5,7 @@
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import {
+  EditProfileBmiStep,
   EditProfileOverviewStep,
   EditProfilePasswordStep,
   EditProfileUsernameStep,
@@ -43,11 +44,13 @@ export function EditProfileModal({ visible, onClose }: Props) {
           contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
-          <ProfileAvatarHeader
-            currentUsername={profile.currentUsername}
-            displayPhoto={profile.displayPhoto}
-            onPress={profile.handlePickPhoto}
-          />
+          {profile.step !== 'bmi' ? (
+            <ProfileAvatarHeader
+              currentUsername={profile.currentUsername}
+              displayPhoto={profile.displayPhoto}
+              onPress={profile.handlePickPhoto}
+            />
+          ) : null}
 
           {profile.error ? <ProfileMessageBanner tone="error" message={profile.error} /> : null}
           {profile.success ? <ProfileMessageBanner tone="success" message={profile.success} /> : null}
@@ -101,6 +104,8 @@ export function EditProfileModal({ visible, onClose }: Props) {
               passwordMaxLength={profile.passwordMaxLength}
             />
           ) : null}
+
+          {profile.step === 'bmi' ? <EditProfileBmiStep /> : null}
         </ScrollView>
       </KeyboardAvoidingView>
 
