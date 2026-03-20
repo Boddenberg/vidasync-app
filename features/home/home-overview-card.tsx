@@ -152,7 +152,7 @@ export function HomeOverviewCard({
       <View style={s.macroStrip}>
         {macroItems.map((item) => {
           const goal = macroGoals.get(item.key);
-          const progressText = goal ? `${Math.round(goal.progress * 100)}%` : '0%';
+          const progressWidth = `${Math.round((goal?.progress ?? 0) * 100)}%` as `${number}%`;
 
           return (
             <View key={item.key} style={s.macroItem}>
@@ -168,7 +168,7 @@ export function HomeOverviewCard({
               </Text>
 
               <View style={[s.macroTrack, { backgroundColor: `${item.tone.color}20` }]}>
-                <View style={[s.macroFill, { width: progressText, backgroundColor: item.tone.color }]} />
+                <View style={[s.macroFill, { width: progressWidth, backgroundColor: item.tone.color }]} />
               </View>
             </View>
           );
