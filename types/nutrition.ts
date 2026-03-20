@@ -130,6 +130,7 @@ export type AuthUser = {
   userId: string;
   username: string;
   profileImageUrl: string | null;
+  isDeveloper: boolean;
 };
 
 /** Resposta de signup e login (inclui accessToken do Supabase) */
