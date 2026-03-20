@@ -59,13 +59,14 @@ export function EditProfileModal({ visible, onClose }: Props) {
             <EditProfileOverviewStep
               currentUsername={profile.currentUsername}
               photoChanged={profile.photoChanged}
+              showDeveloperTools={profile.showDeveloperTools}
               loading={profile.loading}
               onOpenUsername={profile.openUsernameFlow}
               onOpenPassword={profile.openPasswordFlow}
               onSavePhoto={profile.handleSavePhoto}
               onOpenFeedback={profile.handleOpenFeedback}
               onOpenBmi={profile.handleOpenBmi}
-              onOpenLogs={profile.handleOpenLogs}
+              onOpenDeveloperTools={profile.handleOpenDeveloperTools}
               onLogout={profile.handleLogout}
             />
           ) : null}
