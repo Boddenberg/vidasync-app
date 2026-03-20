@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ReturnHomeButton } from '@/components/return-home-button';
 import { Brand, Shadows, Typography } from '@/constants/theme';
 import { DevtoolsAnalysisCard } from '@/features/devtools/devtools-analysis-card';
+import { DeveloperObservabilityDashboard } from '@/features/devtools/developer-observability-dashboard';
 import { DevtoolsSearchCard } from '@/features/devtools/devtools-search-card';
-import { NetworkDiagnosticsSection } from '@/features/devtools/network-diagnostics-section';
 import {
   normalizeModeParam,
   normalizeToolParam,
@@ -16,6 +16,7 @@ import {
   UNITS,
 } from '@/features/devtools/devtools-utils';
 import { useAsync } from '@/hooks/use-async';
+import { useAuth } from '@/hooks/use-auth';
 import { getNutrition } from '@/services/nutrition';
 import {
   clearNetworkInspectorLogs,
@@ -42,6 +43,7 @@ function useNetworkState() {
 export default function ToolsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { user } = useAuth();
   const params = useLocalSearchParams<{
     tool?: string | string[];
     mode?: string | string[];
@@ -51,7 +53,6 @@ export default function ToolsScreen() {
   const networkState = useNetworkState();
 
   const [view, setView] = useState<ToolView>('search');
-  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
   const [query, setQuery] = useState('');
   const [queryWeight, setQueryWeight] = useState('');
   const [queryUnit, setQueryUnit] = useState<Unit>('g');
@@ -66,8 +67,13 @@ export default function ToolsScreen() {
   const dateParam = Array.isArray(params.date) ? params.date[0] : params.date;
   const hasAppliedInitialParam = useRef(false);
   const showLogsOnly = diagnosticsMode === 'logs';
-  const showDeveloperDiagnostics = showLogsOnly || normalizedTool == null;
   const isFromHome = fromParam === 'home';
+  const isDeveloper = Boolean(user?.isDeveloper);
+  const wantsDeveloperHub = showLogsOnly || normalizedTool == null;
+  const wantsRestrictedTool = normalizedTool === 'audio' || normalizedTool === 'plan';
+  const showDeveloperHub = wantsDeveloperHub && isDeveloper;
+  const showRestrictedState = (wantsDeveloperHub || wantsRestrictedTool) && !isDeveloper;
+  const showReturnHomeButton = isFromHome || showDeveloperHub || showRestrictedState;
 
   useFocusEffect(
     useCallback(() => {
@@ -129,48 +135,61 @@ export default function ToolsScreen() {
     router.push('/review/assistida' as any);
   }
 
-  function toggleExpand(id: string) {
-    setExpandedIds((current) => ({ ...current, [id]: !current[id] }));
-  }
-
-  const screenTitle = showLogsOnly
-    ? 'Logs de rede'
-    : showDeveloperDiagnostics
-      ? 'Ferramentas internas'
-      : isFromHome
-        ? view === 'photo'
-          ? 'Registrar por foto'
-          : 'Buscar alimento'
-        : 'Consultas e análise';
-  const screenSubtitle = showLogsOnly
-    ? 'Acompanhe requests, respostas e erros do app em um só lugar.'
-    : showDeveloperDiagnostics
-      ? 'Use esta área apenas para fluxos internos, diagnóstico e análise avançada.'
-      : isFromHome
-        ? view === 'photo'
-          ? 'Envie uma imagem para analisar a refeição e, se precisar, revise antes de salvar.'
-          : 'Digite o nome do alimento para estimar os macros automaticamente.'
-        : 'Busque alimentos ou envie uma foto para analisar sua refeição.';
+  const screenTitle = showRestrictedState
+    ? 'Acesso restrito'
+    : isFromHome
+      ? view === 'photo'
+        ? 'Registrar por foto'
+        : 'Buscar alimento'
+      : 'Consultas e analise';
+  const screenSubtitle = showRestrictedState
+    ? 'Esta area so aparece para usuarios com permissao de desenvolvedor liberada pelo backend.'
+    : isFromHome
+      ? view === 'photo'
+        ? 'Envie uma imagem para analisar a refeicao e, se precisar, revise antes de salvar.'
+        : 'Digite o nome do alimento para estimar os macros automaticamente.'
+      : 'Busque alimentos ou envie uma foto para analisar sua refeicao.';
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
 
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {isFromHome ? <ReturnHomeButton onPress={() => router.replace('/(tabs)' as any)} /> : null}
-        <Text style={s.title}>{screenTitle}</Text>
-        <Text style={s.subtitle}>{screenSubtitle}</Text>
+        {showReturnHomeButton ? <ReturnHomeButton onPress={() => router.replace('/(tabs)' as any)} /> : null}
 
-        {!showLogsOnly ? (
+        {!showDeveloperHub ? <Text style={s.title}>{screenTitle}</Text> : null}
+        {!showDeveloperHub ? <Text style={s.subtitle}>{screenSubtitle}</Text> : null}
+
+        {showDeveloperHub ? (
+          <DeveloperObservabilityDashboard
+            logs={logs}
+            enabled={networkState.enabled}
+            initialMode={diagnosticsMode}
+            onToggleEnabled={() => setNetworkInspectorEnabled(!networkState.enabled)}
+            onClearLogs={clearNetworkInspectorLogs}
+          />
+        ) : null}
+
+        {showRestrictedState ? (
+          <View style={s.restrictedCard}>
+            <Text style={s.restrictedTitle}>Observabilidade bloqueada</Text>
+            <Text style={s.restrictedText}>
+              O app ja esta preparado para receber o campo `isDeveloper` vindo do backend. Quando ele vier como `true`,
+              o botao e a tela passam a aparecer automaticamente para esse usuario.
+            </Text>
+          </View>
+        ) : null}
+
+        {!showLogsOnly && !showDeveloperHub && !showRestrictedState ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.toolTabs}>
             <ToolTab label={isFromHome ? 'Buscar' : 'Consultar'} active={view === 'search'} onPress={() => setView('search')} />
             <ToolTab label="Foto" active={view === 'photo'} onPress={() => setView('photo')} />
-            {showDeveloperDiagnostics ? <ToolTab label="Voz" active={view === 'audio'} onPress={() => setView('audio')} /> : null}
-            {showDeveloperDiagnostics ? <ToolTab label="Plano" active={view === 'plan'} onPress={() => setView('plan')} /> : null}
+            {isDeveloper ? <ToolTab label="Voz" active={view === 'audio'} onPress={() => setView('audio')} /> : null}
+            {isDeveloper ? <ToolTab label="Plano" active={view === 'plan'} onPress={() => setView('plan')} /> : null}
           </ScrollView>
         ) : null}
 
-        {!showLogsOnly && view === 'search' ? (
+        {!showLogsOnly && !showDeveloperHub && !showRestrictedState && view === 'search' ? (
           <DevtoolsSearchCard
             query={query}
             queryWeight={queryWeight}
@@ -195,7 +214,7 @@ export default function ToolsScreen() {
           />
         ) : null}
 
-        {!showLogsOnly && (view === 'photo' || view === 'audio' || view === 'plan') ? (
+        {!showLogsOnly && !showDeveloperHub && !showRestrictedState && (view === 'photo' || view === 'audio' || view === 'plan') ? (
           <DevtoolsAnalysisCard
             view={view}
             photoAttachments={photoAttachments}
@@ -205,23 +224,6 @@ export default function ToolsScreen() {
             onSelectView={setView}
             onNutritionNeedsReview={handleNutritionNeedsReview}
             onPlanNeedsReview={handlePlanPdfNeedsReview}
-          />
-        ) : null}
-
-        {showDeveloperDiagnostics ? (
-          <NetworkDiagnosticsSection
-            logs={logs}
-            enabled={networkState.enabled}
-            expandedIds={expandedIds}
-            title="Diagnóstico de rede"
-            subtitle={
-              showLogsOnly
-                ? 'Use este bloco para acompanhar o tráfego real do app.'
-                : 'Use este bloco para depurar requests, respostas e performance.'
-            }
-            onToggleEnabled={() => setNetworkInspectorEnabled(!networkState.enabled)}
-            onClear={clearNetworkInspectorLogs}
-            onToggleExpand={toggleExpand}
           />
         ) : null}
       </ScrollView>
@@ -264,6 +266,24 @@ const s = StyleSheet.create({
     ...Typography.body,
     color: Brand.textSecondary,
     marginTop: -8,
+  },
+  restrictedCard: {
+    borderRadius: 24,
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 18,
+    gap: 8,
+    ...Shadows.card,
+  },
+  restrictedTitle: {
+    ...Typography.subtitle,
+    color: Brand.text,
+    fontWeight: '800',
+  },
+  restrictedText: {
+    ...Typography.body,
+    color: Brand.textSecondary,
   },
   toolTabs: {
     flexDirection: 'row',
