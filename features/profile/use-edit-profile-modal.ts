@@ -56,6 +56,7 @@ export function useEditProfileModal({ onClose }: Props) {
   const currentUsername = user?.username ?? '-';
   const normalizedCurrentUsername = currentUsername.trim().toLowerCase();
   const displayPhoto = photoChanged ? photoUri : (user?.profileImageUrl ?? null);
+  const showDeveloperTools = Boolean(user?.isDeveloper);
   const usernamePalette = getUsernameStatusPalette(usernameStatus);
 
   const passwordValidationMessage = (() => {
@@ -385,9 +386,9 @@ export function useEditProfileModal({ onClose }: Props) {
     openBmiFlow();
   }
 
-  function handleOpenLogs() {
+  function handleOpenDeveloperTools() {
     handleClose();
-    router.push({ pathname: '/(tabs)/devtools', params: { mode: 'logs' } } as any);
+    router.push('/(tabs)/devtools' as any);
   }
 
   const title =
@@ -408,6 +409,7 @@ export function useEditProfileModal({ onClose }: Props) {
     currentUsername,
     displayPhoto,
     photoChanged,
+    showDeveloperTools,
     photoPickerVisible,
     usernameDraft,
     usernamePassword,
@@ -434,7 +436,7 @@ export function useEditProfileModal({ onClose }: Props) {
     handleLogout,
     handleOpenFeedback,
     handleOpenBmi,
-    handleOpenLogs,
+    handleOpenDeveloperTools,
     setPhotoPickerVisible,
     setUsernameDraft: (value: string) => setUsernameDraft(sanitizeUsernameInput(value)),
     setUsernamePassword,
