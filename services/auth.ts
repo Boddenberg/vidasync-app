@@ -152,6 +152,27 @@ export async function updateProfile(params: {
   return readJsonResponse<AuthResponse>(res);
 }
 
+export async function getProfile(): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE_URL}/auth/profile`, {
+    method: 'GET',
+    headers: await buildAuthHeaders({ includeContentType: false }),
+  });
+
+  const text = await res.text();
+
+  if (!res.ok) {
+    ensureSession(res);
+
+    if (res.status === 404 || res.status === 405) {
+      throw new Error('Endpoint de perfil ainda nao existe no backend.');
+    }
+
+    throw new Error(parseErrorMessage(res.status, text));
+  }
+
+  return parseJson<AuthResponse>(text);
+}
+
 export async function checkUsernameAvailability(username: string): Promise<UsernameAvailabilityResponse> {
   const normalizedUsername = username.trim();
   const res = await fetch(
