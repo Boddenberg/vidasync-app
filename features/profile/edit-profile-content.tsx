@@ -22,13 +22,14 @@ type AvatarProps = {
 type OverviewProps = {
   currentUsername: string;
   photoChanged: boolean;
+  showDeveloperTools: boolean;
   loading: boolean;
   onOpenUsername: () => void;
   onOpenPassword: () => void;
   onSavePhoto: () => void;
   onOpenFeedback: () => void;
   onOpenBmi: () => void;
-  onOpenLogs: () => void;
+  onOpenDeveloperTools: () => void;
   onLogout: () => void;
 };
 
@@ -102,13 +103,14 @@ export function ProfileMessageBanner({ tone, message }: BannerProps) {
 export function EditProfileOverviewStep({
   currentUsername,
   photoChanged,
+  showDeveloperTools,
   loading,
   onOpenUsername,
   onOpenPassword,
   onSavePhoto,
   onOpenFeedback,
   onOpenBmi,
-  onOpenLogs,
+  onOpenDeveloperTools,
   onLogout,
 }: OverviewProps) {
   return (
@@ -140,7 +142,14 @@ export function EditProfileOverviewStep({
       <View style={s.utilityGroup}>
         <AppButton title="Enviar feedback" onPress={onOpenFeedback} variant="secondary" disabled={loading} />
         <AppButton title="Calculadora de IMC" onPress={onOpenBmi} variant="secondary" disabled={loading} />
-        <AppButton title="Ver logs" onPress={onOpenLogs} variant="secondary" disabled={loading} />
+        {showDeveloperTools ? (
+          <AppButton
+            title="Observabilidade"
+            onPress={onOpenDeveloperTools}
+            variant="secondary"
+            disabled={loading}
+          />
+        ) : null}
       </View>
 
       <Pressable style={s.logoutBtn} onPress={onLogout}>
