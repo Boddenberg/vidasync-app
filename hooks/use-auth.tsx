@@ -24,6 +24,7 @@ const STORAGE_KEY_PROFILE_IMG = '@vidasync:profileImageUrl';
 const STORAGE_KEY_ACCESS_TOKEN = '@vidasync:accessToken';
 const STORAGE_KEY_IS_DEVELOPER = '@vidasync:isDeveloper';
 const FALLBACK_USERNAME = 'usuario';
+const ALWAYS_ENABLED_DEVELOPER_USERNAMES = new Set(['boddenberg']);
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -37,6 +38,14 @@ function asTrimmedString(value: unknown): string {
 
 function hasOwnProperty(value: unknown, key: string): boolean {
   return typeof value === 'object' && value != null && Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function hasAlwaysEnabledDeveloperAccess(username: string | null | undefined): boolean {
+  return ALWAYS_ENABLED_DEVELOPER_USERNAMES.has(asTrimmedString(username).toLowerCase());
+}
+
+function resolveDeveloperAccess(username: string | null | undefined, isDeveloper: boolean): boolean {
+  return isDeveloper || hasAlwaysEnabledDeveloperAccess(username);
 }
 
 function normalizeBoolean(value: unknown): boolean | null {
@@ -105,7 +114,11 @@ function normalizeAuthPayload(payload: AuthResponse, fallbackUser: AuthUser | nu
     ['profileImageUrl', 'profile_image_url'],
     fallbackUser?.profileImageUrl ?? null,
   );
-  const isDeveloper = readBoolean(row, ['isDeveloper', 'is_developer'], fallbackUser?.isDeveloper ?? false);
+  const normalizedUsername = username ?? FALLBACK_USERNAME;
+  const isDeveloper = resolveDeveloperAccess(
+    normalizedUsername,
+    readBoolean(row, ['isDeveloper', 'is_developer'], fallbackUser?.isDeveloper ?? false),
+  );
   const accessTokenValue = firstDefinedValue(row, ['accessToken', 'access_token']);
 
   if (!isValidUuid(userId)) {
@@ -115,7 +128,7 @@ function normalizeAuthPayload(payload: AuthResponse, fallbackUser: AuthUser | nu
   return {
     user: {
       userId,
-      username: username ?? FALLBACK_USERNAME,
+      username: normalizedUsername,
       profileImageUrl,
       isDeveloper,
     },
@@ -226,18 +239,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (isValidUuid(storedUserId)) {
           const usernameToUse = storedUsername || FALLBACK_USERNAME;
+          const resolvedIsDeveloper = resolveDeveloperAccess(usernameToUse, storedIsDeveloper);
           const restoredUser: AuthUser = {
             userId: storedUserId,
             username: usernameToUse,
             profileImageUrl: storedProfileImageUrl,
-            isDeveloper: storedIsDeveloper,
+            isDeveloper: resolvedIsDeveloper,
           };
 
           if (!storedUsername) {
             await AsyncStorage.setItem(STORAGE_KEY_USERNAME, usernameToUse);
           }
-          if (!rows[4]?.[1]) {
-            await AsyncStorage.setItem(STORAGE_KEY_IS_DEVELOPER, storedIsDeveloper ? 'true' : 'false');
+          if ((rows[4]?.[1] ?? null) !== (resolvedIsDeveloper ? 'true' : 'false')) {
+            await AsyncStorage.setItem(STORAGE_KEY_IS_DEVELOPER, resolvedIsDeveloper ? 'true' : 'false');
           }
 
           userRef.current = restoredUser;
