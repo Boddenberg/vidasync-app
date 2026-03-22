@@ -28,7 +28,7 @@ export function HistoryDayHero({
   waterEvents,
   waterStatus,
 }: Props) {
-  const totalEntries = mealCount + waterEvents.length;
+  const hasAnyEntries = mealCount > 0 || waterEvents.length > 0;
   const hydrationProgress =
     waterStatus && waterStatus.goalMl > 0
       ? Math.max(0, Math.min(waterStatus.consumedMl / waterStatus.goalMl, 1))
@@ -45,7 +45,7 @@ export function HistoryDayHero({
         ? 'Meta de água concluída.'
         : `${Math.round(waterStatus.remainingMl)} ml para fechar a meta.`
       : `${waterEvents.length} ${waterEvents.length === 1 ? 'ajuste' : 'ajustes'} de água registrados.`;
-  const dayHeroHint = totalEntries > 0
+  const dayHeroHint = hasAnyEntries
     ? 'Um panorama rápido do que entrou no seu dia.'
     : 'Quando você registrar pratos e água, o resumo aparece aqui.';
 
@@ -61,8 +61,8 @@ export function HistoryDayHero({
           <Text style={s.dayHeroHint}>{dayHeroHint}</Text>
         </View>
         <View style={s.dayHeroBadge}>
-          <Text style={s.dayHeroBadgeValue}>{totalEntries}</Text>
-          <Text style={s.dayHeroBadgeLabel}>{totalEntries === 1 ? 'registro' : 'registros'}</Text>
+          <Text style={s.dayHeroBadgeValue}>{mealCount}</Text>
+          <Text style={s.dayHeroBadgeLabel}>{mealCount === 1 ? 'refeição' : 'refeições'}</Text>
         </View>
       </View>
 
@@ -111,12 +111,6 @@ export function HistoryDayHero({
               hint="hoje"
               tone="water"
             />
-            <StatCard
-              label="Ajustes"
-              value={`${waterEvents.length}`}
-              hint={waterEvents.length === 1 ? 'ação' : 'ações'}
-              tone="events"
-            />
           </View>
 
           <View style={s.macroRow}>
@@ -139,7 +133,7 @@ function StatCard({
   label: string;
   value: string;
   hint: string;
-  tone: 'meals' | 'water' | 'events';
+  tone: 'meals' | 'water';
 }) {
   return (
     <View
@@ -147,7 +141,6 @@ function StatCard({
         s.statCard,
         tone === 'meals' && s.statCardMeals,
         tone === 'water' && s.statCardWater,
-        tone === 'events' && s.statCardEvents,
       ]}>
       <Text adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={1} style={s.statLabel}>
         {label}
@@ -355,9 +348,6 @@ const s = StyleSheet.create({
   },
   statCardWater: {
     backgroundColor: Brand.hydrationBg,
-  },
-  statCardEvents: {
-    backgroundColor: Brand.warningBg,
   },
   statLabel: {
     ...Typography.caption,
