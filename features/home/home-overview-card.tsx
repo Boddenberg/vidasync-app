@@ -109,7 +109,7 @@ export function HomeOverviewCard({
       <View pointerEvents="none" style={s.glowBottom} />
 
       <View style={s.header}>
-        <Text style={s.title}>Meus dias</Text>
+        <Text style={s.title}>Meu dia</Text>
 
         <Pressable style={({ pressed }) => [s.action, pressed && s.pressed]} onPress={onOpenGoals}>
           <Text style={s.actionText}>{hasAnyGoals ? 'Metas' : 'Criar metas'}</Text>

@@ -8,15 +8,9 @@ export const s = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 12,
-  },
-  title: {
-    fontSize: 20,
-    lineHeight: 24,
-    color: Brand.text,
-    fontWeight: '800',
   },
   counterBadge: {
     borderRadius: Radii.pill,

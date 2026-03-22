@@ -27,7 +27,6 @@ export function HomeMealSummaryList({
   return (
     <View style={s.section}>
       <View style={s.header}>
-        <Text style={s.title}>Refeições</Text>
         <View style={s.counterBadge}>
           <Text style={s.counter}>{counterLabel}</Text>
         </View>
@@ -90,7 +89,7 @@ export function HomeMealSummaryList({
 
       {sortedMeals.length > 0 ? (
         <View style={s.mealsSection}>
-          <Text style={s.mealsTitle}>Itens do dia</Text>
+          <Text style={s.mealsTitle}>Refeições</Text>
           <View style={s.mealsList}>
             {sortedMeals.map((meal) => (
               <MealCard
