@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
+import { getFavoriteDisplayText } from '@/features/explore/explore-favorite-display';
 import { ExploreMacroChip } from '@/features/explore/explore-macro-chip';
 import type { Favorite } from '@/types/nutrition';
 
@@ -53,36 +54,47 @@ export function ExploreFavoritesList({
           </View>
 
           <View style={s.list}>
-            {favorites.map((favorite) => (
-              <Pressable key={favorite.id} style={({ pressed }) => [s.card, pressed && s.cardPressed]} onPress={() => onPressFavorite(favorite)}>
-                {favorite.imageUrl ? (
-                  <Image source={{ uri: favorite.imageUrl }} style={s.cardThumb} />
-                ) : (
-                  <View style={s.cardThumbPlaceholder}>
-                    <Ionicons name="restaurant-outline" size={20} color={Brand.textSecondary} />
-                  </View>
-                )}
+            {favorites.map((favorite) => {
+              const { title, subtitle } = getFavoriteDisplayText(favorite.foods);
 
-                <View style={s.cardContent}>
-                  <View style={s.cardTop}>
-                    <Text style={s.cardFoods} numberOfLines={2}>
-                      {favorite.foods}
-                    </Text>
-                    <View style={s.cardCalBadge}>
-                      <Text style={s.cardCal}>{favorite.nutrition.calories} kcal</Text>
+              return (
+                <Pressable key={favorite.id} style={({ pressed }) => [s.card, pressed && s.cardPressed]} onPress={() => onPressFavorite(favorite)}>
+                  {favorite.imageUrl ? (
+                    <Image source={{ uri: favorite.imageUrl }} style={s.cardThumb} />
+                  ) : (
+                    <View style={s.cardThumbPlaceholder}>
+                      <Ionicons name="restaurant-outline" size={20} color={Brand.textSecondary} />
+                    </View>
+                  )}
+
+                  <View style={s.cardContent}>
+                    <View style={s.cardTop}>
+                      <View style={s.cardTitleWrap}>
+                        <Text style={s.cardTitle} numberOfLines={2}>
+                          {title}
+                        </Text>
+                        {subtitle ? (
+                          <Text style={s.cardSubtitle} numberOfLines={1}>
+                            {subtitle}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <View style={s.cardCalBadge}>
+                        <Text style={s.cardCal}>{favorite.nutrition.calories} kcal</Text>
+                      </View>
+                    </View>
+
+                    <Text style={s.cardHint}>Toque para usar, editar ou apagar.</Text>
+
+                    <View style={s.cardMacros}>
+                      <ExploreMacroChip label="prot" value={favorite.nutrition.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
+                      <ExploreMacroChip label="carb" value={favorite.nutrition.carbs} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
+                      <ExploreMacroChip label="gord" value={favorite.nutrition.fat} color={Brand.macroFat} bg={Brand.macroFatBg} />
                     </View>
                   </View>
-
-                  <Text style={s.cardHint}>Toque para usar, editar ou apagar.</Text>
-
-                  <View style={s.cardMacros}>
-                    <ExploreMacroChip label="prot" value={favorite.nutrition.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
-                    <ExploreMacroChip label="carb" value={favorite.nutrition.carbs} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
-                    <ExploreMacroChip label="gord" value={favorite.nutrition.fat} color={Brand.macroFat} bg={Brand.macroFatBg} />
-                  </View>
-                </View>
-              </Pressable>
-            ))}
+                </Pressable>
+              );
+            })}
           </View>
         </>
       ) : null}
@@ -180,12 +192,20 @@ const s = StyleSheet.create({
     gap: 12,
     alignItems: 'flex-start',
   },
-  cardFoods: {
+  cardTitleWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  cardTitle: {
     flex: 1,
     ...Typography.subtitle,
     color: Brand.text,
     fontWeight: '800',
     lineHeight: 25,
+  },
+  cardSubtitle: {
+    ...Typography.helper,
+    color: Brand.textSecondary,
   },
   cardCalBadge: {
     borderRadius: Radii.pill,

@@ -39,6 +39,15 @@ import {
 import { sumNutritionData } from '@/utils/nutrition-math';
 
 const UNITS: WeightUnit[] = ['g', 'ml', 'un'];
+const SEARCH_MAX_LENGTH = 40;
+
+function sanitizeSearchText(value: string) {
+  return value
+    .replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^\s+/, '')
+    .slice(0, SEARCH_MAX_LENGTH);
+}
 
 export default function MyDishesScreen() {
   const insets = useSafeAreaInsets();
@@ -214,6 +223,10 @@ export default function MyDishesScreen() {
     router.navigate('/(tabs)');
   }
 
+  function handleSearchTextChange(value: string) {
+    setSearchText(sanitizeSearchText(value));
+  }
+
   const hasIngredients = ingredients.length > 0;
   const calculated = !!nutritionData;
   const canAddIngredient = ingName.trim().length > 0;
@@ -247,9 +260,10 @@ export default function MyDishesScreen() {
             <Ionicons name="search-outline" size={18} color={Brand.textSecondary} />
             <TextInput
               value={searchText}
-              onChangeText={setSearchText}
-              placeholder="Buscar alimento ou prato salvo"
+              onChangeText={handleSearchTextChange}
+              placeholder="Buscar nos salvos"
               placeholderTextColor={Brand.textSecondary}
+              maxLength={SEARCH_MAX_LENGTH}
               style={s.searchInput}
             />
           </View>

@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Alert, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Brand, Radii, Typography } from '@/constants/theme';
+import { getFavoriteDisplayText } from '@/features/explore/explore-favorite-display';
 import type { Favorite, MealType } from '@/types/nutrition';
 import { MEAL_TYPE_LABELS } from '@/types/nutrition';
 
@@ -31,6 +32,8 @@ const MEAL_TYPE_ICON_CONFIG: Record<
 };
 
 export function ExploreMealTypeModal({ favorite, onClose, onConfirm }: MealTypeModalProps) {
+  const favoriteDisplay = favorite ? getFavoriteDisplayText(favorite.foods) : null;
+
   return (
     <Modal visible={!!favorite} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.overlay} onPress={onClose}>
@@ -39,7 +42,18 @@ export function ExploreMealTypeModal({ favorite, onClose, onConfirm }: MealTypeM
             <View style={s.handle} />
           </View>
           <Text style={s.sheetTitle}>Adicionar em qual refeição?</Text>
-          {favorite ? <Text style={s.sheetSubtitle}>{favorite.foods}</Text> : null}
+          {favoriteDisplay ? (
+            <View style={s.sheetSubtitleWrap}>
+              <Text style={s.sheetSubtitleTitle} numberOfLines={2}>
+                {favoriteDisplay.title}
+              </Text>
+              {favoriteDisplay.subtitle ? (
+                <Text style={s.sheetSubtitle} numberOfLines={2}>
+                  {favoriteDisplay.subtitle}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
 
           <View style={s.sheetActions}>
             {(['breakfast', 'lunch', 'snack', 'dinner', 'supper'] as MealType[]).map((type, index) => {
@@ -75,6 +89,8 @@ export function ExploreFavoriteActionsModal({
   onEdit,
   onDelete,
 }: ActionsModalProps) {
+  const favoriteDisplay = favorite ? getFavoriteDisplayText(favorite.foods) : null;
+
   return (
     <Modal visible={!!favorite} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.overlay} onPress={onClose}>
@@ -92,9 +108,18 @@ export function ExploreFavoriteActionsModal({
                   <Ionicons name="restaurant-outline" size={18} color={Brand.textSecondary} />
                 </View>
               )}
-              <Text style={s.sheetHeaderName} numberOfLines={2}>
-                {favorite.foods}
-              </Text>
+              {favoriteDisplay ? (
+                <View style={s.sheetHeaderCopy}>
+                  <Text style={s.sheetHeaderName} numberOfLines={2}>
+                    {favoriteDisplay.title}
+                  </Text>
+                  {favoriteDisplay.subtitle ? (
+                    <Text style={s.sheetHeaderSubtitle} numberOfLines={2}>
+                      {favoriteDisplay.subtitle}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
             </View>
           ) : null}
 
@@ -123,7 +148,10 @@ export function ExploreFavoriteActionsModal({
               danger
               onPress={() => {
                 if (!favorite) return;
-                Alert.alert('Remover prato?', favorite.foods, [
+                const display = getFavoriteDisplayText(favorite.foods);
+                const message = display.subtitle ? `${display.title}\n${display.subtitle}` : display.title;
+
+                Alert.alert('Remover prato?', message, [
                   { text: 'Remover', style: 'destructive', onPress: () => onDelete(favorite) },
                   { text: 'Cancelar', style: 'cancel' },
                 ]);
@@ -199,14 +227,27 @@ const s = StyleSheet.create({
     ...Typography.body,
     color: Brand.textSecondary,
     textAlign: 'center',
+  },
+  sheetSubtitleWrap: {
     marginTop: 6,
     marginBottom: 16,
+    gap: 4,
+  },
+  sheetSubtitleTitle: {
+    ...Typography.body,
+    color: Brand.text,
+    textAlign: 'center',
+    fontWeight: '700',
   },
   sheetHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     marginBottom: 16,
+  },
+  sheetHeaderCopy: {
+    flex: 1,
+    gap: 2,
   },
   sheetThumb: {
     width: 52,
@@ -226,6 +267,10 @@ const s = StyleSheet.create({
     ...Typography.body,
     color: Brand.text,
     fontWeight: '700',
+  },
+  sheetHeaderSubtitle: {
+    ...Typography.helper,
+    color: Brand.textSecondary,
   },
   sheetActions: {
     backgroundColor: Brand.card,
