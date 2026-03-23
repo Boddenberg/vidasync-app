@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
@@ -68,6 +69,48 @@ type BannerProps = {
   tone: 'error' | 'success';
   message: string;
 };
+
+type PasswordFieldProps = {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  maxLength: number;
+};
+
+function PasswordField({ label, placeholder, value, onChangeText, maxLength }: PasswordFieldProps) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <View style={s.fieldGroup}>
+      <Text style={s.fieldLabel}>{label}</Text>
+      <View style={s.passwordInputWrap}>
+        <AppInput
+          placeholder={placeholder}
+          value={value}
+          onChangeText={onChangeText}
+          secureTextEntry={!visible}
+          autoCapitalize="none"
+          autoCorrect={false}
+          maxLength={maxLength}
+          style={s.passwordInput}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={visible ? 'Ocultar senha' : 'Mostrar senha'}
+          hitSlop={8}
+          onPress={() => setVisible((current) => !current)}
+          style={({ pressed }) => [s.passwordToggle, pressed && s.passwordTogglePressed]}>
+          <Ionicons
+            name={visible ? 'eye-off-outline' : 'eye-outline'}
+            size={20}
+            color={Brand.textSecondary}
+          />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
 
 export function ProfileAvatarHeader({ currentUsername, displayPhoto, onPress }: AvatarProps) {
   return (
@@ -257,44 +300,29 @@ export function EditProfilePasswordStep({
         Informe a senha atual, escolha a nova senha e confirme antes de salvar.
       </Text>
 
-      <View style={s.fieldGroup}>
-        <Text style={s.fieldLabel}>Senha atual</Text>
-        <AppInput
-          placeholder="Digite sua senha atual"
-          value={currentPassword}
-          onChangeText={onChangeCurrentPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          maxLength={passwordMaxLength}
-        />
-      </View>
+      <PasswordField
+        label="Senha atual"
+        placeholder="Digite sua senha atual"
+        value={currentPassword}
+        onChangeText={onChangeCurrentPassword}
+        maxLength={passwordMaxLength}
+      />
 
-      <View style={s.fieldGroup}>
-        <Text style={s.fieldLabel}>Nova senha</Text>
-        <AppInput
-          placeholder="Digite a nova senha"
-          value={newPassword}
-          onChangeText={onChangeNewPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          maxLength={passwordMaxLength}
-        />
-      </View>
+      <PasswordField
+        label="Nova senha"
+        placeholder="Digite a nova senha"
+        value={newPassword}
+        onChangeText={onChangeNewPassword}
+        maxLength={passwordMaxLength}
+      />
 
-      <View style={s.fieldGroup}>
-        <Text style={s.fieldLabel}>Repita a nova senha</Text>
-        <AppInput
-          placeholder="Repita a nova senha"
-          value={confirmNewPassword}
-          onChangeText={onChangeConfirmPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          maxLength={passwordMaxLength}
-        />
-      </View>
+      <PasswordField
+        label="Repita a nova senha"
+        placeholder="Repita a nova senha"
+        value={confirmNewPassword}
+        onChangeText={onChangeConfirmPassword}
+        maxLength={passwordMaxLength}
+      />
 
       {passwordValidationMessage ? (
         <View style={s.inlineHelper}>

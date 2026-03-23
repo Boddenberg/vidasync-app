@@ -197,6 +197,23 @@ export const s = StyleSheet.create({
   fieldGroup: {
     gap: 6,
   },
+  passwordInputWrap: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  passwordInput: {
+    paddingRight: 52,
+  },
+  passwordToggle: {
+    position: 'absolute',
+    right: 14,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  passwordTogglePressed: {
+    opacity: 0.72,
+  },
   fieldLabel: {
     fontSize: 13,
     fontWeight: '600',
