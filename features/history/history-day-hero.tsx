@@ -98,59 +98,18 @@ export function HistoryDayHero({
 
           <Text style={s.hydrationHint}>{hydrationHint}</Text>
 
-          <View style={s.statsRow}>
-            <StatCard
-              label="Pratos"
-              value={`${mealCount}`}
-              hint="no dia"
-              tone="meals"
-            />
-            <StatCard
-              label="Água"
-              value={waterStatus ? formatWaterLiters(waterStatus.consumedMl) : '0.0L'}
-              hint="hoje"
-              tone="water"
-            />
-          </View>
-
           <View style={s.macroRow}>
             <MacroChip label="Proteína" value={`${protein}g`} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
-            <MacroChip label="Carbos" value={`${carbs}g`} color={Brand.macroCarb} bg={Brand.macroCarbBg} />
+            <MacroChip
+              label="Carboidrato"
+              value={`${carbs}g`}
+              color={Brand.macroCarb}
+              bg={Brand.macroCarbBg}
+            />
             <MacroChip label="Gordura" value={`${fat}g`} color={Brand.macroFat} bg={Brand.macroFatBg} />
           </View>
         </>
       )}
-    </View>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-  tone: 'meals' | 'water';
-}) {
-  return (
-    <View
-      style={[
-        s.statCard,
-        tone === 'meals' && s.statCardMeals,
-        tone === 'water' && s.statCardWater,
-      ]}>
-      <Text adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={1} style={s.statLabel}>
-        {label}
-      </Text>
-      <Text adjustsFontSizeToFit minimumFontScale={0.85} numberOfLines={1} style={s.statValue}>
-        {value}
-      </Text>
-      <Text adjustsFontSizeToFit minimumFontScale={0.8} numberOfLines={1} style={s.statHint}>
-        {hint}
-      </Text>
     </View>
   );
 }
@@ -331,38 +290,6 @@ const s = StyleSheet.create({
   },
   hydrationHint: {
     ...Typography.body,
-    color: Brand.textSecondary,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: 22,
-    padding: 14,
-    gap: 4,
-  },
-  statCardMeals: {
-    backgroundColor: Brand.card,
-  },
-  statCardWater: {
-    backgroundColor: Brand.hydrationBg,
-  },
-  statLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  statValue: {
-    ...Typography.subtitle,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  statHint: {
-    ...Typography.caption,
     color: Brand.textSecondary,
   },
   macroRow: {
