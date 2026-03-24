@@ -210,6 +210,20 @@ export default function HistoryScreen() {
     };
   }, [panoramaOpen, selectedDate]);
 
+  const refreshPanorama = useCallback(async () => {
+    setPanoramaLoading(true);
+
+    try {
+      const nextPanorama = await getProgressPanorama(selectedDate, 30);
+      setPanoramaData(nextPanorama);
+      setPanoramaError(null);
+    } catch (error) {
+      setPanoramaError(error instanceof Error ? error.message : 'Falha ao carregar panorama.');
+    } finally {
+      setPanoramaLoading(false);
+    }
+  }, [selectedDate]);
+
   function prevMonth() {
     if (viewMonth === 0) {
       setViewMonth(11);
@@ -290,6 +304,9 @@ export default function HistoryScreen() {
             metric={panoramaMetric}
             onSelectPeriod={setPanoramaPeriod}
             onSelectMetric={setPanoramaMetric}
+            onRetry={() => {
+              void refreshPanorama();
+            }}
           />
         ) : null}
 

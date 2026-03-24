@@ -1,17 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { Brand, Radii, Typography } from '@/constants/theme';
 import {
+  buildPanoramaInsight,
   formatCaloriesAverage,
   formatWaterAverage,
   getAverageCalories,
   getAverageWaterMl,
   getDaysWithRecords,
-  getMetricValue,
   getPanoramaDays,
 } from '@/features/history/history-panorama-utils';
+import { HistoryPanoramaChart } from '@/features/history/history-panorama-chart';
 import { formatDateChip } from '@/features/home/home-utils';
 import type { PanoramaDataset, PanoramaMetric, PanoramaPeriod } from '@/services/progress-panorama';
 
@@ -30,6 +32,7 @@ type Props = {
   metric: PanoramaMetric;
   onSelectPeriod: (period: PanoramaPeriod) => void;
   onSelectMetric: (metric: PanoramaMetric) => void;
+  onRetry: () => void;
 };
 
 export function HistoryPanoramaCard({
@@ -40,6 +43,7 @@ export function HistoryPanoramaCard({
   metric,
   onSelectPeriod,
   onSelectMetric,
+  onRetry,
 }: Props) {
   const dateLabel = dataset ? formatDateChip(dataset.endDate) : 'Hoje';
   const visibleDays = getPanoramaDays(dataset, period);
@@ -47,7 +51,7 @@ export function HistoryPanoramaCard({
   const averageWater = getAverageWaterMl(visibleDays);
   const averageCalories = getAverageCalories(visibleDays);
   const selectedMetricLabel = METRIC_OPTIONS.find((item) => item.key === metric)?.label ?? 'Água';
-  const selectedMetricTotal = visibleDays.reduce((sum, day) => sum + getMetricValue(day, metric), 0);
+  const insightText = buildPanoramaInsight(visibleDays, period, metric);
 
   return (
     <AppCard style={s.card}>
@@ -122,13 +126,31 @@ export function HistoryPanoramaCard({
         })}
       </View>
 
-      <View style={s.panel}>
-        {loading ? <Text style={s.panelText}>Carregando panorama...</Text> : null}
-        {!loading && error ? <Text style={s.panelText}>Não consegui atualizar o panorama agora.</Text> : null}
+      <View style={s.chartCard}>
+        <View style={s.chartHeader}>
+          <Text style={s.chartTitle}>{selectedMetricLabel} por dia</Text>
+          <Text style={s.chartSubtitle}>Visão diária do período escolhido</Text>
+        </View>
+
+        {loading ? (
+          <View style={s.feedbackState}>
+            <ActivityIndicator color={Brand.greenDark} size="small" />
+            <Text style={s.feedbackText}>Carregando panorama...</Text>
+          </View>
+        ) : null}
+
+        {!loading && error ? (
+          <View style={s.feedbackState}>
+            <Text style={s.feedbackText}>Não consegui atualizar o panorama agora.</Text>
+            <AppButton title="Tentar novamente" onPress={onRetry} variant="secondary" />
+          </View>
+        ) : null}
+
         {!loading && !error ? (
-          <Text style={s.panelText}>
-            {selectedMetricLabel} no período: {Math.round(selectedMetricTotal).toLocaleString('pt-BR')}.
-          </Text>
+          <>
+            <HistoryPanoramaChart days={visibleDays} metric={metric} />
+            <Text style={s.insightText}>{insightText}</Text>
+          </>
         ) : null}
       </View>
     </AppCard>
@@ -201,20 +223,14 @@ const s = StyleSheet.create({
   periodChipTextActive: {
     color: Brand.greenDark,
   },
-  panel: {
-    borderRadius: Radii.lg,
-    backgroundColor: Brand.surfaceAlt,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-  },
-  panelText: {
-    ...Typography.body,
-    color: Brand.textSecondary,
-  },
   summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   summaryCard: {
+    flexGrow: 1,
+    minWidth: 150,
     borderRadius: 22,
     borderWidth: 1,
     borderColor: Brand.border,
@@ -260,5 +276,37 @@ const s = StyleSheet.create({
   },
   metricChipTextActive: {
     color: Brand.greenDark,
+  },
+  chartCard: {
+    borderRadius: 24,
+    backgroundColor: Brand.surfaceAlt,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    gap: 16,
+  },
+  chartHeader: {
+    gap: 4,
+  },
+  chartTitle: {
+    ...Typography.subtitle,
+    color: Brand.text,
+    fontWeight: '800',
+  },
+  chartSubtitle: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '700',
+  },
+  feedbackState: {
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  feedbackText: {
+    ...Typography.body,
+    color: Brand.textSecondary,
+  },
+  insightText: {
+    ...Typography.body,
+    color: Brand.textSecondary,
   },
 });
