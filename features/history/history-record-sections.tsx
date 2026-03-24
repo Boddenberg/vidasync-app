@@ -21,7 +21,7 @@ type WaterSectionProps = {
 
 export function HistoryMealsSection({
   meals,
-  selectedDate: _selectedDate,
+  selectedDate,
   onEdit,
   onDelete,
   onMoveDate,
@@ -49,8 +49,10 @@ export function HistoryMealsSection({
         </View>
       ) : (
         <View style={s.emptyState}>
-          <Text style={s.emptyTitle}>{'Nenhum prato registrado neste dia'}</Text>
-          <Text style={s.emptyHint}>{'Escolha outra data no calend\u00E1rio ou registre uma refei\u00E7\u00E3o na tela In\u00EDcio.'}</Text>
+          <Text style={s.emptyTitle}>Nenhum prato registrado neste dia</Text>
+          <Text style={s.emptyHint}>
+            Escolha outra data no calendário ou registre uma refeição no Início.
+          </Text>
         </View>
       )}
     </View>
@@ -61,7 +63,7 @@ export function HistoryWaterSection({ waterEvents }: WaterSectionProps) {
   return (
     <View style={s.sectionCard}>
       <View style={s.sectionHeader}>
-        <Text style={s.sectionTitle}>{'\u00C1gua do dia'}</Text>
+        <Text style={s.sectionTitle}>Água do dia</Text>
         <Text style={s.sectionCount}>
           {waterEvents.length} {waterEvents.length === 1 ? 'ajuste' : 'ajustes'}
         </Text>
@@ -99,8 +101,10 @@ export function HistoryWaterSection({ waterEvents }: WaterSectionProps) {
         </View>
       ) : (
         <View style={s.emptyState}>
-          <Text style={s.emptyTitle}>{'Nenhum consumo de \u00E1gua neste dia'}</Text>
-          <Text style={s.emptyHint}>{'Quando voc\u00EA registrar a hidrata\u00E7\u00E3o, os movimentos aparecem aqui em ordem.'}</Text>
+          <Text style={s.emptyTitle}>Nenhum ajuste de água neste dia</Text>
+          <Text style={s.emptyHint}>
+            Quando você registrar a hidratação, os movimentos aparecem aqui em ordem.
+          </Text>
         </View>
       )}
     </View>

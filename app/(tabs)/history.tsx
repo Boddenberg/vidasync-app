@@ -8,7 +8,6 @@ import { RegisterMealModal } from '@/components/register-meal-modal';
 import { Brand, Typography } from '@/constants/theme';
 import { HistoryCalendarCard } from '@/features/history/history-calendar-card';
 import { HistoryDayHero } from '@/features/history/history-day-hero';
-import { HistoryEmptyStateCard } from '@/features/history/history-empty-state-card';
 import { HistoryPanoramaCard } from '@/features/history/history-panorama-card';
 import { HistoryMealsSection, HistoryWaterSection } from '@/features/history/history-record-sections';
 import { getCalendarRows } from '@/features/history/history-utils';
@@ -265,9 +264,6 @@ export default function HistoryScreen() {
     const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
     return bTime - aTime;
   });
-  const hasMealEntries = sortedMeals.length > 0;
-  const hasWaterEntries = waterEvents.length > 0;
-  const hasAnyEntries = hasMealEntries || hasWaterEntries;
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -310,36 +306,28 @@ export default function HistoryScreen() {
           />
         ) : null}
 
-        {loading || hasAnyEntries ? (
-          <HistoryDayHero
-            selectedDate={selectedDate}
-            loading={loading}
-            calories={calories}
-            protein={protein}
-            carbs={carbs}
-            fat={fat}
-            mealCount={sortedMeals.length}
-            waterEvents={waterEvents}
-            waterStatus={waterStatus}
-            hasMealEntries={hasMealEntries}
-            hasWaterEntries={hasWaterEntries}
-          />
-        ) : (
-          <HistoryEmptyStateCard selectedDate={selectedDate} />
-        )}
+        <HistoryDayHero
+          selectedDate={selectedDate}
+          loading={loading}
+          calories={calories}
+          protein={protein}
+          carbs={carbs}
+          fat={fat}
+          mealCount={sortedMeals.length}
+          waterEvents={waterEvents}
+          waterStatus={waterStatus}
+        />
 
         {!loading ? (
           <>
-            {hasMealEntries ? (
-              <HistoryMealsSection
-                meals={sortedMeals}
-                selectedDate={selectedDate}
-                onEdit={handleEdit}
-                onDelete={handleDeleteMeal}
-                onMoveDate={setMovingMeal}
-              />
-            ) : null}
-            {hasWaterEntries ? <HistoryWaterSection waterEvents={waterEvents} /> : null}
+            <HistoryMealsSection
+              meals={sortedMeals}
+              selectedDate={selectedDate}
+              onEdit={handleEdit}
+              onDelete={handleDeleteMeal}
+              onMoveDate={setMovingMeal}
+            />
+            <HistoryWaterSection waterEvents={waterEvents} />
           </>
         ) : null}
       </ScrollView>
