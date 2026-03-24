@@ -37,17 +37,14 @@ type OverviewProps = {
 type UsernameStepProps = {
   currentUsername: string;
   usernameDraft: string;
-  usernamePassword: string;
   usernameStatusMessage: string | null;
   usernamePalette: StatusPalette;
   loading: boolean;
   canSubmitUsername: boolean;
   onChangeUsername: (value: string) => void;
-  onChangePassword: (value: string) => void;
   onSubmit: () => void;
   onCancel: () => void;
   usernameMaxLength: number;
-  passwordMaxLength: number;
 };
 
 type PasswordStepProps = {
@@ -178,9 +175,7 @@ export function EditProfileOverviewStep({
         <Ionicons name="chevron-forward" size={18} color={Brand.textSecondary} />
       </Pressable>
 
-      {photoChanged ? (
-        <AppButton title="Salvar alteração da foto" onPress={onSavePhoto} loading={loading} />
-      ) : null}
+      {photoChanged ? <AppButton title="Salvar alteração da foto" onPress={onSavePhoto} loading={loading} /> : null}
 
       <View style={s.utilityGroup}>
         <AppButton title="Enviar feedback" onPress={onOpenFeedback} variant="secondary" disabled={loading} />
@@ -205,24 +200,19 @@ export function EditProfileOverviewStep({
 export function EditProfileUsernameStep({
   currentUsername,
   usernameDraft,
-  usernamePassword,
   usernameStatusMessage,
   usernamePalette,
   loading,
   canSubmitUsername,
   onChangeUsername,
-  onChangePassword,
   onSubmit,
   onCancel,
   usernameMaxLength,
-  passwordMaxLength,
 }: UsernameStepProps) {
   return (
     <View style={s.formCard}>
       <Text style={s.sectionTitle}>Alterar nome de usuário</Text>
-      <Text style={s.sectionSubtitle}>
-        Escolha um nome novo e confirme com sua senha atual antes de salvar.
-      </Text>
+      <Text style={s.sectionSubtitle}>Escolha um nome novo e salve quando ele estiver disponivel.</Text>
 
       <View style={s.currentInfo}>
         <Text style={s.currentLabel}>Usuário atual</Text>
@@ -254,26 +244,7 @@ export function EditProfileUsernameStep({
         </View>
       ) : null}
 
-      <View style={s.fieldGroup}>
-        <Text style={s.fieldLabel}>Sua senha atual</Text>
-        <AppInput
-          placeholder="Digite sua senha atual"
-          value={usernamePassword}
-          onChangeText={onChangePassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          maxLength={passwordMaxLength}
-        />
-      </View>
-
-      <AppButton
-        title="Confirmar nome de usuário"
-        onPress={onSubmit}
-        loading={loading}
-        disabled={!canSubmitUsername}
-      />
-
+      <AppButton title="Salvar nome de usuário" onPress={onSubmit} loading={loading} disabled={!canSubmitUsername} />
       <AppButton title="Cancelar" onPress={onCancel} variant="secondary" disabled={loading} />
     </View>
   );

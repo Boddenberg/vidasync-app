@@ -75,17 +75,14 @@ export function EditProfileModal({ visible, onClose }: Props) {
             <EditProfileUsernameStep
               currentUsername={profile.currentUsername}
               usernameDraft={profile.usernameDraft}
-              usernamePassword={profile.usernamePassword}
               usernameStatusMessage={profile.usernameStatusMessage}
               usernamePalette={profile.usernamePalette}
               loading={profile.loading}
               canSubmitUsername={profile.canSubmitUsername}
               onChangeUsername={profile.setUsernameDraft}
-              onChangePassword={profile.setUsernamePassword}
               onSubmit={profile.handleSaveUsername}
               onCancel={profile.handleBack}
               usernameMaxLength={profile.usernameMaxLength}
-              passwordMaxLength={profile.passwordMaxLength}
             />
           ) : null}
 
