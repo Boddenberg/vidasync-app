@@ -297,7 +297,14 @@ export function HistoryPanoramaScreen() {
 
         <AppCard style={s.chartCard}>
           <View style={s.chartHeader}>
-            <Text style={s.chartEyebrow}>{mode === 'compare' ? 'Comparar' : getMetricLabel(metric)}</Text>
+            <View style={s.chartHeaderTop}>
+              <Text style={s.chartEyebrow}>{mode === 'compare' ? 'Comparar' : getMetricLabel(metric)}</Text>
+              <View style={s.chartVersionPill}>
+                <Text style={s.chartVersionText}>
+                  {visualOption.label} · {visualOption.title}
+                </Text>
+              </View>
+            </View>
             <Text style={s.chartTitle}>{getChartTitle(mode, metric, activeGranularity)}</Text>
             <Text style={s.chartHint}>{getChartHint(mode, metric, period, activeGranularity)}</Text>
           </View>
@@ -552,12 +559,32 @@ const s = StyleSheet.create({
   chartHeader: {
     gap: 4,
   },
+  chartHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
   chartEyebrow: {
     ...Typography.caption,
     color: Brand.greenDark,
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+  },
+  chartVersionPill: {
+    borderRadius: Radii.pill,
+    backgroundColor: Brand.surfaceSoft,
+    borderWidth: 1,
+    borderColor: '#CFE5D5',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  chartVersionText: {
+    ...Typography.caption,
+    color: Brand.greenDark,
+    fontWeight: '800',
   },
   chartTitle: {
     ...Typography.subtitle,
