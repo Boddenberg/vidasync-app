@@ -13,7 +13,12 @@ import { HistoryPanoramaCard } from '@/features/history/history-panorama-card';
 import { HistoryMealsSection, HistoryWaterSection } from '@/features/history/history-record-sections';
 import { getCalendarRows } from '@/features/history/history-utils';
 import { deleteMeal, getDaySummary, getMealsByRange, updateMeal } from '@/services/meals';
-import { getProgressPanorama, type PanoramaDataset, type PanoramaPeriod } from '@/services/progress-panorama';
+import {
+  getProgressPanorama,
+  type PanoramaDataset,
+  type PanoramaMetric,
+  type PanoramaPeriod,
+} from '@/services/progress-panorama';
 import { getWaterHistory, getWaterStatus, type WaterStatus } from '@/services/water';
 import type { Meal, MealType, NutritionData } from '@/types/nutrition';
 import { extractNum, monthRange, todayStr } from '@/utils/helpers';
@@ -39,6 +44,7 @@ export default function HistoryScreen() {
   const [waterDatesWithData, setWaterDatesWithData] = useState<Set<string>>(new Set());
   const [panoramaOpen, setPanoramaOpen] = useState(false);
   const [panoramaPeriod, setPanoramaPeriod] = useState<PanoramaPeriod>(7);
+  const [panoramaMetric, setPanoramaMetric] = useState<PanoramaMetric>('water');
   const [panoramaData, setPanoramaData] = useState<PanoramaDataset | null>(null);
   const [panoramaLoading, setPanoramaLoading] = useState(false);
   const [panoramaError, setPanoramaError] = useState<string | null>(null);
@@ -281,7 +287,9 @@ export default function HistoryScreen() {
             loading={panoramaLoading}
             error={panoramaError}
             period={panoramaPeriod}
+            metric={panoramaMetric}
             onSelectPeriod={setPanoramaPeriod}
+            onSelectMetric={setPanoramaMetric}
           />
         ) : null}
 
