@@ -137,3 +137,14 @@ export type AuthUser = {
 export type AuthResponse = AuthUser & {
   accessToken?: string;
 };
+
+/** Resposta do endpoint PUT /auth/profile/username */
+export type ProfileIdentityResponse = Pick<AuthUser, 'userId' | 'username' | 'profileImageUrl'> & {
+  isDeveloper?: boolean;
+  accessToken?: string;
+};
+
+/** Resposta do endpoint PUT /auth/profile/password */
+export type PasswordUpdateResponse = {
+  success: boolean;
+};
