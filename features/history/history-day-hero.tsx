@@ -15,6 +15,8 @@ type Props = {
   mealCount: number;
   waterEvents: WaterEvent[];
   waterStatus: WaterStatus | null;
+  hasMealEntries: boolean;
+  hasWaterEntries: boolean;
 };
 
 export function HistoryDayHero({
@@ -27,27 +29,35 @@ export function HistoryDayHero({
   mealCount,
   waterEvents,
   waterStatus,
+  hasMealEntries,
+  hasWaterEntries,
 }: Props) {
-  const hasAnyEntries = mealCount > 0 || waterEvents.length > 0;
+  const totalEntries = mealCount + waterEvents.length;
   const hydrationProgress =
     waterStatus && waterStatus.goalMl > 0
       ? Math.max(0, Math.min(waterStatus.consumedMl / waterStatus.goalMl, 1))
       : 0;
   const hydrationHeadline = !waterStatus
-    ? 'Sem água registrada'
+    ? 'Sem \u00E1gua registrada'
     : waterStatus.goalMl > 0
       ? `${formatWaterLiters(waterStatus.consumedMl)} / ${formatWaterLiters(waterStatus.goalMl)}`
       : `${formatWaterLiters(waterStatus.consumedMl)} registrados`;
   const hydrationHint = !waterStatus || waterEvents.length === 0
-    ? 'Nenhum ajuste de água nesta data.'
+    ? 'Nenhum consumo de \u00E1gua neste dia.'
     : waterStatus.goalMl > 0
       ? waterStatus.goalReached
-        ? 'Meta de água concluída.'
+        ? 'Meta de \u00E1gua conclu\u00EDda.'
         : `${Math.round(waterStatus.remainingMl)} ml para fechar a meta.`
-      : `${waterEvents.length} ${waterEvents.length === 1 ? 'ajuste' : 'ajustes'} de água registrados.`;
-  const dayHeroHint = hasAnyEntries
-    ? 'Um panorama rápido do que entrou no seu dia.'
-    : 'Quando você registrar pratos e água, o resumo aparece aqui.';
+      : `${waterEvents.length} ${waterEvents.length === 1 ? 'registro' : 'registros'} de \u00E1gua neste dia.`;
+  const dayHeroHint = hasMealEntries && hasWaterEntries
+    ? 'Um panorama r\u00E1pido do que entrou no seu dia.'
+    : hasMealEntries
+      ? 'Seus pratos registrados aparecem resumidos aqui.'
+      : hasWaterEntries
+        ? 'Seu consumo de \u00E1gua aparece resumido aqui.'
+        : 'Quando voc\u00EA registrar pratos ou \u00E1gua, o resumo aparece aqui.';
+  const badgeValue = loading ? '...' : `${totalEntries}`;
+  const badgeLabel = loading ? 'dados' : totalEntries === 1 ? 'registro' : 'registros';
 
   return (
     <View style={s.dayHero}>
@@ -61,8 +71,8 @@ export function HistoryDayHero({
           <Text style={s.dayHeroHint}>{dayHeroHint}</Text>
         </View>
         <View style={s.dayHeroBadge}>
-          <Text style={s.dayHeroBadgeValue}>{mealCount}</Text>
-          <Text style={s.dayHeroBadgeLabel}>{mealCount === 1 ? 'refeição' : 'refeições'}</Text>
+          <Text style={s.dayHeroBadgeValue}>{badgeValue}</Text>
+          <Text style={s.dayHeroBadgeLabel}>{badgeLabel}</Text>
         </View>
       </View>
 
@@ -71,43 +81,49 @@ export function HistoryDayHero({
       ) : (
         <>
           <View style={s.dayHeroTopRow}>
-            <View style={s.calorieCard}>
-              <Text style={s.calorieLabel}>Você consumiu</Text>
-              <View style={s.kcalRow}>
-                <Text adjustsFontSizeToFit minimumFontScale={0.92} numberOfLines={1} style={s.kcalValue}>
-                  {calories}
-                </Text>
-                <Text style={s.kcalUnit}>kcal</Text>
+            {hasMealEntries ? (
+              <View style={s.calorieCard}>
+                <Text style={s.calorieLabel}>{'Voc\u00EA consumiu'}</Text>
+                <View style={s.kcalRow}>
+                  <Text adjustsFontSizeToFit minimumFontScale={0.92} numberOfLines={1} style={s.kcalValue}>
+                    {calories}
+                  </Text>
+                  <Text style={s.kcalUnit}>kcal</Text>
+                </View>
               </View>
-            </View>
+            ) : null}
 
-            <View style={s.hydrationCard}>
-              <View style={s.hydrationCardIcon}>
-                <Ionicons name="water-outline" size={18} color={Brand.hydration} />
+            {hasWaterEntries ? (
+              <View style={s.hydrationCard}>
+                <View style={s.hydrationCardIcon}>
+                  <Ionicons name="water-outline" size={18} color={Brand.hydration} />
+                </View>
+                <Text style={s.hydrationCardLabel}>{'\u00C1gua'}</Text>
+                <Text style={s.hydrationCardValue}>{hydrationHeadline}</Text>
               </View>
-              <Text style={s.hydrationCardLabel}>Água</Text>
-              <Text style={s.hydrationCardValue}>{hydrationHeadline}</Text>
-            </View>
+            ) : null}
           </View>
 
-          {waterStatus?.goalMl ? (
+          {hasWaterEntries && waterStatus?.goalMl ? (
             <View style={s.hydrationTrack}>
               <View style={[s.hydrationFill, { width: `${Math.round(hydrationProgress * 100)}%` }]} />
             </View>
           ) : null}
 
-          <Text style={s.hydrationHint}>{hydrationHint}</Text>
+          {hasWaterEntries ? <Text style={s.hydrationHint}>{hydrationHint}</Text> : null}
 
-          <View style={s.macroRow}>
-            <MacroChip label="Proteína" value={`${protein}g`} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
-            <MacroChip
-              label="Carboidrato"
-              value={`${carbs}g`}
-              color={Brand.macroCarb}
-              bg={Brand.macroCarbBg}
-            />
-            <MacroChip label="Gordura" value={`${fat}g`} color={Brand.macroFat} bg={Brand.macroFatBg} />
-          </View>
+          {hasMealEntries ? (
+            <View style={s.macroRow}>
+              <MacroChip label={'Prote\u00EDna'} value={`${protein}g`} color={Brand.macroProtein} bg={Brand.macroProteinBg} />
+              <MacroChip
+                label="Carboidrato"
+                value={`${carbs}g`}
+                color={Brand.macroCarb}
+                bg={Brand.macroCarbBg}
+              />
+              <MacroChip label="Gordura" value={`${fat}g`} color={Brand.macroFat} bg={Brand.macroFatBg} />
+            </View>
+          ) : null}
         </>
       )}
     </View>

@@ -12,9 +12,11 @@ type Props = {
   canGoToNextMonth: boolean;
   datesWithData: Set<string>;
   waterDatesWithData: Set<string>;
+  panoramaOpen: boolean;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onSelectDay: (day: number) => void;
+  onTogglePanorama: () => void;
 };
 
 const CELL_SIZE = 44;
@@ -28,16 +30,32 @@ export function HistoryCalendarCard({
   canGoToNextMonth,
   datesWithData,
   waterDatesWithData,
+  panoramaOpen,
   onPrevMonth,
   onNextMonth,
   onSelectDay,
+  onTogglePanorama,
 }: Props) {
   return (
     <View style={s.calendarCard}>
-      <View style={s.calendarIntro}>
-        <Text style={s.calendarEyebrow}>Calendário</Text>
-        <Text style={s.calendarTitle}>Seus registros</Text>
-        <Text style={s.calendarHint}>Escolha um dia para revisar refeições, água e consistência.</Text>
+      <View style={s.calendarHeaderRow}>
+        <View style={s.calendarIntro}>
+          <Text style={s.calendarEyebrow}>Calendário</Text>
+          <Text style={s.calendarTitle}>Seus registros</Text>
+          <Text style={s.calendarHint}>Escolha um dia para revisar refeições, água e consistência.</Text>
+        </View>
+
+        <Pressable
+          accessibilityLabel={panoramaOpen ? 'Fechar panorama' : 'Abrir panorama'}
+          accessibilityRole="button"
+          onPress={onTogglePanorama}
+          style={({ pressed }) => [
+            s.panoramaBtn,
+            panoramaOpen && s.panoramaBtnActive,
+            pressed && s.panoramaBtnPressed,
+          ]}>
+          <Text style={[s.panoramaBtnText, panoramaOpen && s.panoramaBtnTextActive]}>Panorama</Text>
+        </Pressable>
       </View>
 
       <View style={s.calNav}>
@@ -144,7 +162,14 @@ const s = StyleSheet.create({
     gap: 16,
     ...Shadows.card,
   },
+  calendarHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   calendarIntro: {
+    flex: 1,
     gap: 4,
   },
   calendarEyebrow: {
@@ -162,6 +187,33 @@ const s = StyleSheet.create({
   calendarHint: {
     ...Typography.body,
     color: Brand.textSecondary,
+  },
+  panoramaBtn: {
+    minHeight: 38,
+    borderRadius: Radii.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Brand.surfaceSoft,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  panoramaBtnActive: {
+    backgroundColor: Brand.greenDark,
+    borderColor: Brand.greenDark,
+  },
+  panoramaBtnPressed: {
+    opacity: 0.92,
+  },
+  panoramaBtnText: {
+    ...Typography.caption,
+    color: Brand.greenDark,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  panoramaBtnTextActive: {
+    color: '#FFFFFF',
   },
   calNav: {
     flexDirection: 'row',
