@@ -293,6 +293,7 @@ export function HistoryPanoramaScreen() {
             })}
           </ScrollView>
           <Text style={s.visualNote}>{visualOption.note}</Text>
+          <Text style={s.visualMetaNote}>Cada versao altera a forma do grafico e do comparativo.</Text>
         </AppCard>
 
         <AppCard style={s.chartCard}>
@@ -518,6 +519,11 @@ const s = StyleSheet.create({
   visualNote: {
     ...Typography.body,
     color: Brand.textSecondary,
+  },
+  visualMetaNote: {
+    ...Typography.caption,
+    color: Brand.textMuted,
+    fontWeight: '700',
   },
   metricChip: {
     flexDirection: 'row',
