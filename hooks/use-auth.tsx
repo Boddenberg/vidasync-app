@@ -16,7 +16,7 @@ import {
   updateUsername as apiUpdateUsername,
   type UsernameAvailabilityResponse,
 } from '@/services/auth';
-import type { AuthResponse, AuthUser } from '@/types/nutrition';
+import type { AuthResponse, AuthUser, ProfileIdentityResponse } from '@/types/nutrition';
 
 const STORAGE_KEY_USER_ID = '@vidasync:userId';
 const STORAGE_KEY_USERNAME = '@vidasync:username';
@@ -105,8 +105,10 @@ type NormalizedAuthPayload = {
   accessToken?: string;
 };
 
-function normalizeAuthPayload(payload: AuthResponse, fallbackUser: AuthUser | null): NormalizedAuthPayload {
-  const row = payload as AuthResponse & Record<string, unknown>;
+type PersistableAuthPayload = AuthResponse | ProfileIdentityResponse;
+
+function normalizeAuthPayload(payload: PersistableAuthPayload, fallbackUser: AuthUser | null): NormalizedAuthPayload {
+  const row = payload as PersistableAuthPayload & Record<string, unknown>;
   const userId = readOptionalString(row, ['userId', 'user_id'], fallbackUser?.userId ?? null);
   const username = readOptionalString(row, ['username', 'user_name'], fallbackUser?.username ?? FALLBACK_USERNAME);
   const profileImageUrl = readOptionalString(
@@ -146,7 +148,7 @@ type AuthState = {
   signup: (username: string, password: string, profileImage?: string | null) => Promise<void>;
   updateProfile: (params: { profileImage?: string | null }) => Promise<void>;
   checkUsernameAvailability: (username: string) => Promise<UsernameAvailabilityResponse>;
-  updateUsername: (params: { username: string; currentPassword: string }) => Promise<void>;
+  updateUsername: (params: { username: string }) => Promise<void>;
   updatePassword: (params: { currentPassword: string; newPassword: string }) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -180,7 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  const persistUser = useCallback(async (payload: AuthResponse, fallbackUser?: AuthUser | null) => {
+  const persistUser = useCallback(async (payload: PersistableAuthPayload, fallbackUser?: AuthUser | null) => {
     const normalized = normalizeAuthPayload(payload, fallbackUser ?? userRef.current);
 
     await AsyncStorage.setItem(STORAGE_KEY_USER_ID, normalized.user.userId);
@@ -268,7 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [clearStoredSession, syncProfileSession]);
 
-  const handleProtectedAuthResponse = useCallback(async (request: () => Promise<AuthResponse>) => {
+  const handleProtectedAuthResponse = useCallback(async (request: () => Promise<PersistableAuthPayload>) => {
     try {
       const data = await request();
       await persistUser(data);
@@ -305,13 +307,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [clearStoredSession]);
 
-  const updateUsernameFn = useCallback(async (params: { username: string; currentPassword: string }) => {
-    await handleProtectedAuthResponse(() => apiUpdateUsername(params));
+  const updateUsernameFn = useCallback(async (params: { username: string }) => {
+    await handleProtectedAuthResponse(() => apiUpdateUsername({ username: params.username }));
   }, [handleProtectedAuthResponse]);
 
   const updatePasswordFn = useCallback(async (params: { currentPassword: string; newPassword: string }) => {
-    await handleProtectedAuthResponse(() => apiUpdatePassword(params));
-  }, [handleProtectedAuthResponse]);
+    try {
+      const data = await apiUpdatePassword(params);
+
+      if (!data.success) {
+        throw new Error('Nao foi possivel atualizar a senha.');
+      }
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        await clearStoredSession();
+      }
+      throw err;
+    }
+  }, [clearStoredSession]);
 
   const logoutFn = useCallback(async () => {
     await clearStoredSession();

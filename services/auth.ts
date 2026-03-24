@@ -6,7 +6,7 @@
 
 import { API_BASE_URL } from '@/constants/config';
 import { getStoredAccessToken, getStoredUserId, isValidUuid } from '@/hooks/use-auth';
-import type { AuthResponse } from '@/types/nutrition';
+import type { AuthResponse, PasswordUpdateResponse, ProfileIdentityResponse } from '@/types/nutrition';
 
 export type UsernameAvailabilityResponse = {
   username: string;
@@ -205,8 +205,7 @@ export async function checkUsernameAvailability(username: string): Promise<Usern
 
 export async function updateUsername(params: {
   username: string;
-  currentPassword: string;
-}): Promise<AuthResponse> {
+}): Promise<ProfileIdentityResponse> {
   const res = await fetch(`${API_BASE_URL}/auth/profile/username`, {
     method: 'PUT',
     headers: await buildAuthHeaders(),
@@ -225,13 +224,13 @@ export async function updateUsername(params: {
     throw new Error(parseErrorMessage(res.status, text));
   }
 
-  return parseJson<AuthResponse>(text);
+  return parseJson<ProfileIdentityResponse>(text);
 }
 
 export async function updatePassword(params: {
   currentPassword: string;
   newPassword: string;
-}): Promise<AuthResponse> {
+}): Promise<PasswordUpdateResponse> {
   const res = await fetch(`${API_BASE_URL}/auth/profile/password`, {
     method: 'PUT',
     headers: await buildAuthHeaders(),
@@ -250,5 +249,5 @@ export async function updatePassword(params: {
     throw new Error(parseErrorMessage(res.status, text));
   }
 
-  return parseJson<AuthResponse>(text);
+  return parseJson<PasswordUpdateResponse>(text);
 }
