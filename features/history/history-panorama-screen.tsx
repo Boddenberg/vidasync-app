@@ -9,6 +9,10 @@ import { Brand, Radii, Typography } from '@/constants/theme';
 import { formatDateChip } from '@/features/home/home-utils';
 import { HistoryPanoramaVisualization } from '@/features/history/history-panorama-visualization';
 import {
+  PANORAMA_VISUAL_OPTIONS,
+  type PanoramaVisualVersion,
+} from '@/features/history/history-panorama-visuals';
+import {
   buildPanoramaCompareInsight,
   buildPanoramaInsight,
   formatCaloriesAverage,
@@ -111,6 +115,7 @@ export function HistoryPanoramaScreen() {
   const [mode, setMode] = useState<PanoramaMode>('individual');
   const [metric, setMetric] = useState<PanoramaMetric>('water');
   const [granularity, setGranularity] = useState<PanoramaChartGranularity>(getDefaultPanoramaGranularity(7));
+  const [visualVersion, setVisualVersion] = useState<PanoramaVisualVersion>('v1');
   const [dataset, setDataset] = useState<PanoramaDataset | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -163,6 +168,7 @@ export function HistoryPanoramaScreen() {
       ? buildPanoramaCompareInsight(days, period)
       : buildPanoramaInsight(days, period, metric);
   const periodLabel = `${period} dias`;
+  const visualOption = PANORAMA_VISUAL_OPTIONS.find((option) => option.key === visualVersion) ?? PANORAMA_VISUAL_OPTIONS[0];
 
   return (
     <View style={s.root}>
@@ -260,6 +266,35 @@ export function HistoryPanoramaScreen() {
           )}
         </AppCard>
 
+        <AppCard style={s.sectionCard}>
+          <Text style={s.sectionLabel}>Direcao visual</Text>
+          <ScrollView
+            horizontal
+            bounces={false}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.visualRow}>
+            {PANORAMA_VISUAL_OPTIONS.map((option) => {
+              const active = option.key === visualVersion;
+
+              return (
+                <Pressable
+                  key={option.key}
+                  accessibilityRole="button"
+                  onPress={() => setVisualVersion(option.key)}
+                  style={({ pressed }) => [
+                    s.visualCard,
+                    active && s.visualCardActive,
+                    pressed && s.pressed,
+                  ]}>
+                  <Text style={[s.visualLabel, active && s.visualLabelActive]}>{option.label}</Text>
+                  <Text style={[s.visualTitle, active && s.visualTitleActive]}>{option.title}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <Text style={s.visualNote}>{visualOption.note}</Text>
+        </AppCard>
+
         <AppCard style={s.chartCard}>
           <View style={s.chartHeader}>
             <Text style={s.chartEyebrow}>{mode === 'compare' ? 'Comparar' : getMetricLabel(metric)}</Text>
@@ -331,6 +366,7 @@ export function HistoryPanoramaScreen() {
               mode={mode}
               metric={metric}
               granularity={activeGranularity}
+              visualVersion={visualVersion}
             />
           ) : null}
         </AppCard>
@@ -435,6 +471,46 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  visualRow: {
+    gap: 10,
+    paddingRight: 4,
+  },
+  visualCard: {
+    minWidth: 132,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    gap: 4,
+  },
+  visualCardActive: {
+    backgroundColor: Brand.surfaceSoft,
+    borderColor: '#CFE5D5',
+  },
+  visualLabel: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.55,
+  },
+  visualLabelActive: {
+    color: Brand.greenDark,
+  },
+  visualTitle: {
+    ...Typography.body,
+    color: Brand.text,
+    fontWeight: '700',
+  },
+  visualTitleActive: {
+    color: Brand.greenDark,
+  },
+  visualNote: {
+    ...Typography.body,
+    color: Brand.textSecondary,
   },
   metricChip: {
     flexDirection: 'row',
