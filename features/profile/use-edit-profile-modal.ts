@@ -43,7 +43,6 @@ export function useEditProfileModal({ onClose }: Props) {
   const [photoChanged, setPhotoChanged] = useState(false);
   const [photoPickerVisible, setPhotoPickerVisible] = useState(false);
   const [usernameDraft, setUsernameDraft] = useState('');
-  const [usernamePassword, setUsernamePassword] = useState('');
   const [usernameStatus, setUsernameStatus] = useState<UsernameCheckState>('idle');
   const [usernameStatusMessage, setUsernameStatusMessage] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -83,7 +82,6 @@ export function useEditProfileModal({ onClose }: Props) {
   const canSubmitUsername =
     !loading &&
     !!usernameDraft.trim() &&
-    !!usernamePassword.trim() &&
     (usernameStatus === 'available' || usernameStatus === 'error');
 
   const canSubmitPassword =
@@ -160,7 +158,6 @@ export function useEditProfileModal({ onClose }: Props) {
 
   function resetUsernameFlow() {
     setUsernameDraft('');
-    setUsernamePassword('');
     setUsernameStatus('idle');
     setUsernameStatusMessage(null);
   }
@@ -308,18 +305,12 @@ export function useEditProfileModal({ onClose }: Props) {
       return;
     }
 
-    if (!usernamePassword.trim()) {
-      setError('Digite sua senha atual para confirmar.');
-      return;
-    }
-
     clearMessages();
     setLoading(true);
 
     try {
       await updateUsername({
         username: normalizedUsername,
-        currentPassword: usernamePassword.trim(),
       });
       resetUsernameFlow();
       setStep('overview');
@@ -412,7 +403,6 @@ export function useEditProfileModal({ onClose }: Props) {
     showDeveloperTools,
     photoPickerVisible,
     usernameDraft,
-    usernamePassword,
     usernameStatusMessage,
     usernamePalette,
     currentPassword,
@@ -439,7 +429,6 @@ export function useEditProfileModal({ onClose }: Props) {
     handleOpenDeveloperTools,
     setPhotoPickerVisible,
     setUsernameDraft: (value: string) => setUsernameDraft(sanitizeUsernameInput(value)),
-    setUsernamePassword,
     setCurrentPassword,
     setNewPassword,
     setConfirmNewPassword,
