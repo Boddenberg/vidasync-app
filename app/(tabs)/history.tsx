@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,22 +8,16 @@ import { RegisterMealModal } from '@/components/register-meal-modal';
 import { Brand, Typography } from '@/constants/theme';
 import { HistoryCalendarCard } from '@/features/history/history-calendar-card';
 import { HistoryDayHero } from '@/features/history/history-day-hero';
-import { HistoryPanoramaCard } from '@/features/history/history-panorama-card';
 import { HistoryMealsSection, HistoryWaterSection } from '@/features/history/history-record-sections';
 import { getCalendarRows } from '@/features/history/history-utils';
 import { deleteMeal, getDaySummary, getMealsByRange, updateMeal } from '@/services/meals';
-import {
-  getProgressPanorama,
-  type PanoramaDataset,
-  type PanoramaMetric,
-  type PanoramaPeriod,
-} from '@/services/progress-panorama';
 import { getWaterHistory, getWaterStatus, type WaterStatus } from '@/services/water';
 import type { Meal, MealType, NutritionData } from '@/types/nutrition';
 import { extractNum, monthRange, todayStr } from '@/utils/helpers';
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const today = todayStr();
   const currentMonthKey = today.slice(0, 7);
 
@@ -41,12 +35,6 @@ export default function HistoryScreen() {
   const [movingMeal, setMovingMeal] = useState<Meal | null>(null);
   const [datesWithData, setDatesWithData] = useState<Set<string>>(new Set());
   const [waterDatesWithData, setWaterDatesWithData] = useState<Set<string>>(new Set());
-  const [panoramaOpen, setPanoramaOpen] = useState(false);
-  const [panoramaPeriod, setPanoramaPeriod] = useState<PanoramaPeriod>(7);
-  const [panoramaMetric, setPanoramaMetric] = useState<PanoramaMetric>('water');
-  const [panoramaData, setPanoramaData] = useState<PanoramaDataset | null>(null);
-  const [panoramaLoading, setPanoramaLoading] = useState(false);
-  const [panoramaError, setPanoramaError] = useState<string | null>(null);
 
   const calendarRows = getCalendarRows(viewYear, viewMonth);
   const viewedMonthKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
@@ -177,52 +165,6 @@ export default function HistoryScreen() {
     }, [loadDay, refreshMonthMarks, selectedDate]),
   );
 
-  useEffect(() => {
-    if (!panoramaOpen) return;
-
-    let cancelled = false;
-
-    async function loadPanorama() {
-      setPanoramaLoading(true);
-
-      try {
-        const nextPanorama = await getProgressPanorama(selectedDate, 30);
-        if (cancelled) return;
-
-        setPanoramaData(nextPanorama);
-        setPanoramaError(null);
-      } catch (error) {
-        if (cancelled) return;
-
-        setPanoramaError(error instanceof Error ? error.message : 'Falha ao carregar panorama.');
-      } finally {
-        if (!cancelled) {
-          setPanoramaLoading(false);
-        }
-      }
-    }
-
-    void loadPanorama();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [panoramaOpen, selectedDate]);
-
-  const refreshPanorama = useCallback(async () => {
-    setPanoramaLoading(true);
-
-    try {
-      const nextPanorama = await getProgressPanorama(selectedDate, 30);
-      setPanoramaData(nextPanorama);
-      setPanoramaError(null);
-    } catch (error) {
-      setPanoramaError(error instanceof Error ? error.message : 'Falha ao carregar panorama.');
-    } finally {
-      setPanoramaLoading(false);
-    }
-  }, [selectedDate]);
-
   function prevMonth() {
     if (viewMonth === 0) {
       setViewMonth(11);
@@ -284,27 +226,16 @@ export default function HistoryScreen() {
           canGoToNextMonth={canGoToNextMonth}
           datesWithData={datesWithData}
           waterDatesWithData={waterDatesWithData}
-          panoramaOpen={panoramaOpen}
           onPrevMonth={prevMonth}
           onNextMonth={nextMonth}
           onSelectDay={handleDayPress}
-          onTogglePanorama={() => setPanoramaOpen((current) => !current)}
+          onOpenPanorama={() => {
+            router.push({
+              pathname: '/progress-panorama',
+              params: { endDate: selectedDate },
+            } as any);
+          }}
         />
-
-        {panoramaOpen ? (
-          <HistoryPanoramaCard
-            dataset={panoramaData}
-            loading={panoramaLoading}
-            error={panoramaError}
-            period={panoramaPeriod}
-            metric={panoramaMetric}
-            onSelectPeriod={setPanoramaPeriod}
-            onSelectMetric={setPanoramaMetric}
-            onRetry={() => {
-              void refreshPanorama();
-            }}
-          />
-        ) : null}
 
         <HistoryDayHero
           selectedDate={selectedDate}

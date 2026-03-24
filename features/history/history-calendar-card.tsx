@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
@@ -12,11 +13,10 @@ type Props = {
   canGoToNextMonth: boolean;
   datesWithData: Set<string>;
   waterDatesWithData: Set<string>;
-  panoramaOpen: boolean;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onSelectDay: (day: number) => void;
-  onTogglePanorama: () => void;
+  onOpenPanorama: () => void;
 };
 
 const CELL_SIZE = 44;
@@ -30,11 +30,10 @@ export function HistoryCalendarCard({
   canGoToNextMonth,
   datesWithData,
   waterDatesWithData,
-  panoramaOpen,
   onPrevMonth,
   onNextMonth,
   onSelectDay,
-  onTogglePanorama,
+  onOpenPanorama,
 }: Props) {
   return (
     <View style={s.calendarCard}>
@@ -46,15 +45,12 @@ export function HistoryCalendarCard({
         </View>
 
         <Pressable
-          accessibilityLabel={panoramaOpen ? 'Fechar panorama' : 'Abrir panorama'}
+          accessibilityLabel="Abrir panorama"
           accessibilityRole="button"
-          onPress={onTogglePanorama}
-          style={({ pressed }) => [
-            s.panoramaBtn,
-            panoramaOpen && s.panoramaBtnActive,
-            pressed && s.panoramaBtnPressed,
-          ]}>
-          <Text style={[s.panoramaBtnText, panoramaOpen && s.panoramaBtnTextActive]}>Panorama</Text>
+          onPress={onOpenPanorama}
+          style={({ pressed }) => [s.panoramaLink, pressed && s.panoramaLinkPressed]}>
+          <Text style={s.panoramaLinkText}>Ver panorama</Text>
+          <Ionicons name="chevron-forward" size={15} color={Brand.greenDark} />
         </Pressable>
       </View>
 
@@ -188,32 +184,20 @@ const s = StyleSheet.create({
     ...Typography.body,
     color: Brand.textSecondary,
   },
-  panoramaBtn: {
-    minHeight: 38,
-    borderRadius: Radii.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+  panoramaLink: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Brand.surfaceSoft,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    gap: 3,
+    paddingTop: 4,
+    paddingBottom: 4,
   },
-  panoramaBtnActive: {
-    backgroundColor: Brand.greenDark,
-    borderColor: Brand.greenDark,
+  panoramaLinkPressed: {
+    opacity: 0.85,
   },
-  panoramaBtnPressed: {
-    opacity: 0.92,
-  },
-  panoramaBtnText: {
-    ...Typography.caption,
+  panoramaLinkText: {
+    ...Typography.helper,
     color: Brand.greenDark,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
-  panoramaBtnTextActive: {
-    color: '#FFFFFF',
+    fontWeight: '700',
   },
   calNav: {
     flexDirection: 'row',
