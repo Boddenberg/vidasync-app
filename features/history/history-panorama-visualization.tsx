@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import Svg, { Circle, Defs, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 import { AppCard } from '@/components/app-card';
 import { Brand, Radii, Typography } from '@/constants/theme';
@@ -41,6 +41,8 @@ type PlotGeometry = {
   ticks: number[];
   points: Array<{ key: string; x: number; y: number; value: number }>;
   barWidth: number;
+  baselineY: number;
+  step: number;
 };
 
 const Y_AXIS_WIDTH = 50;
@@ -152,6 +154,30 @@ function buildAreaPath(points: Array<{ x: number; y: number }>, baselineY: numbe
   return `${buildLinePath(points)} L ${points[points.length - 1].x} ${baselineY} L ${points[0].x} ${baselineY} Z`;
 }
 
+function buildStepLinePath(points: Array<{ x: number; y: number }>): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) {
+    return `M ${points[0].x} ${points[0].y}`;
+  }
+
+  return points.reduce((path, point, index) => {
+    if (index === 0) {
+      return `M ${point.x} ${point.y}`;
+    }
+
+    return `${path} H ${point.x} V ${point.y}`;
+  }, '');
+}
+
+function buildStepAreaPath(points: Array<{ x: number; y: number }>, baselineY: number): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) {
+    return `M ${points[0].x} ${baselineY} L ${points[0].x} ${points[0].y} L ${points[0].x} ${baselineY} Z`;
+  }
+
+  return `${buildStepLinePath(points)} L ${points[points.length - 1].x} ${baselineY} L ${points[0].x} ${baselineY} Z`;
+}
+
 function buildPlotGeometry(
   values: number[],
   plotWidth: number,
@@ -166,6 +192,7 @@ function buildPlotGeometry(
   const axisMax = getNiceAxisMax(Math.max(0, ...values));
   const usableWidth = Math.max(0, plotWidth - sideInset * 2);
   const step = values.length > 1 ? usableWidth / (values.length - 1) : 0;
+  const baselineY = plotHeight - bottomPadding;
 
   const points = values.map((value, index) => {
     const x = values.length === 1 ? plotWidth / 2 : sideInset + step * index;
@@ -185,6 +212,8 @@ function buildPlotGeometry(
     ticks: [axisMax, axisMax / 2, 0],
     points,
     barWidth: isBarChart ? Math.min(24, Math.max(12, (step || usableWidth) * 0.56)) : 0,
+    baselineY,
+    step,
   };
 }
 
@@ -338,12 +367,22 @@ function MetricPlot({
     [isBarChart, metric, plotHeight, plotWidth, points],
   );
 
+  const chartStyle = visual.chartStyle;
   const linePath = buildLinePath(geometry.points);
+  const stepLinePath = buildStepLinePath(geometry.points);
   const areaPath = buildAreaPath(geometry.points, plotHeight - 10);
+  const stepAreaPath = buildStepAreaPath(geometry.points, geometry.baselineY);
   const selectedIndex = Math.max(0, points.findIndex((point) => point.key === selectedKey));
   const selectedPoint = geometry.points[selectedIndex] ?? geometry.points[geometry.points.length - 1];
   const selectedSource = points[selectedIndex] ?? points[points.length - 1];
   const gradientId = `panorama-gradient-${visualVersion}-${metric}`;
+  const stemWidth = isBarChart ? Math.max(8, geometry.barWidth * 0.52) : Math.max(4, Math.min(8, geometry.step * 0.16 || 6));
+  const capsuleWidth = isBarChart
+    ? Math.max(12, geometry.barWidth * 0.82)
+    : Math.max(12, Math.min(20, geometry.step * 0.34 || 16));
+  const railWidth = Math.max(capsuleWidth + 2, isBarChart ? geometry.barWidth : capsuleWidth + 4);
+  const markerSize = Math.max(7, visual.dotRadius * 2 + 1);
+  const markerRadius = Math.max(5, visual.selectedDotRadius + 4);
 
   return (
     <Svg width={plotWidth} height={plotHeight}>
@@ -366,12 +405,23 @@ function MetricPlot({
         );
       })}
 
-      {selectedPoint ? (
+      {selectedPoint && chartStyle === 'capsule' ? (
+        <Rect
+          x={selectedPoint.x - railWidth / 2 - 7}
+          y={6}
+          width={railWidth + 14}
+          height={geometry.baselineY - 2}
+          rx={18}
+          fill={tone.areaStart}
+        />
+      ) : null}
+
+      {selectedPoint && chartStyle !== 'capsule' ? (
         <Line
           x1={selectedPoint.x}
           y1={12}
           x2={selectedPoint.x}
-          y2={plotHeight - 10}
+          y2={geometry.baselineY}
           stroke={tone.stroke}
           strokeWidth={1}
           strokeOpacity={visualVersion === 'v3' ? 0.18 : 0.28}
@@ -379,7 +429,7 @@ function MetricPlot({
         />
       ) : null}
 
-      {!isBarChart ? (
+      {chartStyle === 'area' && !isBarChart ? (
         <>
           <Defs>
             <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -412,10 +462,12 @@ function MetricPlot({
             );
           })}
         </>
-      ) : (
+      ) : null}
+
+      {chartStyle === 'area' && isBarChart ? (
         geometry.points.map((point, index) => {
           const nextValue = points[index] ? getDisplayPointValue(points[index], metric) : 0;
-          const barHeight = Math.max(2, plotHeight - 10 - point.y);
+          const barHeight = Math.max(2, geometry.baselineY - point.y);
           const active = selectedSource?.key === points[index]?.key;
 
           return (
@@ -431,7 +483,173 @@ function MetricPlot({
             />
           );
         })
-      )}
+      ) : null}
+
+      {chartStyle === 'lollipop' ? (
+        <>
+          {!isBarChart ? (
+            <Path
+              d={linePath}
+              fill="none"
+              stroke={tone.stroke}
+              strokeWidth={2.1}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeOpacity={0.72}
+            />
+          ) : null}
+          {geometry.points.map((point, index) => {
+            const active = selectedSource?.key === points[index]?.key;
+            const value = points[index] ? getDisplayPointValue(points[index], metric) : 0;
+
+            return (
+              <G key={`${metric}-lollipop-${points[index]?.key ?? index}`}>
+                <Line
+                  x1={point.x}
+                  y1={geometry.baselineY}
+                  x2={point.x}
+                  y2={value > 0 ? point.y : geometry.baselineY - 2}
+                  stroke={tone.stroke}
+                  strokeWidth={active ? stemWidth + 1.5 : stemWidth}
+                  strokeLinecap="round"
+                  strokeOpacity={active ? 1 : 0.54}
+                />
+                <Circle
+                  cx={point.x}
+                  cy={value > 0 ? point.y : geometry.baselineY - 2}
+                  r={active ? visual.selectedDotRadius : visual.dotRadius + 1}
+                  fill={active ? '#FFFFFF' : tone.stroke}
+                  stroke={tone.stroke}
+                  strokeWidth={active ? 2.4 : 0}
+                />
+              </G>
+            );
+          })}
+        </>
+      ) : null}
+
+      {chartStyle === 'step' && !isBarChart ? (
+        <>
+          <Defs>
+            <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={tone.areaStart} />
+              <Stop offset="100%" stopColor={tone.areaEnd} />
+            </LinearGradient>
+          </Defs>
+          <Path d={stepAreaPath} fill={`url(#${gradientId})`} />
+          <Path
+            d={stepLinePath}
+            fill="none"
+            stroke={tone.stroke}
+            strokeWidth={visual.lineWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {geometry.points.map((point, index) => {
+            const active = selectedSource?.key === points[index]?.key;
+            const size = active ? markerRadius : markerSize;
+
+            return (
+              <Rect
+                key={`${metric}-step-dot-${points[index]?.key ?? index}`}
+                x={point.x - size / 2}
+                y={point.y - size / 2}
+                width={size}
+                height={size}
+                rx={visualVersion === 'v3' ? 3 : size / 2}
+                fill={active ? '#FFFFFF' : tone.stroke}
+                stroke={tone.stroke}
+                strokeWidth={active ? 2.3 : 0}
+              />
+            );
+          })}
+        </>
+      ) : null}
+
+      {chartStyle === 'step' && isBarChart ? (
+        geometry.points.map((point, index) => {
+          const nextValue = points[index] ? getDisplayPointValue(points[index], metric) : 0;
+          const barHeight = Math.max(2, geometry.baselineY - point.y);
+          const active = selectedSource?.key === points[index]?.key;
+
+          return (
+            <G key={`${metric}-step-bar-${points[index]?.key ?? index}`}>
+              <Rect
+                x={point.x - geometry.barWidth / 2}
+                y={geometry.baselineY - 4}
+                width={geometry.barWidth}
+                height={4}
+                rx={2}
+                fill={tone.grid}
+                fillOpacity={0.65}
+              />
+              <Rect
+                x={point.x - geometry.barWidth / 2}
+                y={point.y}
+                width={geometry.barWidth}
+                height={nextValue > 0 ? barHeight : 2}
+                rx={7}
+                fill={tone.fill}
+                fillOpacity={active ? 1 : 0.76}
+              />
+            </G>
+          );
+        })
+      ) : null}
+
+      {chartStyle === 'capsule' ? (
+        <>
+          {!isBarChart ? (
+            <Path
+              d={linePath}
+              fill="none"
+              stroke={tone.stroke}
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeOpacity={0.42}
+            />
+          ) : null}
+          {geometry.points.map((point, index) => {
+            const active = selectedSource?.key === points[index]?.key;
+            const value = points[index] ? getDisplayPointValue(points[index], metric) : 0;
+            const barHeight = Math.max(2, geometry.baselineY - point.y);
+
+            return (
+              <G key={`${metric}-capsule-${points[index]?.key ?? index}`}>
+                <Rect
+                  x={point.x - railWidth / 2}
+                  y={12}
+                  width={railWidth}
+                  height={geometry.baselineY - 12}
+                  rx={railWidth / 2}
+                  fill={tone.grid}
+                  fillOpacity={0.3}
+                />
+                <Rect
+                  x={point.x - capsuleWidth / 2}
+                  y={value > 0 ? point.y : geometry.baselineY - 3}
+                  width={capsuleWidth}
+                  height={value > 0 ? barHeight : 3}
+                  rx={capsuleWidth / 2}
+                  fill={tone.fill}
+                  fillOpacity={active ? 1 : 0.82}
+                />
+                {!isBarChart ? (
+                  <Circle
+                    cx={point.x}
+                    cy={value > 0 ? point.y : geometry.baselineY - 3}
+                    r={active ? visual.selectedDotRadius - 0.4 : visual.dotRadius}
+                    fill={active ? '#FFFFFF' : tone.stroke}
+                    stroke={tone.stroke}
+                    strokeWidth={active ? 2.2 : 0}
+                  />
+                ) : null}
+              </G>
+            );
+          })}
+        </>
+      ) : null}
 
       {geometry.points.map((point, index) => {
         const prevPoint = geometry.points[index - 1];

@@ -10,6 +10,7 @@ export type PanoramaVisualOption = {
 };
 
 export type PanoramaVisualSpec = {
+  chartStyle: 'area' | 'lollipop' | 'step' | 'capsule';
   stageSurface: string;
   stageBorder: string;
   stageInsetSurface: string;
@@ -45,25 +46,25 @@ export const PANORAMA_VISUAL_OPTIONS: PanoramaVisualOption[] = [
     key: 'v1',
     label: 'Versao 1',
     title: 'Calma suave',
-    note: 'Leitura leve, com superfice macia, selecao destacada e cara de app de habito.',
+    note: 'Linha com area suave para agua e calorias, com leitura classica e mais familiar.',
   },
   {
     key: 'v2',
     label: 'Versao 2',
-    title: 'Studio',
-    note: 'Mais contraste, moldura marcada e pequenos chips para deixar o grafico mais premium.',
+    title: 'Lollipop',
+    note: 'Pontos com hastes verticais e ritmo mais marcado, para deixar cada dia mais legivel.',
   },
   {
     key: 'v3',
     label: 'Versao 3',
-    title: 'Editorial',
-    note: 'Visual mais limpo e elegante, com pouco ruido e foco no ritmo da curva.',
+    title: 'Step',
+    note: 'Linha em degraus e visual mais editorial, destacando mudancas de nivel entre os dias.',
   },
   {
     key: 'v4',
     label: 'Versao 4',
-    title: 'Pulse',
-    note: 'Mais energia visual, com palco colorido, brilho suave e leitura mais expressiva.',
+    title: 'Capsulas',
+    note: 'Colunas em capsula com trilho de fundo e mais presenca visual sem perder a leitura.',
   },
 ];
 
@@ -71,6 +72,7 @@ export function getPanoramaVisualSpec(version: PanoramaVisualVersion): PanoramaV
   switch (version) {
     case 'v2':
       return {
+        chartStyle: 'lollipop',
         stageSurface: '#EEF5F0',
         stageBorder: '#D3E3D7',
         stageInsetSurface: '#FFFFFF',
@@ -102,6 +104,7 @@ export function getPanoramaVisualSpec(version: PanoramaVisualVersion): PanoramaV
       };
     case 'v3':
       return {
+        chartStyle: 'step',
         stageSurface: '#FFFFFF',
         stageBorder: '#E0EAE2',
         stageInsetSurface: '#FBFDFB',
@@ -133,6 +136,7 @@ export function getPanoramaVisualSpec(version: PanoramaVisualVersion): PanoramaV
       };
     case 'v4':
       return {
+        chartStyle: 'capsule',
         stageSurface: '#ECF7F0',
         stageBorder: '#CBE3D1',
         stageInsetSurface: '#F8FCF9',
@@ -165,6 +169,7 @@ export function getPanoramaVisualSpec(version: PanoramaVisualVersion): PanoramaV
     case 'v1':
     default:
       return {
+        chartStyle: 'area',
         stageSurface: '#F4FAF6',
         stageBorder: '#D5E6D8',
         stageInsetSurface: '#FCFEFC',
