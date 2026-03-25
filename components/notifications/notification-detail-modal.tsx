@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SHOW_NOTIFICATION_ACTIONS } from '@/components/notifications/notification-flags';
 import {
   formatNotificationMoment,
   getNotificationTypePalette,
@@ -61,7 +62,9 @@ export function NotificationDetailModal({ visible, notification, onClose, onOpen
                   <Ionicons name={palette.icon} size={15} color={palette.iconColor} />
                   <Text style={[s.typeChipText, { color: palette.accent }]}>{palette.label}</Text>
                 </View>
-                {notification.actionLabel ? <Text style={s.actionChip}>{notification.actionLabel}</Text> : null}
+                {SHOW_NOTIFICATION_ACTIONS && notification.actionLabel ? (
+                  <Text style={s.actionChip}>{notification.actionLabel}</Text>
+                ) : null}
               </View>
 
               <Pressable style={({ pressed }) => [s.closeBtn, pressed && s.pressed]} onPress={onClose}>
@@ -78,7 +81,7 @@ export function NotificationDetailModal({ visible, notification, onClose, onOpen
             style={s.scroll}
             contentContainerStyle={[
               s.scrollContent,
-              { paddingBottom: notification.actionRoute ? 18 : 8 },
+              { paddingBottom: SHOW_NOTIFICATION_ACTIONS && notification.actionRoute ? 18 : 8 },
             ]}
             showsVerticalScrollIndicator={false}>
             {hasImage ? (
@@ -112,7 +115,7 @@ export function NotificationDetailModal({ visible, notification, onClose, onOpen
             ) : null}
           </ScrollView>
 
-          {notification.actionRoute ? (
+          {SHOW_NOTIFICATION_ACTIONS && notification.actionRoute ? (
             <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 6) }]}>
               <AppButton
                 title={notification.actionLabel ?? 'Abrir'}

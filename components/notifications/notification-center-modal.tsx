@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SHOW_NOTIFICATION_ACTIONS } from '@/components/notifications/notification-flags';
 import { DraggableSheetModal } from '@/components/ui/draggable-sheet-modal';
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import type { AppNotification } from '@/services/notifications';
@@ -167,7 +168,9 @@ export function NotificationCenterModal({
                 ) : null}
 
                 <View style={s.cardFooter}>
-                  {notification.actionLabel ? <Text style={s.actionChip}>{notification.actionLabel}</Text> : null}
+                  {SHOW_NOTIFICATION_ACTIONS && notification.actionLabel ? (
+                    <Text style={s.actionChip}>{notification.actionLabel}</Text>
+                  ) : null}
                   <Pressable
                     style={({ pressed }) => [
                       s.deleteChip,
