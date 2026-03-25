@@ -70,6 +70,15 @@ GET /notifications
 - `unreadCount` considera apenas notificacoes com `readAt == null` e `deleted == false`
 - a lista pode conter notificacoes deletadas para preservar historico no cliente
 - o frontend deve esconder itens com `deleted == true`
+- `message` e opcional e pode vir `null`
+- `imageUrl` e opcional e pode vir `null`; quando vier preenchido deve ser uma URL publica de imagem pronta para renderizar no app
+- o frontend nao faz upload de imagem no fluxo de notificacoes; ele apenas recebe `imageUrl` do backend e exibe a imagem
+- quando `message` e `imageUrl` vierem juntos, o app mostra o texto primeiro e a imagem logo abaixo
+- quando `message` vier `null` e `imageUrl` vier preenchido, o app abre a notificacao mostrando apenas a imagem
+- `actionLabel` e `actionRoute` sao opcionais e genericos: podem levar para feedback, novidades, recados ou qualquer outra tela do app
+- quando `actionRoute` vier preenchido, o app navega para a rota informada depois de marcar a notificacao como lida
+- quando `actionRoute` vier `null`, o toque serve apenas para marcar a notificacao como lida
+- `actionLabel` e apenas o texto exibido no chip visual; ele nao muda a regra de navegacao
 
 ## 2. Marcar como lida
 

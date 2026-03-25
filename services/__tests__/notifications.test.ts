@@ -22,7 +22,7 @@ function buildNotification(overrides: Partial<AppNotification> = {}): AppNotific
   return {
     id: overrides.id ?? 'notification-1',
     title: overrides.title ?? 'Resposta da equipe',
-    message: overrides.message ?? 'Respondemos seu feedback.',
+    message: overrides.message !== undefined ? overrides.message : 'Respondemos seu feedback.',
     type: overrides.type ?? 'INFO',
     imageUrl: overrides.imageUrl ?? null,
     actionLabel: overrides.actionLabel ?? 'Abrir',
@@ -106,6 +106,38 @@ describe('notifications service', () => {
     ]);
   });
 
+  it('accepts notifications with image only when message is null', async () => {
+    mockedApiGetJson.mockResolvedValue({
+      unreadCount: 1,
+      notifications: [
+        {
+          id: 'image-only',
+          title: 'Novo recado',
+          message: null,
+          imageUrl: 'https://cdn.exemplo.com/notificacoes/recado.jpg',
+          type: 'INFO',
+          readAt: null,
+          deleted: false,
+          deletedAt: null,
+          createdAt: '2026-03-15T16:20:00.000Z',
+          date: '2026-03-15',
+          time: '16:20:00',
+        },
+      ],
+    });
+
+    const snapshot = await getNotifications();
+
+    expect(snapshot.notifications).toEqual([
+      expect.objectContaining({
+        id: 'image-only',
+        title: 'Novo recado',
+        message: null,
+        imageUrl: 'https://cdn.exemplo.com/notificacoes/recado.jpg',
+      }),
+    ]);
+  });
+
   it('parses partial delete updates for soft delete endpoint', async () => {
     mockedApiPost.mockResolvedValue({
       unreadCount: 0,
@@ -148,6 +180,24 @@ describe('notifications service', () => {
       readAt: '2026-03-15T16:25:00.000Z',
       deleted: true,
       deletedAt: '2026-03-15T16:30:00.000Z',
+    });
+  });
+
+  it('allows message to be cleared when the notification keeps an image', () => {
+    const current = buildNotification({
+      id: 'notification-1',
+      message: 'Respondemos seu feedback.',
+      imageUrl: 'https://cdn.exemplo.com/notificacoes/recado.jpg',
+    });
+
+    const merged = mergeNotificationPatch(current, {
+      id: 'notification-1',
+      message: null,
+    });
+
+    expect(merged).toEqual({
+      ...current,
+      message: null,
     });
   });
 

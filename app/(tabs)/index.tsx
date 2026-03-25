@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CalendarPickerModal } from '@/components/calendar-picker-modal';
 import { EditProfileModal } from '@/components/edit-profile-modal';
 import { NotificationCenterModal } from '@/components/notifications/notification-center-modal';
+import { NotificationDetailModal } from '@/components/notifications/notification-detail-modal';
 import { NutritionGoalsModal } from '@/components/nutrition-goals-modal';
 import { RegisterMealModal } from '@/components/register-meal-modal';
 import { Brand, Spacing } from '@/constants/theme';
@@ -194,12 +195,18 @@ export default function HomeScreen() {
         busyActions={home.notificationBusyActions}
         markingAll={home.notificationsMarkingAll}
         deletingAll={home.notificationsDeletingAll}
-        onClose={() => home.setNotificationsVisible(false)}
+        onClose={home.handleCloseNotifications}
         onRefresh={home.handleOpenNotifications}
         onPressNotification={home.handlePressNotification}
         onMarkAllRead={home.handleMarkAllNotificationsRead}
         onDeleteNotification={home.handleDeleteNotification}
         onDeleteAll={home.handleDeleteAllNotifications}
+      />
+      <NotificationDetailModal
+        visible={home.notificationDetailVisible}
+        notification={home.selectedNotification}
+        onClose={home.handleCloseNotificationDetail}
+        onOpenAction={home.handleOpenNotificationAction}
       />
       <CalendarPickerModal
         visible={home.calendarVisible}

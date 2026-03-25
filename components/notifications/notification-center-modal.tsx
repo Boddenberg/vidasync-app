@@ -1,5 +1,4 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -31,21 +30,33 @@ type Props = {
   onDeleteAll: () => void;
 };
 
+const notificationDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Sao_Paulo',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
+const notificationTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Sao_Paulo',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
 function formatNotificationMoment(notification: AppNotification) {
+  const createdAt = new Date(notification.createdAt);
+  if (!Number.isNaN(createdAt.getTime())) {
+    return `${notificationDateFormatter.format(createdAt)} às ${notificationTimeFormatter.format(createdAt)}`;
+  }
+
   if (notification.date && notification.time) {
-    return `${notification.date} às ${notification.time.slice(0, 5)}`;
+    const fallback = new Date(`${notification.date}T${notification.time}Z`);
+    if (!Number.isNaN(fallback.getTime())) {
+      return `${notificationDateFormatter.format(fallback)} às ${notificationTimeFormatter.format(fallback)}`;
+    }
   }
 
-  const parsed = new Date(notification.createdAt);
-  if (Number.isNaN(parsed.getTime())) {
-    return 'Agora há pouco';
-  }
-
-  return parsed.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }) + ` às ${parsed.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+  return 'Agora há pouco';
 }
 
 function getTypePalette(type: AppNotification['type']) {
@@ -97,18 +108,6 @@ export function NotificationCenterModal({
   onDeleteNotification,
   onDeleteAll,
 }: Props) {
-  const titleLabel = useMemo(() => {
-    if (unreadCount <= 0) return 'Tudo em dia';
-    if (unreadCount === 1) return '1 nova notificação';
-    return `${unreadCount} novas notificações`;
-  }, [unreadCount]);
-
-  const visibleCountLabel = useMemo(() => {
-    if (notifications.length === 0) return 'Sem itens ativos';
-    if (notifications.length === 1) return '1 item visível';
-    return `${notifications.length} itens visíveis`;
-  }, [notifications.length]);
-
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={s.overlay} onPress={onClose}>
@@ -120,7 +119,6 @@ export function NotificationCenterModal({
           <View style={s.header}>
             <View style={{ flex: 1 }}>
               <Text style={s.title}>Notificações</Text>
-              <Text style={s.subtitle}>Avisos, respostas e recados importantes do app.</Text>
             </View>
             <Pressable style={({ pressed }) => [s.closeBtn, pressed && s.pressed]} onPress={onClose}>
               <Ionicons name="close-outline" size={20} color={Brand.text} />
@@ -130,8 +128,6 @@ export function NotificationCenterModal({
           <View style={s.summaryCard}>
             <View>
               <Text style={s.summaryLabel}>Caixa de entrada</Text>
-              <Text style={s.summaryTitle}>{titleLabel}</Text>
-              <Text style={s.summaryMeta}>{visibleCountLabel}</Text>
             </View>
             <View style={s.summaryActions}>
               <Pressable
@@ -225,7 +221,7 @@ export function NotificationCenterModal({
                       {reading ? <ActivityIndicator size="small" color={Brand.greenDark} /> : null}
                     </View>
 
-                    <Text style={s.cardMessage}>{notification.message}</Text>
+                    {notification.message ? <Text style={s.cardMessage}>{notification.message}</Text> : null}
 
                     {notification.imageUrl ? (
                       <Image source={{ uri: notification.imageUrl }} style={s.cardImage} resizeMode="cover" />
@@ -298,11 +294,6 @@ const s = StyleSheet.create({
     color: Brand.text,
     fontWeight: '800',
   },
-  subtitle: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
-    marginTop: 2,
-  },
   closeBtn: {
     width: 36,
     height: 36,
@@ -326,17 +317,6 @@ const s = StyleSheet.create({
     color: Brand.greenDeeper,
     textTransform: 'uppercase',
     fontWeight: '700',
-  },
-  summaryTitle: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  summaryMeta: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    marginTop: 4,
   },
   summaryActions: {
     flexDirection: 'row',

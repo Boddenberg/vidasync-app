@@ -68,6 +68,8 @@ export function useHomeScreen({ onNavigate }: Props) {
   const [editVisible, setEditVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [notificationDetailVisible, setNotificationDetailVisible] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<AppNotification | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [goalsModalVisible, setGoalsModalVisible] = useState(false);
 
@@ -342,6 +344,17 @@ export function useHomeScreen({ onNavigate }: Props) {
     await loadNotifications();
   }
 
+  function handleCloseNotifications() {
+    setNotificationDetailVisible(false);
+    setSelectedNotification(null);
+    setNotificationsVisible(false);
+  }
+
+  function handleCloseNotificationDetail() {
+    setNotificationDetailVisible(false);
+    setSelectedNotification(null);
+  }
+
   async function handlePressNotification(notification: AppNotification) {
     if (!notification.readAt) {
       setNotificationBusyActions((current) => ({ ...current, [notification.id]: 'read' }));
@@ -367,10 +380,17 @@ export function useHomeScreen({ onNavigate }: Props) {
       }
     }
 
-    if (notification.actionRoute) {
-      setNotificationsVisible(false);
-      onNavigate(notification.actionRoute);
-    }
+    setSelectedNotification(notification);
+    setNotificationDetailVisible(true);
+  }
+
+  function handleOpenNotificationAction(notification: AppNotification) {
+    if (!notification.actionRoute) return;
+
+    setNotificationDetailVisible(false);
+    setSelectedNotification(null);
+    setNotificationsVisible(false);
+    onNavigate(notification.actionRoute);
   }
 
   async function handleMarkAllNotificationsRead() {
@@ -397,6 +417,11 @@ export function useHomeScreen({ onNavigate }: Props) {
 
   async function handleDeleteNotification(notification: AppNotification) {
     if (notification.deleted) return;
+
+    if (selectedNotification?.id === notification.id) {
+      setNotificationDetailVisible(false);
+      setSelectedNotification(null);
+    }
 
     setNotificationBusyActions((current) => ({ ...current, [notification.id]: 'delete' }));
     deleteNotificationsLocally({ ids: [notification.id] });
@@ -426,6 +451,8 @@ export function useHomeScreen({ onNavigate }: Props) {
       return;
     }
 
+    setNotificationDetailVisible(false);
+    setSelectedNotification(null);
     setNotificationsDeletingAll(true);
     deleteNotificationsLocally({ markAll: true });
 
@@ -523,7 +550,9 @@ export function useHomeScreen({ onNavigate }: Props) {
     profileVisible,
     setProfileVisible,
     notificationsVisible,
-    setNotificationsVisible,
+    handleCloseNotifications,
+    notificationDetailVisible,
+    selectedNotification,
     calendarVisible,
     setCalendarVisible,
     goalsModalVisible,
@@ -575,6 +604,8 @@ export function useHomeScreen({ onNavigate }: Props) {
     handleEditSave,
     handleDeleteMeal,
     handleOpenNotifications,
+    handleCloseNotificationDetail,
+    handleOpenNotificationAction,
     handlePressNotification,
     handleMarkAllNotificationsRead,
     handleDeleteNotification,

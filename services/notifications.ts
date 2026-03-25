@@ -5,7 +5,7 @@ export type AppNotificationType = 'INFO' | 'SUCCESS' | 'WARNING' | 'ALERT';
 export type AppNotification = {
   id: string;
   title: string;
-  message: string;
+  message: string | null;
   type: AppNotificationType;
   imageUrl: string | null;
   actionLabel: string | null;
@@ -21,7 +21,7 @@ export type AppNotification = {
 export type AppNotificationPatch = {
   id: string;
   title?: string;
-  message?: string;
+  message?: string | null;
   type?: AppNotificationType;
   imageUrl?: string | null;
   actionLabel?: string | null;
@@ -112,17 +112,16 @@ function parseNotification(value: unknown): AppNotification | null {
 
   const id = asString(value.id);
   const title = asString(value.title);
-  const message = asString(value.message);
   const createdAt = asString(value.createdAt);
 
-  if (!id || !title || !message || !createdAt) {
+  if (!id || !title || !createdAt) {
     return null;
   }
 
   return {
     id,
     title,
-    message,
+    message: getOptionalString(value, 'message') ?? null,
     type: normalizeType(value.type),
     imageUrl: getOptionalString(value, 'imageUrl') ?? null,
     actionLabel: getOptionalString(value, 'actionLabel') ?? null,
@@ -156,7 +155,7 @@ function parseNotificationPatch(value: unknown): AppNotificationPatch | null {
   const time = getOptionalString(value, 'time');
 
   if (title) patch.title = title;
-  if (message) patch.message = message;
+  if (message !== undefined) patch.message = message;
   if (hasOwn(value, 'type') && value.type !== null && value.type !== undefined) {
     patch.type = normalizeType(value.type);
   }
@@ -190,10 +189,11 @@ export function mergeNotificationPatch(
   patch: AppNotificationPatch,
 ): AppNotification | null {
   const title = patch.title ?? current?.title;
-  const message = patch.message ?? current?.message;
   const createdAt = patch.createdAt ?? current?.createdAt;
+  const message = patch.message !== undefined ? patch.message : current?.message ?? null;
+  const imageUrl = patch.imageUrl !== undefined ? patch.imageUrl : current?.imageUrl ?? null;
 
-  if (!title || !message || !createdAt) {
+  if (!title || !createdAt) {
     return null;
   }
 
@@ -202,7 +202,7 @@ export function mergeNotificationPatch(
     title,
     message,
     type: patch.type ?? current?.type ?? 'INFO',
-    imageUrl: patch.imageUrl !== undefined ? patch.imageUrl : current?.imageUrl ?? null,
+    imageUrl,
     actionLabel: patch.actionLabel !== undefined ? patch.actionLabel : current?.actionLabel ?? null,
     actionRoute: patch.actionRoute !== undefined ? patch.actionRoute : current?.actionRoute ?? null,
     readAt: patch.readAt !== undefined ? patch.readAt : current?.readAt ?? null,
