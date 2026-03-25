@@ -20,12 +20,15 @@ type Props = {
   unreadCount: number;
   loading: boolean;
   error: string | null;
-  busyIds: Record<string, boolean>;
+  busyActions: Record<string, 'read' | 'delete'>;
   markingAll: boolean;
+  deletingAll: boolean;
   onClose: () => void;
   onRefresh: () => void;
   onPressNotification: (notification: AppNotification) => void;
   onMarkAllRead: () => void;
+  onDeleteNotification: (notification: AppNotification) => void;
+  onDeleteAll: () => void;
 };
 
 function formatNotificationMoment(notification: AppNotification) {
@@ -84,18 +87,27 @@ export function NotificationCenterModal({
   unreadCount,
   loading,
   error,
-  busyIds,
+  busyActions,
   markingAll,
+  deletingAll,
   onClose,
   onRefresh,
   onPressNotification,
   onMarkAllRead,
+  onDeleteNotification,
+  onDeleteAll,
 }: Props) {
   const titleLabel = useMemo(() => {
     if (unreadCount <= 0) return 'Tudo em dia';
     if (unreadCount === 1) return '1 nova notificação';
     return `${unreadCount} novas notificações`;
   }, [unreadCount]);
+
+  const visibleCountLabel = useMemo(() => {
+    if (notifications.length === 0) return 'Sem itens ativos';
+    if (notifications.length === 1) return '1 item visível';
+    return `${notifications.length} itens visíveis`;
+  }, [notifications.length]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -119,21 +131,40 @@ export function NotificationCenterModal({
             <View>
               <Text style={s.summaryLabel}>Caixa de entrada</Text>
               <Text style={s.summaryTitle}>{titleLabel}</Text>
+              <Text style={s.summaryMeta}>{visibleCountLabel}</Text>
             </View>
-            <Pressable
-              style={({ pressed }) => [
-                s.summaryAction,
-                (markingAll || unreadCount === 0) && s.summaryActionDisabled,
-                pressed && s.pressed,
-              ]}
-              disabled={markingAll || unreadCount === 0}
-              onPress={onMarkAllRead}>
-              {markingAll ? (
-                <ActivityIndicator size="small" color={Brand.greenDark} />
-              ) : (
-                <Text style={s.summaryActionText}>Marcar tudo como lido</Text>
-              )}
-            </Pressable>
+            <View style={s.summaryActions}>
+              <Pressable
+                style={({ pressed }) => [
+                  s.summaryAction,
+                  (markingAll || deletingAll || unreadCount === 0) && s.summaryActionDisabled,
+                  pressed && s.pressed,
+                ]}
+                disabled={markingAll || deletingAll || unreadCount === 0}
+                onPress={onMarkAllRead}>
+                {markingAll ? (
+                  <ActivityIndicator size="small" color={Brand.greenDark} />
+                ) : (
+                  <Text style={s.summaryActionText}>Marcar tudo como lido</Text>
+                )}
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [
+                  s.summaryAction,
+                  s.summaryActionDanger,
+                  (deletingAll || markingAll || notifications.length === 0) && s.summaryActionDisabled,
+                  pressed && s.pressed,
+                ]}
+                disabled={deletingAll || markingAll || notifications.length === 0}
+                onPress={onDeleteAll}>
+                {deletingAll ? (
+                  <ActivityIndicator size="small" color={Brand.danger} />
+                ) : (
+                  <Text style={s.summaryActionDangerText}>Excluir tudo</Text>
+                )}
+              </Pressable>
+            </View>
           </View>
 
           {loading ? (
@@ -162,7 +193,10 @@ export function NotificationCenterModal({
               {notifications.map((notification) => {
                 const palette = getTypePalette(notification.type);
                 const unread = !notification.readAt;
-                const busy = !!busyIds[notification.id];
+                const busyAction = busyActions[notification.id];
+                const busy = !!busyAction;
+                const reading = busyAction === 'read';
+                const deleting = busyAction === 'delete';
 
                 return (
                   <Pressable
@@ -173,6 +207,7 @@ export function NotificationCenterModal({
                       unread && s.cardUnread,
                       pressed && s.pressed,
                     ]}
+                    disabled={busy || markingAll || deletingAll}
                     onPress={() => onPressNotification(notification)}>
                     <View style={s.cardTop}>
                       <View style={[s.cardIcon, { backgroundColor: palette.iconBg }]}>
@@ -187,7 +222,7 @@ export function NotificationCenterModal({
                         <Text style={s.cardMeta}>{formatNotificationMoment(notification)}</Text>
                       </View>
 
-                      {busy ? <ActivityIndicator size="small" color={Brand.greenDark} /> : null}
+                      {reading ? <ActivityIndicator size="small" color={Brand.greenDark} /> : null}
                     </View>
 
                     <Text style={s.cardMessage}>{notification.message}</Text>
@@ -196,11 +231,27 @@ export function NotificationCenterModal({
                       <Image source={{ uri: notification.imageUrl }} style={s.cardImage} resizeMode="cover" />
                     ) : null}
 
-                    {notification.actionLabel ? (
-                      <View style={s.cardFooter}>
-                        <Text style={s.actionChip}>{notification.actionLabel}</Text>
-                      </View>
-                    ) : null}
+                    <View style={s.cardFooter}>
+                      {notification.actionLabel ? <Text style={s.actionChip}>{notification.actionLabel}</Text> : null}
+                      <Pressable
+                        style={({ pressed }) => [
+                          s.deleteChip,
+                          (deleting || markingAll || deletingAll) && s.actionChipDisabled,
+                          pressed && s.pressed,
+                        ]}
+                        disabled={deleting || markingAll || deletingAll}
+                        onPress={(event) => {
+                          event.stopPropagation();
+                          onDeleteNotification(notification);
+                        }}>
+                        {deleting ? (
+                          <ActivityIndicator size="small" color={Brand.danger} />
+                        ) : (
+                          <Ionicons name="trash-outline" size={14} color={Brand.danger} />
+                        )}
+                        <Text style={s.deleteChipText}>Excluir</Text>
+                      </Pressable>
+                    </View>
                   </Pressable>
                 );
               })}
@@ -282,6 +333,16 @@ const s = StyleSheet.create({
     fontWeight: '800',
     marginTop: 2,
   },
+  summaryMeta: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    marginTop: 4,
+  },
+  summaryActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   summaryAction: {
     alignSelf: 'flex-start',
     borderRadius: Radii.pill,
@@ -293,12 +354,21 @@ const s = StyleSheet.create({
     minHeight: 36,
     justifyContent: 'center',
   },
+  summaryActionDanger: {
+    borderColor: '#F0C9CD',
+    backgroundColor: '#FFF7F8',
+  },
   summaryActionDisabled: {
     opacity: 0.5,
   },
   summaryActionText: {
     ...Typography.caption,
     color: Brand.greenDark,
+    fontWeight: '700',
+  },
+  summaryActionDangerText: {
+    ...Typography.caption,
+    color: Brand.danger,
     fontWeight: '700',
   },
   centerState: {
@@ -408,6 +478,9 @@ const s = StyleSheet.create({
   },
   cardFooter: {
     flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   actionChip: {
     ...Typography.caption,
@@ -418,6 +491,27 @@ const s = StyleSheet.create({
     borderRadius: Radii.pill,
     backgroundColor: '#EAF7EE',
     overflow: 'hidden',
+  },
+  deleteChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 'auto',
+    borderRadius: Radii.pill,
+    borderWidth: 1,
+    borderColor: '#F0C9CD',
+    backgroundColor: '#FFF7F8',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minHeight: 32,
+  },
+  deleteChipText: {
+    ...Typography.caption,
+    color: Brand.danger,
+    fontWeight: '700',
+  },
+  actionChipDisabled: {
+    opacity: 0.55,
   },
   pressed: {
     opacity: 0.85,

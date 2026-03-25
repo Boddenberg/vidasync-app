@@ -187,16 +187,19 @@ export default function HomeScreen() {
       <EditProfileModal visible={home.profileVisible} onClose={() => home.setProfileVisible(false)} />
       <NotificationCenterModal
         visible={home.notificationsVisible}
-        notifications={home.notificationsSnapshot.notifications}
+        notifications={home.visibleNotifications}
         unreadCount={home.notificationsSnapshot.unreadCount}
         loading={home.notificationsLoading}
         error={home.notificationsError}
-        busyIds={home.notificationBusyIds}
+        busyActions={home.notificationBusyActions}
         markingAll={home.notificationsMarkingAll}
+        deletingAll={home.notificationsDeletingAll}
         onClose={() => home.setNotificationsVisible(false)}
         onRefresh={home.handleOpenNotifications}
         onPressNotification={home.handlePressNotification}
         onMarkAllRead={home.handleMarkAllNotificationsRead}
+        onDeleteNotification={home.handleDeleteNotification}
+        onDeleteAll={home.handleDeleteAllNotifications}
       />
       <CalendarPickerModal
         visible={home.calendarVisible}

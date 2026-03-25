@@ -5,10 +5,15 @@ import { Animated } from 'react-native';
 import { useAuth } from '@/hooks/use-auth';
 import { useMeals } from '@/hooks/use-meals';
 import {
+  countUnreadNotifications,
   getNotifications,
+  isNotificationVisible,
+  markNotificationsDeleted,
   markNotificationsRead,
   type AppNotification,
+  type NotificationsUpdate,
   type NotificationsSnapshot,
+  mergeNotificationPatch,
 } from '@/services/notifications';
 import {
   getNutritionGoals,
@@ -51,6 +56,8 @@ type Props = {
   onNavigate: (route: string) => void;
 };
 
+type NotificationBusyAction = 'read' | 'delete';
+
 export function useHomeScreen({ onNavigate }: Props) {
   const today = todayStr();
   const { user } = useAuth();
@@ -84,8 +91,9 @@ export function useHomeScreen({ onNavigate }: Props) {
   });
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
-  const [notificationBusyIds, setNotificationBusyIds] = useState<Record<string, boolean>>({});
+  const [notificationBusyActions, setNotificationBusyActions] = useState<Record<string, NotificationBusyAction>>({});
   const [notificationsMarkingAll, setNotificationsMarkingAll] = useState(false);
+  const [notificationsDeletingAll, setNotificationsDeletingAll] = useState(false);
 
   const dayAnim = useRef(new Animated.Value(0)).current;
   const hydrationAnim = useRef(new Animated.Value(0)).current;
@@ -132,10 +140,34 @@ export function useHomeScreen({ onNavigate }: Props) {
     }
   }, []);
 
-  const applyNotifications = useCallback((snapshot: NotificationsSnapshot) => {
+  const replaceNotifications = useCallback((snapshot: NotificationsSnapshot) => {
     setNotificationsSnapshot({
       notifications: sortNotifications(snapshot.notifications),
       unreadCount: snapshot.unreadCount,
+    });
+  }, []);
+
+  const mergeNotificationsUpdate = useCallback((update: NotificationsUpdate) => {
+    setNotificationsSnapshot((current) => {
+      if (update.notifications.length === 0 && update.unreadCount === null) {
+        return current;
+      }
+
+      const notificationsById = new Map<string, AppNotification>(
+        current.notifications.map((item) => [item.id, item]),
+      );
+      update.notifications.forEach((patch) => {
+        const merged = mergeNotificationPatch(notificationsById.get(patch.id), patch);
+        if (merged) {
+          notificationsById.set(patch.id, merged);
+        }
+      });
+
+      const notifications = sortNotifications(Array.from(notificationsById.values()));
+      return {
+        notifications,
+        unreadCount: update.unreadCount ?? countUnreadNotifications(notifications),
+      };
     });
   }, []);
 
@@ -143,14 +175,14 @@ export function useHomeScreen({ onNavigate }: Props) {
     setNotificationsLoading(true);
 
     try {
-      applyNotifications(await getNotifications());
+      replaceNotifications(await getNotifications());
       setNotificationsError(null);
     } catch (error) {
       setNotificationsError(error instanceof Error ? error.message : 'Falha ao carregar notificações.');
     } finally {
       setNotificationsLoading(false);
     }
-  }, [applyNotifications]);
+  }, [replaceNotifications]);
 
   useFocusEffect(
     useCallback(() => {
@@ -279,13 +311,28 @@ export function useHomeScreen({ onNavigate }: Props) {
     setNotificationsSnapshot((current) => {
       const notifications = current.notifications.map((item) => {
         const shouldMark = params.markAll || params.ids?.includes(item.id);
-        if (!shouldMark || item.readAt) return item;
+        if (!shouldMark || item.deleted || item.readAt) return item;
         return { ...item, readAt: new Date().toISOString() };
       });
 
       return {
         notifications,
-        unreadCount: notifications.filter((item) => !item.readAt).length,
+        unreadCount: countUnreadNotifications(notifications),
+      };
+    });
+  }
+
+  function deleteNotificationsLocally(params: { ids?: string[]; markAll?: boolean }) {
+    setNotificationsSnapshot((current) => {
+      const notifications = current.notifications.map((item) => {
+        const shouldDelete = params.markAll || params.ids?.includes(item.id);
+        if (!shouldDelete || item.deleted) return item;
+        return { ...item, deleted: true, deletedAt: new Date().toISOString() };
+      });
+
+      return {
+        notifications,
+        unreadCount: countUnreadNotifications(notifications),
       };
     });
   }
@@ -297,20 +344,22 @@ export function useHomeScreen({ onNavigate }: Props) {
 
   async function handlePressNotification(notification: AppNotification) {
     if (!notification.readAt) {
-      setNotificationBusyIds((current) => ({ ...current, [notification.id]: true }));
+      setNotificationBusyActions((current) => ({ ...current, [notification.id]: 'read' }));
       markNotificationsLocally({ ids: [notification.id] });
 
       try {
-        const snapshot = await markNotificationsRead({ notificationIds: [notification.id] });
-        if (snapshot) {
-          applyNotifications(snapshot);
+        const update = await markNotificationsRead({ notificationIds: [notification.id] });
+        if (update) {
+          mergeNotificationsUpdate(update);
+        } else {
+          await loadNotifications();
         }
         setNotificationsError(null);
       } catch (error) {
         setNotificationsError(error instanceof Error ? error.message : 'Falha ao atualizar a notificação.');
         await loadNotifications();
       } finally {
-        setNotificationBusyIds((current) => {
+        setNotificationBusyActions((current) => {
           const next = { ...current };
           delete next[notification.id];
           return next;
@@ -325,15 +374,17 @@ export function useHomeScreen({ onNavigate }: Props) {
   }
 
   async function handleMarkAllNotificationsRead() {
-    if (notificationsMarkingAll || notificationsSnapshot.unreadCount === 0) return;
+    if (notificationsMarkingAll || notificationsDeletingAll || notificationsSnapshot.unreadCount === 0) return;
 
     setNotificationsMarkingAll(true);
     markNotificationsLocally({ markAll: true });
 
     try {
-      const snapshot = await markNotificationsRead({ markAll: true });
-      if (snapshot) {
-        applyNotifications(snapshot);
+      const update = await markNotificationsRead({ markAll: true });
+      if (update) {
+        mergeNotificationsUpdate(update);
+      } else {
+        await loadNotifications();
       }
       setNotificationsError(null);
     } catch (error) {
@@ -341,6 +392,56 @@ export function useHomeScreen({ onNavigate }: Props) {
       await loadNotifications();
     } finally {
       setNotificationsMarkingAll(false);
+    }
+  }
+
+  async function handleDeleteNotification(notification: AppNotification) {
+    if (notification.deleted) return;
+
+    setNotificationBusyActions((current) => ({ ...current, [notification.id]: 'delete' }));
+    deleteNotificationsLocally({ ids: [notification.id] });
+
+    try {
+      const update = await markNotificationsDeleted({ notificationIds: [notification.id] });
+      if (update) {
+        mergeNotificationsUpdate(update);
+      } else {
+        await loadNotifications();
+      }
+      setNotificationsError(null);
+    } catch (error) {
+      setNotificationsError(error instanceof Error ? error.message : 'Falha ao excluir a notificação.');
+      await loadNotifications();
+    } finally {
+      setNotificationBusyActions((current) => {
+        const next = { ...current };
+        delete next[notification.id];
+        return next;
+      });
+    }
+  }
+
+  async function handleDeleteAllNotifications() {
+    if (notificationsDeletingAll || notificationsMarkingAll || !notificationsSnapshot.notifications.some(isNotificationVisible)) {
+      return;
+    }
+
+    setNotificationsDeletingAll(true);
+    deleteNotificationsLocally({ markAll: true });
+
+    try {
+      const update = await markNotificationsDeleted({ markAll: true });
+      if (update) {
+        mergeNotificationsUpdate(update);
+      } else {
+        await loadNotifications();
+      }
+      setNotificationsError(null);
+    } catch (error) {
+      setNotificationsError(error instanceof Error ? error.message : 'Falha ao limpar as notificações.');
+      await loadNotifications();
+    } finally {
+      setNotificationsDeletingAll(false);
     }
   }
 
@@ -393,6 +494,7 @@ export function useHomeScreen({ onNavigate }: Props) {
     : 'Defina uma meta na engrenagem para acompanhar seu progresso.';
 
   const mealSummaries = buildMealSummaries(meals);
+  const visibleNotifications = notificationsSnapshot.notifications.filter(isNotificationVisible);
   const unreadNotificationsCount = notificationsSnapshot.unreadCount;
   const dayWidth = dayAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
   const hydrationWidth = hydrationAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
@@ -456,10 +558,12 @@ export function useHomeScreen({ onNavigate }: Props) {
     hydrationScale,
     hydrationError,
     notificationsSnapshot,
+    visibleNotifications,
     notificationsLoading,
     notificationsError,
-    notificationBusyIds,
+    notificationBusyActions,
     notificationsMarkingAll,
+    notificationsDeletingAll,
     nutritionGoals,
     goalsSaving,
     unreadNotificationsCount,
@@ -473,6 +577,8 @@ export function useHomeScreen({ onNavigate }: Props) {
     handleOpenNotifications,
     handlePressNotification,
     handleMarkAllNotificationsRead,
+    handleDeleteNotification,
+    handleDeleteAllNotifications,
     handleHydrationGoalDraftChange,
     handleHydrationGoalCommit,
     sendHydrationUpdate,

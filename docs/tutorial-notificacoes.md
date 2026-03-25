@@ -1,154 +1,92 @@
-# Tutorial: Como alimentar o centro de notificações do app
+# VidaSync BFF - Tutorial de Integracao de Notificacoes
 
-Este arquivo descreve o contrato que o frontend espera para:
+## Objetivo
 
-- listar notificações do usuário
-- mostrar contador de não lidas no sino da home
-- marcar uma ou várias notificações como lidas
+O app continua consumindo notificacoes somente pelo backend. O frontend:
 
-Header obrigatório em todos os endpoints:
+- busca a inbox com `GET /notifications`
+- marca uma, varias ou todas como lidas com `POST /notifications/read`
+- marca uma, varias ou todas como deletadas com `POST /notifications/delete`
+
+O delete e logico. Nada e removido fisicamente do banco. O historico fica preservado para analise interna.
+
+## Headers
+
+Todas as rotas abaixo exigem:
 
 ```http
-X-User-Id: <uuid-do-usuario>
+X-User-Id: <user-id>
+X-Access-Token: <token-opcional>
 ```
 
----
-
-## 1. Objetivo do fluxo
-
-Com esse contrato, o frontend consegue:
-
-- trocar a engrenagem duplicada da home por um sino
-- mostrar badge com quantidade de notificações não lidas
-- abrir uma central com cards visuais
-- exibir imagem opcional enviada pelo backend
-- navegar para uma área do app quando a notificação tiver ação
-- marcar item individual ou tudo como lido
-
-Importante:
-
-- o frontend funciona melhor se o backend já devolver `unreadCount`
-- se `unreadCount` não vier, o frontend calcula pelo `readAt == null`
-- `actionRoute` é opcional
-- `imageUrl` é opcional e pode usar o mesmo padrão de URL pública já usado nas outras imagens
-
----
-
-## 2. Listar notificações
-
-Endpoint:
+## 1. Carregar notificacoes
 
 ```http
 GET /notifications
-X-User-Id: <user-id>
 ```
 
-Resposta esperada:
+### Resposta
 
 ```json
 {
-  "unreadCount": 2,
+  "unreadCount": 1,
   "notifications": [
     {
       "id": "uuid-1",
       "title": "Resposta da equipe",
-      "message": "Respondemos seu feedback sobre o envio de foto. Já pode testar novamente.",
+      "message": "Respondemos seu feedback.",
       "type": "INFO",
       "imageUrl": null,
       "actionLabel": "Abrir feedback",
       "actionRoute": "/feedback",
       "readAt": null,
+      "deleted": false,
+      "deletedAt": null,
       "createdAt": "2026-03-15T16:20:00.000Z",
       "date": "2026-03-15",
       "time": "16:20:00"
     },
     {
       "id": "uuid-2",
-      "title": "Meta concluída",
-      "message": "Você bateu sua meta de hidratação ontem. Continue assim.",
-      "type": "SUCCESS",
-      "imageUrl": "https://meu-bucket.s3.amazonaws.com/notifications/water-badge.png",
-      "actionLabel": "Ver progresso",
-      "actionRoute": "/(tabs)/history",
-      "readAt": "2026-03-15T10:00:00.000Z",
-      "createdAt": "2026-03-14T22:10:00.000Z",
-      "date": "2026-03-14",
-      "time": "22:10:00"
+      "title": "Mensagem antiga",
+      "message": "Mantida so para historico.",
+      "type": "INFO",
+      "imageUrl": null,
+      "actionLabel": null,
+      "actionRoute": null,
+      "readAt": "2026-03-15T16:21:00.000Z",
+      "deleted": true,
+      "deletedAt": "2026-03-15T16:22:00.000Z",
+      "createdAt": "2026-03-15T16:19:00.000Z",
+      "date": "2026-03-15",
+      "time": "16:19:00"
     }
   ]
 }
 ```
 
-Campos esperados por item:
+### Regras
 
-- `id`: obrigatório
-- `title`: obrigatório
-- `message`: obrigatório
-- `type`: opcional, mas recomendado
-- `imageUrl`: opcional
-- `actionLabel`: opcional
-- `actionRoute`: opcional
-- `readAt`: opcional, `null` quando ainda não foi lida
-- `createdAt`: obrigatório
-- `date`: opcional
-- `time`: opcional
+- `unreadCount` considera apenas notificacoes com `readAt == null` e `deleted == false`
+- a lista pode conter notificacoes deletadas para preservar historico no cliente
+- o frontend deve esconder itens com `deleted == true`
 
-Valores aceitos em `type`:
-
-- `INFO`
-- `SUCCESS`
-- `WARNING`
-- `ALERT`
-
-Como o front usa esses campos:
-
-- `type` controla cor e ícone do card
-- `imageUrl` mostra uma imagem no corpo da notificação
-- `actionLabel` aparece como chip no card
-- `actionRoute` define para onde o app navega ao tocar na notificação
-- `readAt = null` conta como não lida
-
-Rotas de ação recomendadas:
-
-- `/(tabs)/history`
-- `/feedback`
-- `/tools/imc`
-- `/(tabs)/explore`
-
-Observações:
-
-- o backend pode devolver em ordem do mais recente para o mais antigo
-- mesmo assim o frontend reordena por `createdAt` por segurança
-
----
-
-## 3. Marcar notificação como lida
-
-Endpoint:
+## 2. Marcar como lida
 
 ```http
 POST /notifications/read
 Content-Type: application/json
-X-User-Id: <user-id>
 ```
 
-Para marcar um item:
+### Uma ou varias notificacoes
 
 ```json
 {
-  "notificationIds": ["uuid-1"]
+  "notificationIds": ["uuid-1", "uuid-2"]
 }
 ```
 
-Para marcar vários:
-
-```json
-{
-  "notificationIds": ["uuid-1", "uuid-2", "uuid-3"]
-}
-```
-
-Para marcar tudo:
+### Todas as notificacoes ativas
 
 ```json
 {
@@ -156,7 +94,7 @@ Para marcar tudo:
 }
 ```
 
-Resposta recomendada:
+### Resposta
 
 ```json
 {
@@ -164,103 +102,81 @@ Resposta recomendada:
   "notifications": [
     {
       "id": "uuid-1",
-      "title": "Resposta da equipe",
-      "message": "Respondemos seu feedback sobre o envio de foto. Já pode testar novamente.",
-      "type": "INFO",
-      "imageUrl": null,
-      "actionLabel": "Abrir feedback",
-      "actionRoute": "/feedback",
       "readAt": "2026-03-15T16:25:00.000Z",
-      "createdAt": "2026-03-15T16:20:00.000Z",
-      "date": "2026-03-15",
-      "time": "16:20:00"
+      "deleted": false,
+      "deletedAt": null
     }
   ]
 }
 ```
 
-Se o backend preferir, pode responder só:
+### Regras
+
+- `notificationIds` e `markAll=true` sao mutuamente exclusivos
+- `markAll=true` afeta apenas notificacoes nao deletadas
+- ids inexistentes ou que pertencem a outro usuario sao ignorados
+
+## 3. Marcar como deletada
+
+```http
+POST /notifications/delete
+Content-Type: application/json
+```
+
+### Uma ou varias notificacoes
 
 ```json
 {
-  "unreadCount": 0
+  "notificationIds": ["uuid-1", "uuid-2"]
 }
 ```
 
-Mas o ideal é devolver a lista atualizada.
-
----
-
-## 4. Regras de negócio sugeridas
-
-- nova notificação nasce com `readAt = null`
-- ao marcar como lida, grave `readAt` com timestamp UTC
-- o `unreadCount` deve considerar apenas itens com `readAt = null`
-- `actionRoute` deve ser uma rota válida do app
-- `imageUrl` pode ser `null`
-- o backend pode usar esse sistema tanto para mensagens manuais quanto automáticas
-
-Exemplos de uso:
-
-- resposta da equipe para feedback
-- aviso de manutenção
-- recado sobre nova funcionalidade
-- lembrete de completar cadastro
-- mensagem com imagem de campanha, onboarding ou status
-
----
-
-## 5. Exemplo simples de entidade
-
-Estrutura sugerida no banco:
+### Todas as notificacoes ativas
 
 ```json
 {
-  "id": "uuid",
-  "userId": "uuid-do-usuario",
-  "title": "string",
-  "message": "string",
-  "type": "INFO | SUCCESS | WARNING | ALERT",
-  "imageUrl": "string|null",
-  "actionLabel": "string|null",
-  "actionRoute": "string|null",
-  "readAt": "timestamp|null",
-  "createdAt": "timestamp",
-  "updatedAt": "timestamp"
+  "markAll": true
 }
 ```
 
-Se quiser, você também pode manter:
+### Resposta
 
-- `sentBy`
-- `source`
-- `metadata`
-- `expiresAt`
+```json
+{
+  "unreadCount": 0,
+  "notifications": [
+    {
+      "id": "uuid-1",
+      "readAt": null,
+      "deleted": true,
+      "deletedAt": "2026-03-15T16:30:00.000Z"
+    }
+  ]
+}
+```
 
-O frontend atual não depende desses campos extras.
+### Regras
 
----
+- o backend grava `is_deleted = true` e `deleted_at = now()`
+- nenhuma linha e removida do banco
+- `markAll=true` deleta apenas notificacoes ativas
 
-## 6. Fluxo recomendado
+## 4. Persistencia no Supabase
 
-1. O app chama `GET /notifications` ao entrar na home.
-2. O backend devolve a lista e `unreadCount`.
-3. O frontend mostra o badge no sino.
-4. Ao tocar em uma notificação não lida, o frontend chama `POST /notifications/read`.
-5. Se a notificação tiver `actionRoute`, o app navega depois da leitura.
-6. Ao tocar em `Marcar tudo como lido`, o frontend chama `POST /notifications/read` com `markAll: true`.
+A tabela usada pelo backend e `notifications`, com os campos principais:
 
----
+- `id`
+- `user_id`
+- `title`
+- `message`
+- `type`
+- `image_url`
+- `action_label`
+- `action_route`
+- `read_at`
+- `is_deleted`
+- `deleted_at`
+- `created_at`
+- `updated_at`
 
-## 7. Resumo rápido
-
-- `GET /notifications`: lista notificações e contador de não lidas
-- `POST /notifications/read`: marca uma, várias ou todas como lidas
-
----
-
-## 8. Observação importante
-
-Hoje o frontend trata `404`, `405` e `501` como “recurso ainda indisponível” e mostra estado vazio, sem quebrar a home.
-
-Assim, você pode subir a UI primeiro e ligar o backend depois.
+O SQL idempotente para criar ou evoluir a tabela foi adicionado em `supabase-migrations.sql`.
