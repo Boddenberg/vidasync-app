@@ -39,7 +39,7 @@ import {
 import { sumNutritionData } from '@/utils/nutrition-math';
 
 const UNITS: WeightUnit[] = ['g', 'ml', 'un'];
-const SEARCH_MAX_LENGTH = 40;
+const SEARCH_MAX_LENGTH = 28;
 
 function sanitizeSearchText(value: string) {
   return value
