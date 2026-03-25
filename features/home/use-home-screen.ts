@@ -205,6 +205,13 @@ export function useHomeScreen({ onNavigate }: Props) {
     setHydrationGoalDraftMl(getHydrationGoalDraftMl(hydrationGoalMl));
   }, [hydrationGoalMl]);
 
+  useEffect(() => {
+    setSelectedNotification((current) => {
+      if (!current) return current;
+      return notificationsSnapshot.notifications.find((item) => item.id === current.id) ?? current;
+    });
+  }, [notificationsSnapshot.notifications]);
+
   async function handleSaveNew(params: SaveMealParams) {
     await add(
       buildFoodsString(params.dishName, params.foods),
@@ -356,6 +363,9 @@ export function useHomeScreen({ onNavigate }: Props) {
   }
 
   async function handlePressNotification(notification: AppNotification) {
+    setSelectedNotification(notification);
+    setNotificationDetailVisible(true);
+
     if (!notification.readAt) {
       setNotificationBusyActions((current) => ({ ...current, [notification.id]: 'read' }));
       markNotificationsLocally({ ids: [notification.id] });
@@ -379,9 +389,6 @@ export function useHomeScreen({ onNavigate }: Props) {
         });
       }
     }
-
-    setSelectedNotification(notification);
-    setNotificationDetailVisible(true);
   }
 
   function handleOpenNotificationAction(notification: AppNotification) {
