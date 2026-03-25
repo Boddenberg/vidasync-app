@@ -6,42 +6,31 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { Brand, Radii, Typography } from '@/constants/theme';
+import { HistoryPanoramaSimpleChart } from '@/features/history/history-panorama-simple-chart';
 import { formatDateChip } from '@/features/home/home-utils';
-import { HistoryPanoramaVisualization } from '@/features/history/history-panorama-visualization';
 import {
-  PANORAMA_VISUAL_OPTIONS,
-  type PanoramaVisualVersion,
-} from '@/features/history/history-panorama-visuals';
-import {
-  buildPanoramaCompareInsight,
+  buildPanoramaDisplayPoints,
   buildPanoramaInsight,
   formatCaloriesAverage,
+  formatPanoramaMetricValue,
   formatWaterAverage,
   getAverageCalories,
   getAverageWaterMl,
-  getDefaultPanoramaGranularity,
   getDaysWithRecords,
+  getDisplayPointValue,
   type PanoramaChartGranularity,
+  type PanoramaDisplayPoint,
 } from '@/features/history/history-panorama-utils';
 import {
   getProgressPanorama,
   type PanoramaDataset,
+  type PanoramaDay,
   type PanoramaMetric,
   type PanoramaPeriod,
 } from '@/services/progress-panorama';
 import { todayStr } from '@/utils/helpers';
 
-type PanoramaMode = 'individual' | 'compare';
-
 const PERIOD_OPTIONS: PanoramaPeriod[] = [7, 15, 30];
-const MODE_OPTIONS: Array<{ key: PanoramaMode; label: string }> = [
-  { key: 'individual', label: 'Individual' },
-  { key: 'compare', label: 'Comparar' },
-];
-const GRANULARITY_OPTIONS: Array<{ key: PanoramaChartGranularity; label: string }> = [
-  { key: 'weekly', label: 'Semanal' },
-  { key: 'daily', label: 'Diario' },
-];
 const METRIC_OPTIONS: Array<{ key: PanoramaMetric; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { key: 'water', label: 'Agua', icon: 'water-outline' },
   { key: 'calories', label: 'Calorias', icon: 'flame-outline' },
@@ -60,51 +49,98 @@ function resolveEndDate(param: string | string[] | undefined): string {
   return todayStr();
 }
 
+function getChartGranularity(period: PanoramaPeriod): PanoramaChartGranularity {
+  return period === 30 ? 'weekly' : 'daily';
+}
+
 function getMetricLabel(metric: PanoramaMetric): string {
   return METRIC_OPTIONS.find((option) => option.key === metric)?.label ?? 'Agua';
 }
 
-function getChartTitle(mode: PanoramaMode, metric: PanoramaMetric, granularity: PanoramaChartGranularity): string {
-  if (mode === 'compare') {
-    return granularity === 'weekly' ? 'Comparativo semanal de agua e refeicoes' : 'Comparativo diario de agua e refeicoes';
-  }
-
-  if (granularity === 'weekly') {
-    return `Resumo semanal de ${getMetricLabel(metric).toLowerCase()}`;
-  }
-
-  return `${getMetricLabel(metric)} ao longo do periodo`;
+function getChartTitle(metric: PanoramaMetric, granularity: PanoramaChartGranularity): string {
+  const metricLabel = getMetricLabel(metric).toLowerCase();
+  return granularity === 'weekly' ? `Resumo semanal de ${metricLabel}` : `${getMetricLabel(metric)} por dia`;
 }
 
-function getChartHint(
-  mode: PanoramaMode,
-  metric: PanoramaMetric,
-  period: PanoramaPeriod,
-  granularity: PanoramaChartGranularity,
-): string {
-  if (mode === 'compare') {
-    if (granularity === 'weekly') {
-      return 'Dois mini graficos separados, com o mesmo eixo do tempo, para comparar 30 dias sem misturar unidades.';
+function getChartHint(metric: PanoramaMetric, period: PanoramaPeriod, granularity: PanoramaChartGranularity): string {
+  if (granularity === 'weekly') {
+    return 'Os 30 dias sao agrupados em blocos semanais para manter o grafico claro no mobile.';
+  }
+
+  if (metric === 'water') {
+    return period === 15
+      ? 'Leitura diaria com espacamento fixo e rolagem horizontal leve.'
+      : 'Barras diarias para acompanhar o ritmo recente de hidratacao.';
+  }
+
+  if (metric === 'calories') {
+    return period === 15
+      ? 'As barras mantem a comparacao diaria sem comprimir datas.'
+      : 'Leitura compacta para ver rapidamente dias mais fortes e mais leves.';
+  }
+
+  return period === 15
+    ? 'A rolagem lateral preserva o espacamento entre os dias.'
+    : 'Barras simples mostram quantas refeicoes entraram em cada dia.';
+}
+
+function getMetricTone(metric: PanoramaMetric) {
+  if (metric === 'water') return Brand.hydration;
+  if (metric === 'meals') return Brand.orange;
+  return Brand.greenDark;
+}
+
+function getBestRecordStreak(days: PanoramaDay[]): number {
+  let best = 0;
+  let current = 0;
+
+  days.forEach((day) => {
+    if (day.hasAnyRecord) {
+      current += 1;
+      best = Math.max(best, current);
+      return;
     }
 
-    return 'Agua e refeicoes aparecem em mini graficos separados para manter a leitura clara no retrato.';
-  }
+    current = 0;
+  });
 
+  return best;
+}
+
+function getSelectionMeta(point: PanoramaDisplayPoint, granularity: PanoramaChartGranularity): string {
   if (granularity === 'weekly') {
-    return 'Para 30 dias, o padrao agrupa os dados em blocos semanais para manter rotulos e espacamento legiveis.';
+    const dayLabel = point.dayCount === 1 ? '1 dia' : `${point.dayCount} dias`;
+    const recordLabel = point.daysWithRecords === 1 ? '1 com registro' : `${point.daysWithRecords} com registro`;
+    return `${dayLabel} • ${recordLabel}`;
   }
 
-  if (metric === 'meals') {
-    return period === 15
-      ? 'As barras mantem espacamento fixo e rolagem horizontal quando o periodo fica mais longo.'
-      : 'Leitura diaria compacta para acompanhar a quantidade de refeicoes registradas.';
+  return point.hasAnyRecord ? 'Dia com registro' : 'Sem registro';
+}
+
+function getSelectionHint(
+  point: PanoramaDisplayPoint,
+  metric: PanoramaMetric,
+  granularity: PanoramaChartGranularity,
+): string {
+  if (granularity === 'weekly') {
+    if (metric === 'water') {
+      return `Total do bloco: ${formatPanoramaMetricValue(point.waterMl, 'water', false)}.`;
+    }
+
+    if (metric === 'calories') {
+      return `Total do bloco: ${formatPanoramaMetricValue(point.calories, 'calories', false)}.`;
+    }
+
+    return `Total do bloco: ${formatPanoramaMetricValue(point.mealsCount, 'meals', false)}.`;
   }
 
-  if (period === 15) {
-    return 'Os pontos usam espacamento fixo com rolagem horizontal para evitar compressao do eixo.';
+  if (!point.hasAnyRecord) {
+    return 'Nao houve registro nessa data.';
   }
 
-  return 'Leitura diaria leve, com foco no ritmo recente dos seus registros.';
+  if (metric === 'water') return 'Volume de agua registrado neste dia.';
+  if (metric === 'calories') return 'Calorias registradas neste dia.';
+  return 'Quantidade de refeicoes registradas neste dia.';
 }
 
 export function HistoryPanoramaScreen() {
@@ -112,18 +148,12 @@ export function HistoryPanoramaScreen() {
   const endDate = useMemo(() => resolveEndDate(params.endDate), [params.endDate]);
 
   const [period, setPeriod] = useState<PanoramaPeriod>(7);
-  const [mode, setMode] = useState<PanoramaMode>('individual');
   const [metric, setMetric] = useState<PanoramaMetric>('water');
-  const [granularity, setGranularity] = useState<PanoramaChartGranularity>(getDefaultPanoramaGranularity(7));
-  const [visualVersion, setVisualVersion] = useState<PanoramaVisualVersion>('v1');
   const [dataset, setDataset] = useState<PanoramaDataset | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    setGranularity(getDefaultPanoramaGranularity(period));
-  }, [period]);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -137,7 +167,6 @@ export function HistoryPanoramaScreen() {
         if (cancelled) return;
 
         setDataset(nextDataset);
-        setError(null);
       } catch (loadError) {
         if (cancelled) return;
 
@@ -158,26 +187,31 @@ export function HistoryPanoramaScreen() {
   }, [endDate, period, reloadKey]);
 
   const days = dataset?.days ?? [];
-  const daysWithRecords = getDaysWithRecords(days);
   const averageWater = getAverageWaterMl(days);
   const averageCalories = getAverageCalories(days);
+  const daysWithRecords = getDaysWithRecords(days);
+  const bestRecordStreak = getBestRecordStreak(days);
+  const granularity = getChartGranularity(period);
+  const displayPoints = useMemo(() => buildPanoramaDisplayPoints(days, granularity), [days, granularity]);
+  const selectedPoint =
+    displayPoints.find((point) => point.key === selectedKey) ?? displayPoints[displayPoints.length - 1] ?? null;
+  const summaryText = buildPanoramaInsight(days, period, metric);
   const hasRecords = daysWithRecords > 0;
-  const activeGranularity = period === 30 ? granularity : 'daily';
-  const summaryText =
-    mode === 'compare'
-      ? buildPanoramaCompareInsight(days, period)
-      : buildPanoramaInsight(days, period, metric);
-  const periodLabel = `${period} dias`;
-  const visualOption = PANORAMA_VISUAL_OPTIONS.find((option) => option.key === visualVersion) ?? PANORAMA_VISUAL_OPTIONS[0];
+
+  useEffect(() => {
+    if (!displayPoints.some((point) => point.key === selectedKey)) {
+      setSelectedKey(displayPoints[displayPoints.length - 1]?.key ?? null);
+    }
+  }, [displayPoints, selectedKey]);
 
   return (
     <View style={s.root}>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <View style={s.hero}>
           <Text style={s.eyebrow}>Panorama</Text>
-          <Text style={s.title}>Como seus registros caminharam nos ultimos dias</Text>
+          <Text style={s.title}>Seus registros em leitura rapida</Text>
           <Text style={s.subtitle}>
-            Um espaco leve para acompanhar agua, calorias e refeicoes ate {formatDateChip(endDate).toLowerCase()}.
+            Um resumo mais claro de agua, calorias e consistencia ate {formatDateChip(endDate).toLowerCase()}.
           </Text>
         </View>
 
@@ -202,143 +236,58 @@ export function HistoryPanoramaScreen() {
 
         <View style={s.summaryGrid}>
           <AppCard style={s.summaryCard}>
-            <Text style={s.summaryLabel}>Agua media por dia</Text>
+            <Text style={s.summaryLabel}>Agua media</Text>
             <Text style={s.summaryValue}>{formatWaterAverage(averageWater)}</Text>
+            <Text style={s.summaryNote}>Por dia neste periodo</Text>
           </AppCard>
 
           <AppCard style={s.summaryCard}>
-            <Text style={s.summaryLabel}>Calorias medias por dia</Text>
+            <Text style={s.summaryLabel}>Calorias medias</Text>
             <Text style={s.summaryValue}>{formatCaloriesAverage(averageCalories)}</Text>
+            <Text style={s.summaryNote}>Leitura diaria consolidada</Text>
           </AppCard>
 
           <AppCard style={s.summaryCard}>
-            <Text style={s.summaryLabel}>Dias com registro</Text>
+            <Text style={s.summaryLabel}>Consistencia</Text>
             <Text style={s.summaryValue}>
               {daysWithRecords}/{period}
+            </Text>
+            <Text style={s.summaryNote}>
+              Melhor sequencia {bestRecordStreak} {bestRecordStreak === 1 ? 'dia' : 'dias'}
             </Text>
           </AppCard>
         </View>
 
-        <AppCard style={s.sectionCard}>
-          <Text style={s.sectionLabel}>Visualizacao</Text>
-          <View style={s.segmentedRow}>
-            {MODE_OPTIONS.map((option) => {
-              const active = option.key === mode;
-
-              return (
-                <Pressable
-                  key={option.key}
-                  accessibilityRole="button"
-                  onPress={() => setMode(option.key)}
-                  style={({ pressed }) => [s.segmentedButton, active && s.segmentedButtonActive, pressed && s.pressed]}>
-                  <Text style={[s.segmentedText, active && s.segmentedTextActive]}>{option.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {mode === 'individual' ? (
-            <View style={s.metricRow}>
-              {METRIC_OPTIONS.map((option) => {
-                const active = option.key === metric;
-
-                return (
-                  <Pressable
-                    key={option.key}
-                    accessibilityRole="button"
-                    onPress={() => setMetric(option.key)}
-                    style={({ pressed }) => [s.metricChip, active && s.metricChipActive, pressed && s.pressed]}>
-                    <Ionicons
-                      name={option.icon}
-                      size={15}
-                      color={active ? Brand.greenDark : Brand.textSecondary}
-                    />
-                    <Text style={[s.metricChipText, active && s.metricChipTextActive]}>{option.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={s.compareHintRow}>
-              <Ionicons name="git-compare-outline" size={16} color={Brand.greenDark} />
-              <Text style={s.compareHintText}>Comparacao preparada para Agua + Refeicoes.</Text>
-            </View>
-          )}
-        </AppCard>
-
-        <AppCard style={s.sectionCard}>
-          <Text style={s.sectionLabel}>Direcao visual</Text>
-          <ScrollView
-            horizontal
-            bounces={false}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.visualRow}>
-            {PANORAMA_VISUAL_OPTIONS.map((option) => {
-              const active = option.key === visualVersion;
-
-              return (
-                <Pressable
-                  key={option.key}
-                  accessibilityRole="button"
-                  onPress={() => setVisualVersion(option.key)}
-                  style={({ pressed }) => [
-                    s.visualCard,
-                    active && s.visualCardActive,
-                    pressed && s.pressed,
-                  ]}>
-                  <Text style={[s.visualLabel, active && s.visualLabelActive]}>{option.label}</Text>
-                  <Text style={[s.visualTitle, active && s.visualTitleActive]}>{option.title}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-          <Text style={s.visualNote}>{visualOption.note}</Text>
-          <Text style={s.visualMetaNote}>Cada versao altera a forma do grafico e do comparativo.</Text>
-        </AppCard>
-
         <AppCard style={s.chartCard}>
           <View style={s.chartHeader}>
-            <View style={s.chartHeaderTop}>
-              <Text style={s.chartEyebrow}>{mode === 'compare' ? 'Comparar' : getMetricLabel(metric)}</Text>
-              <View style={s.chartVersionPill}>
-                <Text style={s.chartVersionText}>
-                  {visualOption.label} · {visualOption.title}
-                </Text>
-              </View>
+            <View style={s.chartHeaderCopy}>
+              <Text style={s.chartEyebrow}>Leitura principal</Text>
+              <Text style={s.chartTitle}>{getChartTitle(metric, granularity)}</Text>
+              <Text style={s.chartHint}>{getChartHint(metric, period, granularity)}</Text>
             </View>
-            <Text style={s.chartTitle}>{getChartTitle(mode, metric, activeGranularity)}</Text>
-            <Text style={s.chartHint}>{getChartHint(mode, metric, period, activeGranularity)}</Text>
           </View>
 
-          {period === 30 ? (
-            <View style={s.granularityWrap}>
-              <Text style={s.granularityLabel}>Visualizacao de 30 dias</Text>
-              <View style={s.granularityRow}>
-                {GRANULARITY_OPTIONS.map((option) => {
-                  const active = option.key === activeGranularity;
+          <View style={s.metricTabs}>
+            {METRIC_OPTIONS.map((option) => {
+              const active = option.key === metric;
 
-                  return (
-                    <Pressable
-                      key={option.key}
-                      accessibilityRole="button"
-                      onPress={() => setGranularity(option.key)}
-                      style={({ pressed }) => [
-                        s.granularityButton,
-                        active && s.granularityButtonActive,
-                        pressed && s.pressed,
-                      ]}>
-                      <Text style={[s.granularityText, active && s.granularityTextActive]}>{option.label}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          ) : null}
+              return (
+                <Pressable
+                  key={option.key}
+                  accessibilityRole="button"
+                  onPress={() => setMetric(option.key)}
+                  style={({ pressed }) => [s.metricTab, active && s.metricTabActive, pressed && s.pressed]}>
+                  <Ionicons name={option.icon} size={15} color={active ? getMetricTone(option.key) : Brand.textSecondary} />
+                  <Text style={[s.metricTabText, active && { color: getMetricTone(option.key) }]}>{option.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           {loading ? (
             <View style={s.feedbackState}>
               <ActivityIndicator size="small" color={Brand.greenDark} />
-              <Text style={s.feedbackText}>Carregando panorama de {periodLabel.toLowerCase()}...</Text>
+              <Text style={s.feedbackText}>Carregando panorama...</Text>
             </View>
           ) : null}
 
@@ -358,28 +307,45 @@ export function HistoryPanoramaScreen() {
 
           {!loading && !error && !hasRecords ? (
             <View style={s.emptyState}>
-              <View style={s.emptyIconWrap}>
-                <Ionicons name="stats-chart-outline" size={18} color={Brand.greenDark} />
-              </View>
               <Text style={s.emptyTitle}>Ainda nao ha registros neste periodo</Text>
               <Text style={s.emptyHint}>
-                Quando voce lancar agua ou refeicoes, o panorama passa a mostrar esse intervalo aqui.
+                Quando voce registrar agua ou refeicoes, o panorama passa a mostrar esse intervalo aqui.
               </Text>
             </View>
           ) : null}
 
           {!loading && !error && hasRecords ? (
-            <HistoryPanoramaVisualization
-              days={days}
-              mode={mode}
-              metric={metric}
-              granularity={activeGranularity}
-              visualVersion={visualVersion}
-            />
+            <>
+              <HistoryPanoramaSimpleChart
+                points={displayPoints}
+                metric={metric}
+                granularity={granularity}
+                selectedKey={selectedPoint?.key ?? null}
+                onSelect={setSelectedKey}
+              />
+
+              {selectedPoint ? (
+                <View style={s.selectionCard}>
+                  <View style={s.selectionHeader}>
+                    <Text style={s.selectionTitle}>{selectedPoint.label}</Text>
+                    <Text style={s.selectionMeta}>{getSelectionMeta(selectedPoint, granularity)}</Text>
+                  </View>
+                  <Text style={[s.selectionValue, { color: getMetricTone(metric) }]}>
+                    {formatPanoramaMetricValue(getDisplayPointValue(selectedPoint, metric), metric, false)}
+                  </Text>
+                  <Text style={s.selectionHint}>{getSelectionHint(selectedPoint, metric, granularity)}</Text>
+                </View>
+              ) : null}
+            </>
           ) : null}
         </AppCard>
 
-        {!loading && !error ? <Text style={s.summaryText}>{summaryText}</Text> : null}
+        {!loading && !error ? (
+          <AppCard style={s.insightCard}>
+            <Text style={s.insightLabel}>Insight</Text>
+            <Text style={s.insightText}>{summaryText}</Text>
+          </AppCard>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -475,88 +441,10 @@ const s = StyleSheet.create({
     color: Brand.text,
     fontWeight: '800',
   },
-  metricRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  visualRow: {
-    gap: 10,
-    paddingRight: 4,
-  },
-  visualCard: {
-    minWidth: 132,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: Brand.card,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    gap: 4,
-  },
-  visualCardActive: {
-    backgroundColor: Brand.surfaceSoft,
-    borderColor: '#CFE5D5',
-  },
-  visualLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.55,
-  },
-  visualLabelActive: {
-    color: Brand.greenDark,
-  },
-  visualTitle: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '700',
-  },
-  visualTitleActive: {
-    color: Brand.greenDark,
-  },
-  visualNote: {
-    ...Typography.body,
-    color: Brand.textSecondary,
-  },
-  visualMetaNote: {
+  summaryNote: {
     ...Typography.caption,
     color: Brand.textMuted,
     fontWeight: '700',
-  },
-  metricChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: Radii.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: Brand.card,
-    borderWidth: 1,
-    borderColor: Brand.border,
-  },
-  metricChipActive: {
-    backgroundColor: Brand.sageMist,
-    borderColor: '#C8DDD0',
-  },
-  metricChipText: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '800',
-  },
-  metricChipTextActive: {
-    color: Brand.greenDark,
-  },
-  compareHintRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingTop: 2,
-  },
-  compareHintText: {
-    ...Typography.body,
-    color: Brand.textSecondary,
   },
   chartCard: {
     gap: 16,
@@ -565,32 +453,15 @@ const s = StyleSheet.create({
   chartHeader: {
     gap: 4,
   },
-  chartHeaderTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    flexWrap: 'wrap',
+  chartHeaderCopy: {
+    gap: 4,
   },
   chartEyebrow: {
     ...Typography.caption,
-    color: Brand.greenDark,
+    color: Brand.textSecondary,
     fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  chartVersionPill: {
-    borderRadius: Radii.pill,
-    backgroundColor: Brand.surfaceSoft,
-    borderWidth: 1,
-    borderColor: '#CFE5D5',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  chartVersionText: {
-    ...Typography.caption,
-    color: Brand.greenDark,
-    fontWeight: '800',
+    letterSpacing: 0.55,
   },
   chartTitle: {
     ...Typography.subtitle,
@@ -601,43 +472,29 @@ const s = StyleSheet.create({
     ...Typography.body,
     color: Brand.textSecondary,
   },
-  granularityWrap: {
-    gap: 10,
-  },
-  granularityLabel: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  granularityRow: {
+  metricTabs: {
     flexDirection: 'row',
     gap: 8,
   },
-  granularityButton: {
+  metricTab: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 42,
     borderRadius: Radii.pill,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 9,
-    backgroundColor: Brand.surfaceAlt,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    paddingVertical: 10,
+    backgroundColor: '#F7FAF7',
   },
-  granularityButtonActive: {
-    backgroundColor: Brand.surfaceSoft,
-    borderColor: '#CFE5D5',
+  metricTabActive: {
+    backgroundColor: '#F1F6F2',
   },
-  granularityText: {
+  metricTabText: {
     ...Typography.caption,
     color: Brand.textSecondary,
     fontWeight: '800',
-  },
-  granularityTextActive: {
-    color: Brand.greenDark,
   },
   feedbackState: {
     alignItems: 'flex-start',
@@ -654,33 +511,64 @@ const s = StyleSheet.create({
     color: Brand.textSecondary,
   },
   emptyState: {
-    borderRadius: 24,
-    backgroundColor: Brand.surfaceAlt,
+    borderRadius: 20,
+    backgroundColor: '#F6F8F6',
     paddingHorizontal: 18,
-    paddingVertical: 24,
-    alignItems: 'center',
-    gap: 10,
-  },
-  emptyIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 16,
-    backgroundColor: Brand.surfaceSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 22,
+    gap: 8,
   },
   emptyTitle: {
     ...Typography.subtitle,
     color: Brand.text,
     fontWeight: '800',
-    textAlign: 'center',
   },
   emptyHint: {
     ...Typography.body,
     color: Brand.textSecondary,
-    textAlign: 'center',
   },
-  summaryText: {
+  selectionCard: {
+    borderRadius: 18,
+    backgroundColor: '#FAFBFA',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 6,
+  },
+  selectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  selectionTitle: {
+    ...Typography.body,
+    color: Brand.text,
+    fontWeight: '800',
+    flex: 1,
+  },
+  selectionMeta: {
+    ...Typography.caption,
+    color: Brand.textMuted,
+    fontWeight: '700',
+  },
+  selectionValue: {
+    ...Typography.subtitle,
+    fontWeight: '800',
+  },
+  selectionHint: {
+    ...Typography.body,
+    color: Brand.textSecondary,
+  },
+  insightCard: {
+    gap: 8,
+  },
+  insightLabel: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.55,
+  },
+  insightText: {
     ...Typography.body,
     color: Brand.textSecondary,
   },
