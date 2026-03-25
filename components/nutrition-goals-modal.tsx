@@ -27,7 +27,6 @@ type NutritionGoalUpdate = Partial<{
 type GoalFieldMeta = {
   key: GoalFieldKey;
   label: string;
-  helper: string;
   placeholder: string;
   suffix: string;
   accent: string;
@@ -56,7 +55,6 @@ const GOAL_FIELDS: GoalFieldMeta[] = [
   {
     key: 'calories',
     label: 'Calorias',
-    helper: 'Energia diaria.',
     placeholder: 'Ex.: 2400',
     suffix: ' kcal',
     accent: Brand.coral,
@@ -66,7 +64,6 @@ const GOAL_FIELDS: GoalFieldMeta[] = [
   {
     key: 'protein',
     label: 'Proteina',
-    helper: 'Recuperacao e saciedade.',
     placeholder: 'Ex.: 150',
     suffix: 'g',
     accent: Brand.greenDark,
@@ -76,7 +73,6 @@ const GOAL_FIELDS: GoalFieldMeta[] = [
   {
     key: 'carbs',
     label: 'Carboidrato',
-    helper: 'Combustivel para treino.',
     placeholder: 'Ex.: 220',
     suffix: 'g',
     accent: Brand.orange,
@@ -86,7 +82,6 @@ const GOAL_FIELDS: GoalFieldMeta[] = [
   {
     key: 'fat',
     label: 'Gordura',
-    helper: 'Equilibrio hormonal.',
     placeholder: 'Ex.: 80',
     suffix: 'g',
     accent: '#D45A67',
@@ -185,7 +180,6 @@ export function NutritionGoalsModal({
                 <GoalFieldCard
                   key={field.key}
                   label={field.label}
-                  helper={field.helper}
                   value={drafts[field.key]}
                   placeholder={field.placeholder}
                   currentValue={currentGoals?.[field.key] ?? null}
@@ -228,7 +222,6 @@ export function NutritionGoalsModal({
 
 function GoalFieldCard({
   label,
-  helper,
   value,
   placeholder,
   currentValue,
@@ -239,7 +232,6 @@ function GoalFieldCard({
   onChangeText,
 }: {
   label: string;
-  helper: string;
   value: string;
   placeholder: string;
   currentValue: number | null;
@@ -266,7 +258,6 @@ function GoalFieldCard({
             <View style={[s.fieldDot, { backgroundColor: accent }]} />
             <Text style={s.fieldTitle}>{label}</Text>
           </View>
-          <Text style={s.fieldHelper}>{helper}</Text>
         </View>
 
         <View style={[s.fieldCurrentBadge, { backgroundColor: surface, borderColor: border }]}>
@@ -408,10 +399,6 @@ const s = StyleSheet.create({
     ...Typography.body,
     color: Brand.text,
     fontWeight: '800',
-  },
-  fieldHelper: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
   },
   fieldCurrentBadge: {
     maxWidth: '38%',
