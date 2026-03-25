@@ -229,12 +229,6 @@ export default function HistoryScreen() {
           onPrevMonth={prevMonth}
           onNextMonth={nextMonth}
           onSelectDay={handleDayPress}
-          onOpenPanorama={() => {
-            router.push({
-              pathname: '/progress-panorama',
-              params: { endDate: selectedDate },
-            } as any);
-          }}
         />
 
         <HistoryDayHero

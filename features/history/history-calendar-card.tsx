@@ -1,4 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
@@ -16,7 +15,6 @@ type Props = {
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onSelectDay: (day: number) => void;
-  onOpenPanorama: () => void;
 };
 
 const CELL_SIZE = 44;
@@ -33,7 +31,6 @@ export function HistoryCalendarCard({
   onPrevMonth,
   onNextMonth,
   onSelectDay,
-  onOpenPanorama,
 }: Props) {
   return (
     <View style={s.calendarCard}>
@@ -43,15 +40,6 @@ export function HistoryCalendarCard({
           <Text style={s.calendarTitle}>Seus registros</Text>
           <Text style={s.calendarHint}>Escolha um dia para revisar refeições, água e consistência.</Text>
         </View>
-
-        <Pressable
-          accessibilityLabel="Abrir panorama"
-          accessibilityRole="button"
-          onPress={onOpenPanorama}
-          style={({ pressed }) => [s.panoramaLink, pressed && s.panoramaLinkPressed]}>
-          <Text style={s.panoramaLinkText}>Ver panorama</Text>
-          <Ionicons name="chevron-forward" size={15} color={Brand.greenDark} />
-        </Pressable>
       </View>
 
       <View style={s.calNav}>
@@ -183,21 +171,6 @@ const s = StyleSheet.create({
   calendarHint: {
     ...Typography.body,
     color: Brand.textSecondary,
-  },
-  panoramaLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingTop: 4,
-    paddingBottom: 4,
-  },
-  panoramaLinkPressed: {
-    opacity: 0.85,
-  },
-  panoramaLinkText: {
-    ...Typography.helper,
-    color: Brand.greenDark,
-    fontWeight: '700',
   },
   calNav: {
     flexDirection: 'row',
