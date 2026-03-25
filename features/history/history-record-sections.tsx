@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MealCard } from '@/components/meal-card';
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
@@ -17,6 +17,7 @@ type MealsSectionProps = {
 
 type WaterSectionProps = {
   waterEvents: WaterEvent[];
+  onOpenAnalysis?: () => void;
 };
 
 export function HistoryMealsSection({
@@ -59,14 +60,26 @@ export function HistoryMealsSection({
   );
 }
 
-export function HistoryWaterSection({ waterEvents }: WaterSectionProps) {
+export function HistoryWaterSection({ waterEvents, onOpenAnalysis }: WaterSectionProps) {
   return (
     <View style={s.sectionCard}>
       <View style={s.sectionHeader}>
         <Text style={s.sectionTitle}>Água do dia</Text>
-        <Text style={s.sectionCount}>
-          {waterEvents.length} {waterEvents.length === 1 ? 'ajuste' : 'ajustes'}
-        </Text>
+        <View style={s.sectionHeaderMeta}>
+          <Text style={s.sectionCount}>
+            {waterEvents.length} {waterEvents.length === 1 ? 'ajuste' : 'ajustes'}
+          </Text>
+          {onOpenAnalysis ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Abrir analise de agua"
+              onPress={onOpenAnalysis}
+              style={({ pressed }) => [s.sectionLink, pressed && s.sectionLinkPressed]}>
+              <Text style={s.sectionLinkText}>Ver analise</Text>
+              <Ionicons name="chevron-forward" size={14} color={Brand.hydration} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       {waterEvents.length > 0 ? (
@@ -127,6 +140,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  sectionHeaderMeta: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
   sectionTitle: {
     ...Typography.subtitle,
     color: Brand.text,
@@ -136,6 +153,19 @@ const s = StyleSheet.create({
     ...Typography.caption,
     color: Brand.textSecondary,
     fontWeight: '700',
+  },
+  sectionLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  sectionLinkPressed: {
+    opacity: 0.85,
+  },
+  sectionLinkText: {
+    ...Typography.caption,
+    color: Brand.hydration,
+    fontWeight: '800',
   },
   mealsList: {
     gap: 12,

@@ -258,7 +258,15 @@ export default function HistoryScreen() {
               onDelete={handleDeleteMeal}
               onMoveDate={setMovingMeal}
             />
-            <HistoryWaterSection waterEvents={waterEvents} />
+            <HistoryWaterSection
+              waterEvents={waterEvents}
+              onOpenAnalysis={() => {
+                router.push({
+                  pathname: '/water-analysis',
+                  params: { endDate: selectedDate },
+                } as any);
+              }}
+            />
           </>
         ) : null}
       </ScrollView>
