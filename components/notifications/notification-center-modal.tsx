@@ -2,16 +2,18 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   ActivityIndicator,
   Image,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DraggableSheetModal } from '@/components/ui/draggable-sheet-modal';
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import type { AppNotification } from '@/services/notifications';
+import { formatNotificationMoment, getNotificationTypePalette } from '@/components/notifications/notification-presenters';
 
 type Props = {
   visible: boolean;
@@ -30,68 +32,6 @@ type Props = {
   onDeleteAll: () => void;
 };
 
-const notificationDateFormatter = new Intl.DateTimeFormat('pt-BR', {
-  timeZone: 'America/Sao_Paulo',
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-});
-
-const notificationTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
-  timeZone: 'America/Sao_Paulo',
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
-function formatNotificationMoment(notification: AppNotification) {
-  const createdAt = new Date(notification.createdAt);
-  if (!Number.isNaN(createdAt.getTime())) {
-    return `${notificationDateFormatter.format(createdAt)} às ${notificationTimeFormatter.format(createdAt)}`;
-  }
-
-  if (notification.date && notification.time) {
-    const fallback = new Date(`${notification.date}T${notification.time}Z`);
-    if (!Number.isNaN(fallback.getTime())) {
-      return `${notificationDateFormatter.format(fallback)} às ${notificationTimeFormatter.format(fallback)}`;
-    }
-  }
-
-  return 'Agora há pouco';
-}
-
-function getTypePalette(type: AppNotification['type']) {
-  switch (type) {
-    case 'SUCCESS':
-      return {
-        icon: 'checkmark-circle-outline' as const,
-        iconColor: Brand.greenDark,
-        iconBg: '#E9F8EE',
-        border: '#D7ECDD',
-      };
-    case 'WARNING':
-      return {
-        icon: 'alert-circle-outline' as const,
-        iconColor: '#B45309',
-        iconBg: '#FFF4DD',
-        border: '#F2E4BD',
-      };
-    case 'ALERT':
-      return {
-        icon: 'notifications-outline' as const,
-        iconColor: Brand.danger,
-        iconBg: '#FFEDEE',
-        border: '#F4D8DB',
-      };
-    default:
-      return {
-        icon: 'chatbubble-ellipses-outline' as const,
-        iconColor: Brand.blue,
-        iconBg: '#EAF1FF',
-        border: '#DAE5FF',
-      };
-  }
-}
-
 export function NotificationCenterModal({
   visible,
   notifications,
@@ -108,181 +48,162 @@ export function NotificationCenterModal({
   onDeleteNotification,
   onDeleteAll,
 }: Props) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={s.overlay} onPress={onClose}>
-        <Pressable style={s.sheet} onPress={(event) => event.stopPropagation()}>
-          <View style={s.handleWrap}>
-            <View style={s.handle} />
-          </View>
+    <DraggableSheetModal
+      visible={visible}
+      onClose={onClose}
+      sheetStyle={[s.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 16 }]}>
+      <View style={s.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.title}>Notificações</Text>
+        </View>
+        <Pressable style={({ pressed }) => [s.closeBtn, pressed && s.pressed]} onPress={onClose}>
+          <Ionicons name="close-outline" size={20} color={Brand.text} />
+        </Pressable>
+      </View>
 
-          <View style={s.header}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.title}>Notificações</Text>
-            </View>
-            <Pressable style={({ pressed }) => [s.closeBtn, pressed && s.pressed]} onPress={onClose}>
-              <Ionicons name="close-outline" size={20} color={Brand.text} />
-            </Pressable>
-          </View>
-
-          <View style={s.summaryCard}>
-            <View>
-              <Text style={s.summaryLabel}>Caixa de entrada</Text>
-            </View>
-            <View style={s.summaryActions}>
-              <Pressable
-                style={({ pressed }) => [
-                  s.summaryAction,
-                  (markingAll || deletingAll || unreadCount === 0) && s.summaryActionDisabled,
-                  pressed && s.pressed,
-                ]}
-                disabled={markingAll || deletingAll || unreadCount === 0}
-                onPress={onMarkAllRead}>
-                {markingAll ? (
-                  <ActivityIndicator size="small" color={Brand.greenDark} />
-                ) : (
-                  <Text style={s.summaryActionText}>Marcar tudo como lido</Text>
-                )}
-              </Pressable>
-
-              <Pressable
-                style={({ pressed }) => [
-                  s.summaryAction,
-                  s.summaryActionDanger,
-                  (deletingAll || markingAll || notifications.length === 0) && s.summaryActionDisabled,
-                  pressed && s.pressed,
-                ]}
-                disabled={deletingAll || markingAll || notifications.length === 0}
-                onPress={onDeleteAll}>
-                {deletingAll ? (
-                  <ActivityIndicator size="small" color={Brand.danger} />
-                ) : (
-                  <Text style={s.summaryActionDangerText}>Excluir tudo</Text>
-                )}
-              </Pressable>
-            </View>
-          </View>
-
-          {loading ? (
-            <View style={s.centerState}>
+      <View style={s.summaryCard}>
+        <View>
+          <Text style={s.summaryLabel}>Caixa de entrada</Text>
+        </View>
+        <View style={s.summaryActions}>
+          <Pressable
+            style={({ pressed }) => [
+              s.summaryAction,
+              (markingAll || deletingAll || unreadCount === 0) && s.summaryActionDisabled,
+              pressed && s.pressed,
+            ]}
+            disabled={markingAll || deletingAll || unreadCount === 0}
+            onPress={onMarkAllRead}>
+            {markingAll ? (
               <ActivityIndicator size="small" color={Brand.greenDark} />
-              <Text style={s.stateText}>Carregando notificações...</Text>
-            </View>
-          ) : error ? (
-            <View style={s.centerState}>
-              <Text style={s.errorTitle}>Não foi possível carregar agora.</Text>
-              <Text style={s.stateText}>{error}</Text>
-              <Pressable style={({ pressed }) => [s.retryBtn, pressed && s.pressed]} onPress={onRefresh}>
-                <Text style={s.retryBtnText}>Tentar novamente</Text>
-              </Pressable>
-            </View>
-          ) : notifications.length === 0 ? (
-            <View style={s.centerState}>
-              <View style={s.emptyIconWrap}>
-                <Ionicons name="notifications-off-outline" size={24} color={Brand.textSecondary} />
-              </View>
-              <Text style={s.emptyTitle}>Nenhuma notificação por enquanto</Text>
-              <Text style={s.stateText}>Quando houver recados novos, respostas ou alertas, eles aparecem aqui.</Text>
-            </View>
-          ) : (
-            <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
-              {notifications.map((notification) => {
-                const palette = getTypePalette(notification.type);
-                const unread = !notification.readAt;
-                const busyAction = busyActions[notification.id];
-                const busy = !!busyAction;
-                const reading = busyAction === 'read';
-                const deleting = busyAction === 'delete';
+            ) : (
+              <Text style={s.summaryActionText}>Marcar tudo como lido</Text>
+            )}
+          </Pressable>
 
-                return (
+          <Pressable
+            style={({ pressed }) => [
+              s.summaryAction,
+              s.summaryActionDanger,
+              (deletingAll || markingAll || notifications.length === 0) && s.summaryActionDisabled,
+              pressed && s.pressed,
+            ]}
+            disabled={deletingAll || markingAll || notifications.length === 0}
+            onPress={onDeleteAll}>
+            {deletingAll ? (
+              <ActivityIndicator size="small" color={Brand.danger} />
+            ) : (
+              <Text style={s.summaryActionDangerText}>Excluir tudo</Text>
+            )}
+          </Pressable>
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={s.centerState}>
+          <ActivityIndicator size="small" color={Brand.greenDark} />
+          <Text style={s.stateText}>Carregando notificações...</Text>
+        </View>
+      ) : error ? (
+        <View style={s.centerState}>
+          <Text style={s.errorTitle}>Não foi possível carregar agora.</Text>
+          <Text style={s.stateText}>{error}</Text>
+          <Pressable style={({ pressed }) => [s.retryBtn, pressed && s.pressed]} onPress={onRefresh}>
+            <Text style={s.retryBtnText}>Tentar novamente</Text>
+          </Pressable>
+        </View>
+      ) : notifications.length === 0 ? (
+        <View style={s.centerState}>
+          <View style={s.emptyIconWrap}>
+            <Ionicons name="notifications-off-outline" size={24} color={Brand.textSecondary} />
+          </View>
+          <Text style={s.emptyTitle}>Nenhuma notificação por enquanto</Text>
+          <Text style={s.stateText}>Quando houver recados novos, respostas ou alertas, eles aparecem aqui.</Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+          {notifications.map((notification) => {
+            const palette = getNotificationTypePalette(notification.type);
+            const unread = !notification.readAt;
+            const busyAction = busyActions[notification.id];
+            const busy = !!busyAction;
+            const reading = busyAction === 'read';
+            const deleting = busyAction === 'delete';
+
+            return (
+              <Pressable
+                key={notification.id}
+                style={({ pressed }) => [
+                  s.card,
+                  { borderColor: unread ? palette.border : Brand.border },
+                  unread && s.cardUnread,
+                  pressed && s.pressed,
+                ]}
+                disabled={busy || markingAll || deletingAll}
+                onPress={() => onPressNotification(notification)}>
+                <View style={s.cardTop}>
+                  <View style={[s.cardIcon, { backgroundColor: palette.iconBg }]}>
+                    <Ionicons name={palette.icon} size={18} color={palette.iconColor} />
+                  </View>
+
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <View style={s.cardTitleRow}>
+                      <Text style={s.cardTitle}>{notification.title}</Text>
+                      {unread ? <View style={s.unreadDot} /> : null}
+                    </View>
+                    <Text style={s.cardMeta}>{formatNotificationMoment(notification)}</Text>
+                  </View>
+
+                  {reading ? <ActivityIndicator size="small" color={Brand.greenDark} /> : null}
+                </View>
+
+                {notification.message ? <Text style={s.cardMessage}>{notification.message}</Text> : null}
+
+                {notification.imageUrl ? (
+                  <Image source={{ uri: notification.imageUrl }} style={s.cardImage} resizeMode="cover" />
+                ) : null}
+
+                <View style={s.cardFooter}>
+                  {notification.actionLabel ? <Text style={s.actionChip}>{notification.actionLabel}</Text> : null}
                   <Pressable
-                    key={notification.id}
                     style={({ pressed }) => [
-                      s.card,
-                      { borderColor: unread ? palette.border : Brand.border },
-                      unread && s.cardUnread,
+                      s.deleteChip,
+                      (deleting || markingAll || deletingAll) && s.actionChipDisabled,
                       pressed && s.pressed,
                     ]}
-                    disabled={busy || markingAll || deletingAll}
-                    onPress={() => onPressNotification(notification)}>
-                    <View style={s.cardTop}>
-                      <View style={[s.cardIcon, { backgroundColor: palette.iconBg }]}>
-                        <Ionicons name={palette.icon} size={18} color={palette.iconColor} />
-                      </View>
-
-                      <View style={{ flex: 1, gap: 3 }}>
-                        <View style={s.cardTitleRow}>
-                          <Text style={s.cardTitle}>{notification.title}</Text>
-                          {unread ? <View style={s.unreadDot} /> : null}
-                        </View>
-                        <Text style={s.cardMeta}>{formatNotificationMoment(notification)}</Text>
-                      </View>
-
-                      {reading ? <ActivityIndicator size="small" color={Brand.greenDark} /> : null}
-                    </View>
-
-                    {notification.message ? <Text style={s.cardMessage}>{notification.message}</Text> : null}
-
-                    {notification.imageUrl ? (
-                      <Image source={{ uri: notification.imageUrl }} style={s.cardImage} resizeMode="cover" />
-                    ) : null}
-
-                    <View style={s.cardFooter}>
-                      {notification.actionLabel ? <Text style={s.actionChip}>{notification.actionLabel}</Text> : null}
-                      <Pressable
-                        style={({ pressed }) => [
-                          s.deleteChip,
-                          (deleting || markingAll || deletingAll) && s.actionChipDisabled,
-                          pressed && s.pressed,
-                        ]}
-                        disabled={deleting || markingAll || deletingAll}
-                        onPress={(event) => {
-                          event.stopPropagation();
-                          onDeleteNotification(notification);
-                        }}>
-                        {deleting ? (
-                          <ActivityIndicator size="small" color={Brand.danger} />
-                        ) : (
-                          <Ionicons name="trash-outline" size={14} color={Brand.danger} />
-                        )}
-                        <Text style={s.deleteChipText}>Excluir</Text>
-                      </Pressable>
-                    </View>
+                    disabled={deleting || markingAll || deletingAll}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      onDeleteNotification(notification);
+                    }}>
+                    {deleting ? (
+                      <ActivityIndicator size="small" color={Brand.danger} />
+                    ) : (
+                      <Ionicons name="trash-outline" size={14} color={Brand.danger} />
+                    )}
+                    <Text style={s.deleteChipText}>Excluir</Text>
                   </Pressable>
-                );
-              })}
-            </ScrollView>
-          )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+    </DraggableSheetModal>
   );
 }
 
 const s = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(16, 35, 26, 0.28)',
-    justifyContent: 'flex-end',
-  },
   sheet: {
     maxHeight: '88%',
     backgroundColor: Brand.bg,
     borderTopLeftRadius: Radii.xl,
     borderTopRightRadius: Radii.xl,
     paddingHorizontal: 18,
-    paddingBottom: 28,
     gap: 14,
-  },
-  handleWrap: {
-    alignItems: 'center',
-    paddingTop: 12,
-  },
-  handle: {
-    width: 42,
-    height: 4,
-    borderRadius: Radii.pill,
-    backgroundColor: Brand.border,
   },
   header: {
     flexDirection: 'row',
