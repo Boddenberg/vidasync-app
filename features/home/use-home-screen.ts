@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated } from 'react-native';
+import { Alert, Animated } from 'react-native';
 
 import { useAuth } from '@/hooks/use-auth';
 import { useMeals } from '@/hooks/use-meals';
@@ -400,7 +400,7 @@ export function useHomeScreen({ onNavigate }: Props) {
     onNavigate(notification.actionRoute);
   }
 
-  async function handleMarkAllNotificationsRead() {
+  async function markAllNotificationsReadConfirmed() {
     if (notificationsMarkingAll || notificationsDeletingAll || notificationsSnapshot.unreadCount === 0) return;
 
     setNotificationsMarkingAll(true);
@@ -422,7 +422,27 @@ export function useHomeScreen({ onNavigate }: Props) {
     }
   }
 
-  async function handleDeleteNotification(notification: AppNotification) {
+  function handleMarkAllNotificationsRead() {
+    if (notificationsMarkingAll || notificationsDeletingAll || notificationsSnapshot.unreadCount === 0) return;
+
+    const unreadCount = notificationsSnapshot.unreadCount;
+    const message =
+      unreadCount === 1
+        ? 'A notificação visível não lida será marcada como lida.'
+        : `${unreadCount} notificações visíveis serão marcadas como lidas.`;
+
+    Alert.alert('Marcar tudo como lido?', message, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Marcar como lido',
+        onPress: () => {
+          void markAllNotificationsReadConfirmed();
+        },
+      },
+    ]);
+  }
+
+  async function deleteNotificationConfirmed(notification: AppNotification) {
     if (notification.deleted) return;
 
     if (selectedNotification?.id === notification.id) {
@@ -453,7 +473,26 @@ export function useHomeScreen({ onNavigate }: Props) {
     }
   }
 
-  async function handleDeleteAllNotifications() {
+  function handleDeleteNotification(notification: AppNotification) {
+    if (notification.deleted) return;
+
+    const message = notification.title.trim()
+      ? `Deseja excluir "${notification.title.trim()}"?`
+      : 'Deseja excluir esta notificação?';
+
+    Alert.alert('Excluir notificação?', message, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: () => {
+          void deleteNotificationConfirmed(notification);
+        },
+      },
+    ]);
+  }
+
+  async function deleteAllNotificationsConfirmed() {
     if (notificationsDeletingAll || notificationsMarkingAll || !notificationsSnapshot.notifications.some(isNotificationVisible)) {
       return;
     }
@@ -477,6 +516,27 @@ export function useHomeScreen({ onNavigate }: Props) {
     } finally {
       setNotificationsDeletingAll(false);
     }
+  }
+
+  function handleDeleteAllNotifications() {
+    const visibleCount = notificationsSnapshot.notifications.filter(isNotificationVisible).length;
+    if (notificationsDeletingAll || notificationsMarkingAll || visibleCount === 0) return;
+
+    const message =
+      visibleCount === 1
+        ? 'A notificação visível será excluída da caixa de entrada.'
+        : `${visibleCount} notificações visíveis serão excluídas da caixa de entrada.`;
+
+    Alert.alert('Excluir tudo?', message, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir tudo',
+        style: 'destructive',
+        onPress: () => {
+          void deleteAllNotificationsConfirmed();
+        },
+      },
+    ]);
   }
 
   const calories = totals ? Math.round(extractNum(totals.calories)) : 0;
