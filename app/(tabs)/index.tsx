@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { PanResponder, ScrollView, StatusBar, View } from 'react-native';
+import { PanResponder, RefreshControl, ScrollView, StatusBar, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalendarPickerModal } from '@/components/calendar-picker-modal';
@@ -20,6 +20,7 @@ import { formatDateForModal } from '@/features/home/home-utils';
 import { useHomeScreen } from '@/features/home/use-home-screen';
 
 const HOME_SWIPE_THRESHOLD = 44;
+const HOME_BOTTOM_CONTENT_PADDING = 20;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -94,6 +95,8 @@ export default function HomeScreen() {
     home.setRegisterVisible(true);
   }
 
+  const bottomContentPadding = Math.max(HOME_BOTTOM_CONTENT_PADDING, insets.bottom + Spacing.sm);
+
   return (
     <View style={s.root} {...panResponder.panHandlers}>
       <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
@@ -102,7 +105,17 @@ export default function HomeScreen() {
       <View pointerEvents="none" style={s.backgroundOrbBottom} />
 
       <ScrollView
-        contentContainerStyle={[s.scroll, { paddingTop: insets.top + Spacing.sm, paddingBottom: 140 + insets.bottom }]}
+        contentContainerStyle={[s.scroll, { paddingTop: insets.top + Spacing.sm, paddingBottom: bottomContentPadding }]}
+        scrollIndicatorInsets={{ bottom: bottomContentPadding }}
+        refreshControl={
+          <RefreshControl
+            refreshing={home.refreshing}
+            onRefresh={home.handleRefreshHome}
+            tintColor={Brand.greenDark}
+            colors={[Brand.greenDark]}
+            progressViewOffset={insets.top + Spacing.sm}
+          />
+        }
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
         <HomeHeader
