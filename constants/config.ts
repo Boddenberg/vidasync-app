@@ -8,6 +8,12 @@ function normalizeBaseUrl(url: string): string {
   return url.endsWith('/') ? url.slice(0, -1) : url;
 }
 
+function normalizeOptionalBaseUrl(url?: string | null): string {
+  const trimmed = `${url ?? ''}`.trim();
+  if (!trimmed) return '';
+  return normalizeBaseUrl(trimmed);
+}
+
 function normalizePath(path: string, fallback: string): string {
   const trimmed = path.trim();
   if (!trimmed) return fallback;
@@ -41,6 +47,25 @@ export const API_PLAN_BASE_URL = normalizeBaseUrl(
 export const API_REVIEW_BASE_URL = normalizeBaseUrl(
   process.env.EXPO_PUBLIC_API_REVIEW_BASE_URL?.trim() || API_BASE_URL,
 );
+
+/*
+ * Supabase publico para leituras client-side controladas por RLS.
+ *
+ * Usado pela dashboard de desenvolvedor para ler as avaliacoes
+ * do LLM-as-a-judge diretamente do PostgREST.
+ */
+export const SUPABASE_URL = normalizeOptionalBaseUrl(process.env.EXPO_PUBLIC_SUPABASE_URL);
+export const SUPABASE_ANON_KEY = `${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? ''}`.trim();
+export const SUPABASE_JUDGE_TABLE =
+  `${process.env.EXPO_PUBLIC_SUPABASE_JUDGE_TABLE ?? 'llm_judge_evaluations'}`.trim() ||
+  'llm_judge_evaluations';
+export const SUPABASE_JUDGE_FEATURE =
+  `${process.env.EXPO_PUBLIC_SUPABASE_JUDGE_FEATURE ?? 'chat'}`.trim() || 'chat';
+const supabaseJudgeLimitRaw = Number(process.env.EXPO_PUBLIC_SUPABASE_JUDGE_LIMIT ?? '50');
+export const SUPABASE_JUDGE_LIMIT =
+  Number.isFinite(supabaseJudgeLimitRaw) && supabaseJudgeLimitRaw > 0
+    ? Math.min(Math.round(supabaseJudgeLimitRaw), 200)
+    : 50;
 
 /* Endpoint de audio para analise nutricional via BFF.
  * Ajuste conforme contrato ativo no backend.

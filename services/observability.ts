@@ -1,4 +1,6 @@
+import { SUPABASE_JUDGE_TABLE, SUPABASE_URL } from '@/constants/config';
 import { apiGetJson } from '@/services/api';
+import { getDeveloperJudgeSnapshotOverrides } from '@/services/observability-judge';
 import type { NetworkInspectorLog } from '@/services/network-inspector';
 import type {
   DeveloperObservabilitySnapshot,
@@ -137,6 +139,26 @@ function safeJsonParse(value: string | null): unknown | null {
   } catch {
     return null;
   }
+}
+
+function isObservabilityInternalUrl(url: string): boolean {
+  const normalizedUrl = url.toLowerCase();
+
+  if (Object.values(METRIC_PATHS).some((path) => normalizedUrl.includes(path))) {
+    return true;
+  }
+
+  if (SUPABASE_URL) {
+    const normalizedSupabase = SUPABASE_URL.toLowerCase();
+    if (
+      normalizedUrl.startsWith(normalizedSupabase) &&
+      normalizedUrl.includes(`/rest/v1/${SUPABASE_JUDGE_TABLE.toLowerCase()}`)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function findNumber(value: unknown, names: string[]): number | null {
@@ -311,8 +333,9 @@ function endpointRow(id: string, item: EndpointAccumulator): ObservabilityEndpoi
 
 export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[]): DeveloperObservabilitySnapshot {
   const now = new Date().toISOString();
+  const relevantLogs = logs.filter((log) => !isObservabilityInternalUrl(log.url));
 
-  if (logs.length === 0) {
+  if (relevantLogs.length === 0) {
     return {
       generatedAt: now,
       generatedAtLabel: formatTimestamp(now),
@@ -340,6 +363,12 @@ export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[])
         metric('estimated-cost', 'Custo estimado', '--', 'Sem payload de custo observado.', 'neutral'),
         metric('cache-hit-rate', 'Cache hit rate', '--', 'Sem cache hit/miss observado.', 'neutral'),
       ],
+      judgeMetrics: [
+        metric('judge-total', 'Avaliacoes', '--', 'Configure o Supabase publico para ler o judge.', 'neutral'),
+        metric('judge-pending', 'Pendentes', '--', 'As avaliacoes assincronas aparecem aqui quando o banco estiver conectado.', 'neutral'),
+        metric('judge-failed', 'Falhas', '--', 'Sem acesso remoto ao status do judge ainda.', 'neutral'),
+        metric('judge-latency', 'Tempo medio', '--', 'Aguardando duracoes do banco do judge.', 'neutral'),
+      ],
       qualityMetrics: [
         metric('overall-score', 'Score geral', '--', 'Sem avaliacoes do judge ainda.', 'neutral'),
         metric('approval-rate', 'Taxa de aprovacao', '--', 'Sem avaliacoes do judge ainda.', 'neutral'),
@@ -363,6 +392,7 @@ export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[])
       topEndpoints: [{ id: 'empty-latency', label: 'Latencia por endpoint', avgLatency: '--', p95Latency: '--', volume: 'Nenhum endpoint observado', errors: '--' }],
       errorEndpoints: [{ id: 'empty-errors', label: 'Erros por endpoint', avgLatency: '--', p95Latency: '--', volume: 'Nenhuma falha observada', errors: '--' }],
       timeline: [],
+      judgeEvaluations: [],
     };
   }
 
@@ -382,7 +412,7 @@ export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[])
   let approvedCount = 0;
   let rejectedCount = 0;
 
-  logs.forEach((log) => {
+  relevantLogs.forEach((log) => {
     totalLatency += log.durationMs;
     if (isErrorLog(log)) errorCount += 1;
     if (isAiRequest(log)) aiLogs.push(log);
@@ -433,10 +463,10 @@ export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[])
     });
   });
 
-  const requestCount = logs.length;
+  const requestCount = relevantLogs.length;
   const errorRate = errorCount / requestCount;
-  const avgLatency = average(logs.map((item) => item.durationMs));
-  const p95Latency = p95(logs.map((item) => item.durationMs));
+  const avgLatency = average(relevantLogs.map((item) => item.durationMs));
+  const p95Latency = p95(relevantLogs.map((item) => item.durationMs));
   const avgDbLatency = average(dbLatencies);
   const endpointStats = Array.from(endpointMap.values());
   const slowEndpoints = [...endpointStats]
@@ -476,6 +506,12 @@ export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[])
       metric('estimated-cost', 'Custo estimado', totalCost > 0 ? formatCurrency(totalCost) : '--', totalCost > 0 ? 'Baseado em headers de custo.' : 'Sem valores de custo expostos pelo backend.', totalCost > 0 ? 'warning' : 'neutral'),
       metric('cache-hit-rate', 'Cache hit rate', '--', 'Sem cache hit/miss padronizado nesta sessao.', 'neutral'),
     ],
+    judgeMetrics: [
+      metric('judge-total', 'Avaliacoes', '--', 'Os dados do judge sao lidos remotamente do banco.', 'neutral'),
+      metric('judge-pending', 'Pendentes', '--', 'Aguardando sincronizacao com a tabela do judge.', 'neutral'),
+      metric('judge-failed', 'Falhas', '--', 'Falhas do judge nao aparecem nos logs locais.', 'neutral'),
+      metric('judge-latency', 'Tempo medio', '--', 'Tempo do judge vem da persistencia assincrona no banco.', 'neutral'),
+    ],
     qualityMetrics: [
       metric('overall-score', 'Score geral', averageQualityScore != null ? formatPercent(averageQualityScore) : '--', averageQualityScore != null ? 'Media agregada do judge.' : 'Sem scores de qualidade capturados.', toneFromScore(averageQualityScore)),
       metric('approval-rate', 'Taxa de aprovacao', approvalRate != null ? formatPercent(approvalRate) : '--', approvalRate != null ? 'Share de respostas aprovadas.' : 'Sem classificacoes do judge ainda.', toneFromScore(approvalRate)),
@@ -501,13 +537,14 @@ export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[])
     }),
     topEndpoints: slowEndpoints.length > 0 ? slowEndpoints.map((item, index) => endpointRow(`slow-${index}`, item)) : [buildDeveloperObservabilitySnapshot([]).topEndpoints[0]],
     errorEndpoints: failingEndpoints.length > 0 ? failingEndpoints.map((item, index) => endpointRow(`err-${index}`, item)) : [buildDeveloperObservabilitySnapshot([]).errorEndpoints[0]],
-    timeline: logs.slice(0, 6).map((log) => ({
+    timeline: relevantLogs.slice(0, 6).map((log) => ({
       id: log.id,
       timestampLabel: formatTimestamp(log.timestamp),
       title: isErrorLog(log) ? `${log.method} falhou em ${endpointLabel(log.url)}` : `${log.method} em ${endpointLabel(log.url)}`,
       description: isErrorLog(log) ? log.error || `Status ${log.statusCode ?? 'desconhecido'}` : `${formatDuration(log.durationMs)} - ${log.statusCode ?? 'sem status'}`,
       tone: isErrorLog(log) ? 'critical' : log.durationMs >= 1800 ? 'warning' : 'neutral',
     })),
+    judgeEvaluations: [],
   };
 }
 
@@ -527,25 +564,28 @@ export function mergeDeveloperObservabilitySnapshot(
     performanceMetrics: overrides.performanceMetrics?.length ? overrides.performanceMetrics : fallback.performanceMetrics,
     volumeMetrics: overrides.volumeMetrics?.length ? overrides.volumeMetrics : fallback.volumeMetrics,
     llmMetrics: overrides.llmMetrics?.length ? overrides.llmMetrics : fallback.llmMetrics,
+    judgeMetrics: overrides.judgeMetrics?.length ? overrides.judgeMetrics : fallback.judgeMetrics,
     qualityMetrics: overrides.qualityMetrics?.length ? overrides.qualityMetrics : fallback.qualityMetrics,
     qualityCriteria: overrides.qualityCriteria?.length ? overrides.qualityCriteria : fallback.qualityCriteria,
     insights: overrides.insights?.length ? overrides.insights : fallback.insights,
     topEndpoints: overrides.topEndpoints?.length ? overrides.topEndpoints : fallback.topEndpoints,
     errorEndpoints: overrides.errorEndpoints?.length ? overrides.errorEndpoints : fallback.errorEndpoints,
     timeline: overrides.timeline?.length ? overrides.timeline : fallback.timeline,
+    judgeEvaluations: overrides.judgeEvaluations?.length ? overrides.judgeEvaluations : fallback.judgeEvaluations,
   };
 }
 
 export async function getDeveloperObservabilitySnapshotOverrides(): Promise<DeveloperObservabilitySnapshotOverrides | null> {
-  const [overview, performance, llm, quality, insights] = await Promise.all([
+  const [overview, performance, llm, quality, insights, judge] = await Promise.all([
     apiGetJson(METRIC_PATHS.overview).catch(() => null),
     apiGetJson(METRIC_PATHS.performance).catch(() => null),
     apiGetJson(METRIC_PATHS.llm).catch(() => null),
     apiGetJson(METRIC_PATHS.quality).catch(() => null),
     apiGetJson(METRIC_PATHS.insights).catch(() => null),
+    getDeveloperJudgeSnapshotOverrides().catch(() => null),
   ]);
 
-  const available = [overview, performance, llm, quality, insights].filter((item) => item != null);
+  const available = [overview, performance, llm, quality, insights, judge].filter((item) => item != null);
   if (available.length === 0) return null;
 
   const generatedAt = new Date().toISOString();
@@ -599,6 +639,24 @@ export async function getDeveloperObservabilitySnapshotOverrides(): Promise<Deve
         .slice(0, 5)
     : [];
 
+  const fallbackQualityMetrics: ObservabilityMetric[] = [
+    overallScore != null ? metric('overall-score', 'Score geral', formatPercent(overallScore), 'Score geral informado pelo judge.', toneFromScore(overallScore)) : null,
+    approvalRate != null ? metric('approval-rate', 'Taxa de aprovacao', formatPercent(approvalRate), 'Aprovacao agregada do judge.', toneFromScore(approvalRate)) : null,
+    approvedCount != null ? metric('approved-count', 'Aprovado', formatCompactNumber(approvedCount), 'Total aprovado.', 'positive') : null,
+    rejectedCount != null ? metric('rejected-count', 'Reprovado', formatCompactNumber(rejectedCount), 'Total reprovado.', 'critical') : null,
+  ].filter(Boolean) as ObservabilityMetric[];
+
+  const fallbackQualityCriteria = QUALITY_CRITERIA.map((criterion) => {
+    const score = normalizeScore(findNumber(quality, [criterion.id]));
+    if (score == null) return null;
+    return {
+      id: criterion.id,
+      label: criterion.label,
+      value: formatPercent(score),
+      classification: classificationFromScore(score),
+    };
+  }).filter(Boolean) as DeveloperObservabilitySnapshot['qualityCriteria'];
+
   return {
     generatedAt,
     generatedAtLabel: formatTimestamp(generatedAt),
@@ -619,22 +677,10 @@ export async function getDeveloperObservabilitySnapshotOverrides(): Promise<Deve
       estimatedCost != null ? metric('estimated-cost', 'Custo estimado', formatCurrency(estimatedCost), 'Custo agregado da IA.', 'warning') : null,
       cacheHitRate != null ? metric('cache-hit-rate', 'Cache hit rate', formatPercent(cacheHitRate), 'Aproveitamento do cache informado pelo backend.', 'neutral') : null,
     ].filter(Boolean) as ObservabilityMetric[],
-    qualityMetrics: [
-      overallScore != null ? metric('overall-score', 'Score geral', formatPercent(overallScore), 'Score geral informado pelo judge.', toneFromScore(overallScore)) : null,
-      approvalRate != null ? metric('approval-rate', 'Taxa de aprovacao', formatPercent(approvalRate), 'Aprovacao agregada do judge.', toneFromScore(approvalRate)) : null,
-      approvedCount != null ? metric('approved-count', 'Aprovado', formatCompactNumber(approvedCount), 'Total aprovado.', 'positive') : null,
-      rejectedCount != null ? metric('rejected-count', 'Reprovado', formatCompactNumber(rejectedCount), 'Total reprovado.', 'critical') : null,
-    ].filter(Boolean) as ObservabilityMetric[],
-    qualityCriteria: QUALITY_CRITERIA.map((criterion) => {
-      const score = normalizeScore(findNumber(quality, [criterion.id]));
-      if (score == null) return null;
-      return {
-        id: criterion.id,
-        label: criterion.label,
-        value: formatPercent(score),
-        classification: classificationFromScore(score),
-      };
-    }).filter(Boolean) as DeveloperObservabilitySnapshot['qualityCriteria'],
+    judgeMetrics: judge?.judgeMetrics ?? [],
+    qualityMetrics: judge?.qualityMetrics?.length ? judge.qualityMetrics : fallbackQualityMetrics,
+    qualityCriteria: judge?.qualityCriteria?.length ? judge.qualityCriteria : fallbackQualityCriteria,
     insights: normalizedInsights,
+    judgeEvaluations: judge?.judgeEvaluations ?? [],
   };
 }

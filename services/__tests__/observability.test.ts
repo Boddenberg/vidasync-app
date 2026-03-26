@@ -26,6 +26,11 @@ describe('buildDeveloperObservabilitySnapshot', () => {
   it('aggregates request, latency and quality metrics from local logs', () => {
     const logs: NetworkInspectorLog[] = [
       createLog({
+        id: 'metrics-1',
+        url: 'https://vidasync-bff-production.up.railway.app/metrics/overview',
+        durationMs: 90,
+      }),
+      createLog({
         id: 'bff-1',
         url: 'https://vidasync-bff-production.up.railway.app/meals/summary?date=2026-03-20',
         durationMs: 180,
@@ -69,6 +74,7 @@ describe('buildDeveloperObservabilitySnapshot', () => {
     expect(snapshot.volumeMetrics.find((item) => item.id === 'total-requests')?.value).toBe('3');
     expect(snapshot.volumeMetrics.find((item) => item.id === 'error-rate')?.value).toContain('33');
     expect(snapshot.llmMetrics.find((item) => item.id === 'total-tokens')?.value).toBe('2.0k');
+    expect(snapshot.judgeMetrics.find((item) => item.id === 'judge-total')?.value).toBe('--');
     expect(snapshot.qualityMetrics.find((item) => item.id === 'rejected-count')?.value).toBe('1');
     expect(snapshot.topEndpoints[0]?.label).toBe('/review/confirm');
     expect(snapshot.insights.some((item) => item.title.includes('erro'))).toBe(true);

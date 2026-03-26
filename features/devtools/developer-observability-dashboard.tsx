@@ -14,13 +14,23 @@ import {
 import type { NetworkInspectorLog } from '@/services/network-inspector';
 import type {
   ObservabilityClassification,
+  ObservabilityJudgeEvaluation,
   ObservabilityMetric,
   ObservabilityService,
   ObservabilityTimelineEvent,
   ObservabilityTone,
 } from '@/types/observability';
 
-type DashboardBlockId = 'services' | 'performance' | 'volume' | 'llm' | 'quality' | 'insights' | 'timeline' | 'logs';
+type DashboardBlockId =
+  | 'services'
+  | 'performance'
+  | 'volume'
+  | 'llm'
+  | 'judge'
+  | 'quality'
+  | 'insights'
+  | 'timeline'
+  | 'logs';
 
 type Props = {
   logs: NetworkInspectorLog[];
@@ -36,6 +46,7 @@ const BLOCKS: Array<{ id: DashboardBlockId; label: string }> = [
   { id: 'performance', label: 'Performance' },
   { id: 'volume', label: 'Volume' },
   { id: 'llm', label: 'IA / LLM' },
+  { id: 'judge', label: 'Judge' },
   { id: 'quality', label: 'Qualidade' },
   { id: 'insights', label: 'Insights' },
   { id: 'timeline', label: 'Timeline' },
@@ -53,6 +64,13 @@ function classificationColors(classification: ObservabilityClassification) {
   if (classification === 'approved') return { bg: '#EAF8EE', border: '#C8E7D2', text: Brand.greenDark };
   if (classification === 'alert') return { bg: '#FFF3E3', border: '#F3D2A8', text: '#B96B00' };
   if (classification === 'rejected') return { bg: '#FDE7E7', border: '#F5C2C2', text: Brand.danger };
+  return { bg: Brand.bg, border: Brand.border, text: Brand.textSecondary };
+}
+
+function judgeStatusColors(status: ObservabilityJudgeEvaluation['status']) {
+  if (status === 'completed') return { bg: '#EAF8EE', border: '#C8E7D2', text: Brand.greenDark };
+  if (status === 'failed') return { bg: '#FDE7E7', border: '#F5C2C2', text: Brand.danger };
+  if (status === 'pending') return { bg: '#FFF3E3', border: '#F3D2A8', text: '#B96B00' };
   return { bg: Brand.bg, border: Brand.border, text: Brand.textSecondary };
 }
 
@@ -108,6 +126,7 @@ export function DeveloperObservabilityDashboard({
   }, []);
 
   async function refreshDashboard() {
+    if (loading) return;
     setLoading(true);
     try {
       const next = await getDeveloperObservabilitySnapshotOverrides();
@@ -115,7 +134,7 @@ export function DeveloperObservabilityDashboard({
       setSyncMessage(
         next
           ? `Dados sincronizados em ${next.generatedAtLabel ?? snapshot.generatedAtLabel}.`
-          : 'Endpoints /metrics indisponiveis. Exibindo a telemetria local da sessao.',
+          : 'Fontes remotas indisponiveis. Exibindo a telemetria local da sessao.',
       );
     } finally {
       setLoading(false);
@@ -221,6 +240,26 @@ export function DeveloperObservabilityDashboard({
       {isVisible('llm') ? (
         <SectionCard title="IA / LLM metrics" subtitle="Tokens, custo estimado e sinais de cache.">
           <MetricGrid metrics={snapshot.llmMetrics} />
+        </SectionCard>
+      ) : null}
+
+      {isVisible('judge') ? (
+        <SectionCard
+          title="LLM as Judge"
+          subtitle="Leitura direta do banco com fila async, score e diagnostico por avaliacao.">
+          <MetricGrid metrics={snapshot.judgeMetrics} />
+          {snapshot.judgeEvaluations.length > 0 ? (
+            <View style={s.judgeList}>
+              {snapshot.judgeEvaluations.map((evaluation) => (
+                <JudgeEvaluationCard key={evaluation.id} evaluation={evaluation} />
+              ))}
+            </View>
+          ) : (
+            <Text style={s.emptyText}>
+              As avaliacoes recentes do judge aparecem aqui assim que a tabela do Supabase estiver
+              acessivel para o app.
+            </Text>
+          )}
         </SectionCard>
       ) : null}
 
@@ -412,6 +451,157 @@ function InsightRow({
   );
 }
 
+function JudgeEvaluationCard({ evaluation }: { evaluation: ObservabilityJudgeEvaluation }) {
+  const statusColors = judgeStatusColors(evaluation.status);
+  const decisionColors = classificationColors(evaluation.decision);
+  const tone = toneColors(evaluation.tone);
+
+  return (
+    <View style={s.judgeCard}>
+      <View style={s.judgeHeader}>
+        <View style={s.judgeBadgeRow}>
+          <Badge
+            label={evaluation.feature.toUpperCase()}
+            backgroundColor={Brand.bg}
+            borderColor={Brand.border}
+            textColor={Brand.textSecondary}
+          />
+          <Badge
+            label={evaluation.statusLabel}
+            backgroundColor={statusColors.bg}
+            borderColor={statusColors.border}
+            textColor={statusColors.text}
+          />
+          <Badge
+            label={evaluation.decisionLabel}
+            backgroundColor={decisionColors.bg}
+            borderColor={decisionColors.border}
+            textColor={decisionColors.text}
+          />
+        </View>
+        <Text style={s.judgeTimestamp}>{evaluation.createdAtLabel}</Text>
+      </View>
+
+      <Text style={s.judgeSummary}>{evaluation.summary}</Text>
+
+      <View style={s.judgeStatRow}>
+        <JudgeStatCard label="Score" value={evaluation.score} tone={tone} />
+        <JudgeStatCard
+          label="Source"
+          value={evaluation.sourceDuration}
+          tone={{ bg: Brand.bg, border: Brand.border, text: Brand.text }}
+        />
+        <JudgeStatCard
+          label="Judge"
+          value={evaluation.judgeDuration}
+          tone={{ bg: Brand.bg, border: Brand.border, text: Brand.text }}
+        />
+      </View>
+
+      <View style={s.metaWrap}>
+        <MetaChip label="Pipeline" value={evaluation.pipeline} />
+        <MetaChip label="Handler" value={evaluation.handler} />
+        <MetaChip label="Modelos" value={`${evaluation.sourceModel} -> ${evaluation.judgeModel}`} />
+        <MetaChip label="Atualizado" value={evaluation.updatedAtLabel} />
+        {evaluation.requestId !== '--' ? <MetaChip label="Request" value={evaluation.requestId} /> : null}
+        {evaluation.messageId !== '--' ? <MetaChip label="Mensagem" value={evaluation.messageId} /> : null}
+        {evaluation.conversationId !== '--' ? (
+          <MetaChip label="Conversa" value={evaluation.conversationId} />
+        ) : null}
+        {evaluation.userId !== '--' ? <MetaChip label="Usuario" value={evaluation.userId} /> : null}
+      </View>
+
+      {evaluation.improvements.length > 0 ? (
+        <InfoGroup title="Melhorias sugeridas" items={evaluation.improvements} tone="warning" />
+      ) : null}
+
+      {evaluation.rejectionReasons.length > 0 ? (
+        <InfoGroup title="Motivos de reprovacao" items={evaluation.rejectionReasons} tone="critical" />
+      ) : null}
+
+      {evaluation.error ? (
+        <View style={[s.judgeErrorBox, { backgroundColor: '#FDE7E7', borderColor: '#F5C2C2' }]}>
+          <Text style={s.judgeErrorTitle}>Erro do judge</Text>
+          <Text style={s.judgeErrorText}>{evaluation.error}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function Badge({
+  label,
+  backgroundColor,
+  borderColor,
+  textColor,
+}: {
+  label: string;
+  backgroundColor: string;
+  borderColor: string;
+  textColor: string;
+}) {
+  return (
+    <View style={[s.badge, { backgroundColor, borderColor }]}>
+      <Text style={[s.badgeText, { color: textColor }]}>{label}</Text>
+    </View>
+  );
+}
+
+function JudgeStatCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: { bg: string; border: string; text: string };
+}) {
+  return (
+    <View style={[s.judgeStatCard, { backgroundColor: tone.bg, borderColor: tone.border }]}>
+      <Text style={s.judgeStatLabel}>{label}</Text>
+      <Text style={[s.judgeStatValue, { color: tone.text }]}>{value}</Text>
+    </View>
+  );
+}
+
+function MetaChip({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={s.metaChip}>
+      <Text style={s.metaChipLabel}>{label}</Text>
+      <Text style={s.metaChipValue} numberOfLines={2}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function InfoGroup({
+  title,
+  items,
+  tone,
+}: {
+  title: string;
+  items: string[];
+  tone: ObservabilityTone;
+}) {
+  const colors = toneColors(tone);
+
+  return (
+    <View style={s.infoGroup}>
+      <Text style={s.infoGroupTitle}>{title}</Text>
+      <View style={s.infoGroupWrap}>
+        {items.map((item, index) => (
+          <View
+            key={`${title}-${index}-${item}`}
+            style={[s.infoChip, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+            <Text style={[s.infoChipText, { color: colors.text }]}>{item}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function TimelineRow({ event }: { event: ObservabilityTimelineEvent }) {
   const colors = toneColors(event.tone);
 
@@ -524,6 +714,73 @@ const s = StyleSheet.create({
   rankMeta: { ...Typography.caption, color: Brand.textSecondary },
   rankStats: { alignItems: 'flex-end', gap: 4 },
   rankStatText: { ...Typography.caption, color: Brand.textSecondary, fontWeight: '700' },
+  judgeList: { gap: 12 },
+  judgeCard: {
+    borderRadius: 22,
+    backgroundColor: '#FCFDFB',
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: 16,
+    gap: 12,
+  },
+  judgeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  judgeBadgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, flex: 1 },
+  badge: {
+    borderRadius: Radii.pill,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  badgeText: { ...Typography.caption, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  judgeTimestamp: { ...Typography.caption, color: Brand.textSecondary, fontWeight: '700' },
+  judgeSummary: { ...Typography.body, color: Brand.text, fontWeight: '700' },
+  judgeStatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  judgeStatCard: {
+    minWidth: 92,
+    flexGrow: 1,
+    flexBasis: 96,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  judgeStatLabel: { ...Typography.caption, color: Brand.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  judgeStatValue: { ...Typography.body, fontWeight: '800' },
+  metaWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  metaChip: {
+    minWidth: 130,
+    flexGrow: 1,
+    flexBasis: 150,
+    borderRadius: 18,
+    backgroundColor: Brand.bg,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  metaChipLabel: { ...Typography.caption, color: Brand.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  metaChipValue: { ...Typography.caption, color: Brand.text, fontWeight: '700' },
+  infoGroup: { gap: 8 },
+  infoGroupTitle: { ...Typography.caption, color: Brand.text, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  infoGroupWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  infoChip: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  infoChipText: { ...Typography.caption, fontWeight: '700' },
+  judgeErrorBox: {
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  judgeErrorTitle: { ...Typography.caption, color: Brand.danger, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  judgeErrorText: { ...Typography.caption, color: Brand.danger },
   criteriaWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   criterionChip: { minWidth: 110, borderRadius: 18, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 12, gap: 4 },
   criterionValue: { ...Typography.body, fontWeight: '800' },
