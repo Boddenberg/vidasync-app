@@ -50,7 +50,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="chat"
         options={{
-          title: 'Chat',
+          title: 'Fit',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               size={20}
