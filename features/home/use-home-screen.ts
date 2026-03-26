@@ -57,6 +57,7 @@ type Props = {
 };
 
 type NotificationBusyAction = 'read' | 'delete';
+const NOTIFICATION_MODAL_TRANSITION_MS = 180;
 
 export function useHomeScreen({ onNavigate }: Props) {
   const today = todayStr();
@@ -96,10 +97,13 @@ export function useHomeScreen({ onNavigate }: Props) {
   const [notificationBusyActions, setNotificationBusyActions] = useState<Record<string, NotificationBusyAction>>({});
   const [notificationsMarkingAll, setNotificationsMarkingAll] = useState(false);
   const [notificationsDeletingAll, setNotificationsDeletingAll] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const dayAnim = useRef(new Animated.Value(0)).current;
   const hydrationAnim = useRef(new Animated.Value(0)).current;
   const hydrationPulse = useRef(new Animated.Value(0)).current;
+  const notificationTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const homeRefreshRequestRef = useRef<Promise<void> | null>(null);
 
   const canAdvanceDate = selectedDate < today;
 
@@ -186,13 +190,53 @@ export function useHomeScreen({ onNavigate }: Props) {
     }
   }, [replaceNotifications]);
 
+  const reloadHomeData = useCallback(
+    async ({ showRefreshIndicator = false }: { showRefreshIndicator?: boolean } = {}) => {
+      if (homeRefreshRequestRef.current) {
+        if (!showRefreshIndicator) {
+          return homeRefreshRequestRef.current;
+        }
+
+        setRefreshing(true);
+        try {
+          await homeRefreshRequestRef.current;
+        } finally {
+          setRefreshing(false);
+        }
+        return;
+      }
+
+      if (showRefreshIndicator) {
+        setRefreshing(true);
+      }
+
+      const request = (async () => {
+        await Promise.all([
+          refresh(),
+          loadHydration(selectedDate),
+          loadGoalState(selectedDate),
+          loadNotifications(),
+        ]);
+      })();
+
+      homeRefreshRequestRef.current = request;
+
+      try {
+        await request;
+      } finally {
+        homeRefreshRequestRef.current = null;
+        if (showRefreshIndicator) {
+          setRefreshing(false);
+        }
+      }
+    },
+    [loadGoalState, loadHydration, loadNotifications, refresh, selectedDate],
+  );
+
   useFocusEffect(
     useCallback(() => {
-      refresh();
-      loadHydration(selectedDate);
-      loadGoalState(selectedDate);
-      loadNotifications();
-    }, [refresh, loadHydration, loadGoalState, loadNotifications, selectedDate]),
+      void reloadHomeData();
+    }, [reloadHomeData]),
   );
 
   useEffect(() => {
@@ -211,6 +255,17 @@ export function useHomeScreen({ onNavigate }: Props) {
       return notificationsSnapshot.notifications.find((item) => item.id === current.id) ?? current;
     });
   }, [notificationsSnapshot.notifications]);
+
+  useEffect(() => {
+    return () => {
+      if (notificationTransitionTimeoutRef.current) {
+        clearTimeout(notificationTransitionTimeoutRef.current);
+      }
+      if (homeRefreshRequestRef.current) {
+        homeRefreshRequestRef.current = null;
+      }
+    };
+  }, []);
 
   async function handleSaveNew(params: SaveMealParams) {
     await add(
@@ -346,25 +401,47 @@ export function useHomeScreen({ onNavigate }: Props) {
     });
   }
 
+  function clearNotificationTransitionTimer() {
+    if (notificationTransitionTimeoutRef.current) {
+      clearTimeout(notificationTransitionTimeoutRef.current);
+      notificationTransitionTimeoutRef.current = null;
+    }
+  }
+
   async function handleOpenNotifications() {
+    clearNotificationTransitionTimer();
+    setNotificationDetailVisible(false);
+    setSelectedNotification(null);
     setNotificationsVisible(true);
     await loadNotifications();
   }
 
   function handleCloseNotifications() {
+    clearNotificationTransitionTimer();
     setNotificationDetailVisible(false);
     setSelectedNotification(null);
     setNotificationsVisible(false);
   }
 
   function handleCloseNotificationDetail() {
+    clearNotificationTransitionTimer();
     setNotificationDetailVisible(false);
     setSelectedNotification(null);
+    notificationTransitionTimeoutRef.current = setTimeout(() => {
+      setNotificationsVisible(true);
+      notificationTransitionTimeoutRef.current = null;
+    }, NOTIFICATION_MODAL_TRANSITION_MS);
   }
 
   async function handlePressNotification(notification: AppNotification) {
+    clearNotificationTransitionTimer();
     setSelectedNotification(notification);
-    setNotificationDetailVisible(true);
+    setNotificationDetailVisible(false);
+    setNotificationsVisible(false);
+    notificationTransitionTimeoutRef.current = setTimeout(() => {
+      setNotificationDetailVisible(true);
+      notificationTransitionTimeoutRef.current = null;
+    }, NOTIFICATION_MODAL_TRANSITION_MS);
 
     if (!notification.readAt) {
       setNotificationBusyActions((current) => ({ ...current, [notification.id]: 'read' }));
@@ -394,6 +471,7 @@ export function useHomeScreen({ onNavigate }: Props) {
   function handleOpenNotificationAction(notification: AppNotification) {
     if (!notification.actionRoute) return;
 
+    clearNotificationTransitionTimer();
     setNotificationDetailVisible(false);
     setSelectedNotification(null);
     setNotificationsVisible(false);
@@ -446,6 +524,7 @@ export function useHomeScreen({ onNavigate }: Props) {
     if (notification.deleted) return;
 
     if (selectedNotification?.id === notification.id) {
+      clearNotificationTransitionTimer();
       setNotificationDetailVisible(false);
       setSelectedNotification(null);
     }
@@ -537,6 +616,10 @@ export function useHomeScreen({ onNavigate }: Props) {
         },
       },
     ]);
+  }
+
+  async function handleRefreshHome() {
+    await reloadHomeData({ showRefreshIndicator: true });
   }
 
   const calories = totals ? Math.round(extractNum(totals.calories)) : 0;
@@ -660,6 +743,7 @@ export function useHomeScreen({ onNavigate }: Props) {
     notificationBusyActions,
     notificationsMarkingAll,
     notificationsDeletingAll,
+    refreshing,
     nutritionGoals,
     goalsSaving,
     unreadNotificationsCount,
@@ -677,6 +761,7 @@ export function useHomeScreen({ onNavigate }: Props) {
     handleMarkAllNotificationsRead,
     handleDeleteNotification,
     handleDeleteAllNotifications,
+    handleRefreshHome,
     handleHydrationGoalDraftChange,
     handleHydrationGoalCommit,
     sendHydrationUpdate,
