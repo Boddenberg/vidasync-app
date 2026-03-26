@@ -19,9 +19,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { sendChatPrompt } from '@/services/chat';
 import type { ChatMessage, ChatReply } from '@/types/chat';
 
-const AGENT_NAME = 'Fit';
+const AGENT_NAME = 'Fitty';
 const AGENT_EMOJI = '\u2728';
-const COMPOSER_PLACEHOLDER = 'Mande uma mensagem para o Fit...';
+const COMPOSER_PLACEHOLDER = `Mande uma mensagem para o ${AGENT_NAME}...`;
 const WELCOME_MESSAGE = 'Como posso te ajudar hoje?';
 
 const ChatColors = {
@@ -285,7 +285,7 @@ export function ChatScreen() {
 
                   <View style={s.typingRow}>
                     <ActivityIndicator size="small" color={ChatColors.accent} />
-                    <Text style={s.typingText}>Fit esta respondendo...</Text>
+                    <Text style={s.typingText}>{AGENT_NAME} esta respondendo...</Text>
                   </View>
                 </View>
               </View>
