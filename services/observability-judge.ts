@@ -1,6 +1,5 @@
 import {
   INTERNAL_ADMIN_API_KEY,
-  INTERNAL_ADMIN_JUDGE_FEATURE,
   INTERNAL_ADMIN_USER_ID,
   SUPABASE_ANON_KEY,
   SUPABASE_JUDGE_FEATURE,
@@ -570,7 +569,7 @@ function normalizeRecentEvaluation(value: Record<string, unknown>, index: number
   return {
     evaluationId: asTrimmedString(value.evaluationId) || `judge-metric-eval-${index + 1}`,
     createdAt: asTrimmedString(value.createdAt) || new Date().toISOString(),
-    feature: asTrimmedString(value.feature) || INTERNAL_ADMIN_JUDGE_FEATURE || 'chat',
+    feature: asTrimmedString(value.feature) || 'chat',
     judgeStatus: status,
     judgeDecision: decisionFromValue(value.judgeDecision, score, status),
     judgeOverallScore: score,
@@ -746,25 +745,24 @@ function buildJudgeMetricsPath(): string {
   const params = new URLSearchParams();
   params.set('days', `${DEFAULT_JUDGE_DAYS}`);
 
-  if (INTERNAL_ADMIN_JUDGE_FEATURE) {
-    params.set('feature', INTERNAL_ADMIN_JUDGE_FEATURE);
-  }
-
   return `${JUDGE_METRICS_PATH}?${params.toString()}`;
 }
 
 async function fetchJudgeApiMetrics(): Promise<JudgeApiMetricsPayload | null> {
-  if (!INTERNAL_ADMIN_API_KEY) return null;
+  const headers: Record<string, string> = {};
 
-  const headers: Record<string, string> = {
-    'X-Internal-Api-Key': INTERNAL_ADMIN_API_KEY,
-  };
+  if (INTERNAL_ADMIN_API_KEY) {
+    headers['X-Internal-Api-Key'] = INTERNAL_ADMIN_API_KEY;
+  }
 
   if (INTERNAL_ADMIN_USER_ID) {
     headers['X-User-Id'] = INTERNAL_ADMIN_USER_ID;
   }
 
-  const data = await apiGetJson<JudgeApiMetricsResponse>(buildJudgeMetricsPath(), headers);
+  const data = await apiGetJson<JudgeApiMetricsResponse>(
+    buildJudgeMetricsPath(),
+    Object.keys(headers).length > 0 ? headers : undefined,
+  );
   if (!data?.metrics) {
     throw new Error('Resposta invalida do endpoint /internal/admin/llm-judge/metrics.');
   }

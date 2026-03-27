@@ -2,12 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/constants/config', () => ({
   INTERNAL_ADMIN_API_KEY: '',
-  INTERNAL_ADMIN_JUDGE_FEATURE: 'chat',
   INTERNAL_ADMIN_USER_ID: '',
   SUPABASE_URL: 'https://demo-project.supabase.co',
   SUPABASE_ANON_KEY: 'anon-key',
   SUPABASE_JUDGE_TABLE: 'llm_judge_evaluations',
-  SUPABASE_JUDGE_FEATURE: 'chat',
+  SUPABASE_JUDGE_FEATURE: '',
   SUPABASE_JUDGE_LIMIT: 50,
 }));
 
@@ -89,7 +88,7 @@ describe('getDeveloperJudgeSnapshotOverrides', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('https://demo-project.supabase.co/rest/v1/llm_judge_evaluations');
-    expect(url).toContain('feature=eq.chat');
+    expect(url).not.toContain('feature=');
     expect(url).toContain('order=created_at.desc');
     expect(url).toContain('limit=50');
     expect(options.headers).toMatchObject({

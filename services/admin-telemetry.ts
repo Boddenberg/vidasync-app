@@ -669,19 +669,20 @@ export function buildAdminTelemetryMetricsSnapshotOverrides(
 export async function getAdminTelemetryMetricsSnapshotOverrides(
   query: AdminTelemetryMetricsQuery = {},
 ): Promise<DeveloperObservabilitySnapshotOverrides> {
-  if (!INTERNAL_ADMIN_API_KEY) {
-    throw new Error('Defina EXPO_PUBLIC_INTERNAL_ADMIN_API_KEY para liberar a telemetria admin no app.');
-  }
+  const headers: Record<string, string> = {};
 
-  const headers: Record<string, string> = {
-    'X-Internal-Api-Key': INTERNAL_ADMIN_API_KEY,
-  };
+  if (INTERNAL_ADMIN_API_KEY) {
+    headers['X-Internal-Api-Key'] = INTERNAL_ADMIN_API_KEY;
+  }
 
   if (INTERNAL_ADMIN_USER_ID) {
     headers['X-User-Id'] = INTERNAL_ADMIN_USER_ID;
   }
 
-  const data = await apiGetJson<AdminTelemetryMetricsResponse>(buildMetricsPath(query), headers);
+  const data = await apiGetJson<AdminTelemetryMetricsResponse>(
+    buildMetricsPath(query),
+    Object.keys(headers).length > 0 ? headers : undefined,
+  );
   if (!data?.metrics) {
     throw new Error('Resposta invalida do endpoint /internal/admin/telemetry/metrics.');
   }

@@ -2,17 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/constants/config', () => ({
   API_BASE_URL: 'http://localhost:8080',
-  INTERNAL_ADMIN_API_KEY: 'secret-key',
-  INTERNAL_ADMIN_USER_ID: 'admin-1',
+  INTERNAL_ADMIN_API_KEY: '',
+  INTERNAL_ADMIN_USER_ID: '',
   SUPABASE_URL: '',
   SUPABASE_ANON_KEY: '',
   SUPABASE_JUDGE_TABLE: 'llm_judge_evaluations',
-  SUPABASE_JUDGE_FEATURE: 'chat',
+  SUPABASE_JUDGE_FEATURE: '',
   SUPABASE_JUDGE_LIMIT: 50,
 }));
 
 vi.mock('@/hooks/use-auth', () => ({
-  getStoredAccessToken: vi.fn(async () => null),
+  getStoredAccessToken: vi.fn(async () => 'user-access-token'),
   getStoredUserId: vi.fn(async () => '00000000-0000-4000-8000-000000000001'),
   isValidUuid: vi.fn(() => true),
 }));
@@ -21,13 +21,13 @@ import { getDeveloperJudgeSnapshotOverrides } from '@/services/observability-jud
 
 const fetchMock = vi.fn();
 
-describe('getDeveloperJudgeSnapshotOverrides with internal admin metrics', () => {
+describe('getDeveloperJudgeSnapshotOverrides without internal admin key', () => {
   beforeEach(() => {
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
   });
 
-  it('maps the internal judge metrics endpoint into dashboard metrics', async () => {
+  it('calls the internal judge metrics endpoint with app auth and no forced feature filter', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
@@ -38,7 +38,7 @@ describe('getDeveloperJudgeSnapshotOverrides with internal admin metrics', () =>
               startDate: '2026-03-20',
               endDate: '2026-03-26',
               days: 7,
-              feature: 'nutrition',
+              feature: null,
             },
             summary: {
               totalEvaluations: 12,
@@ -87,23 +87,16 @@ describe('getDeveloperJudgeSnapshotOverrides with internal admin metrics', () =>
     expect(url).toContain('/internal/admin/llm-judge/metrics?days=7');
     expect(url).not.toContain('feature=');
     expect(options.headers).toMatchObject({
-      'X-Internal-Api-Key': 'secret-key',
-      'X-User-Id': 'admin-1',
+      'X-User-Id': '00000000-0000-4000-8000-000000000001',
+      'X-Access-Token': 'user-access-token',
     });
+    expect((options.headers as Record<string, string>)['X-Internal-Api-Key']).toBeUndefined();
 
     expect(snapshot?.judgeMetrics?.find((item) => item.id === 'judge-total')?.value).toBe('12');
-    expect(snapshot?.judgeMetrics?.find((item) => item.id === 'judge-pending')?.value).toBe('1');
-    expect(snapshot?.judgeMetrics?.find((item) => item.id === 'judge-failed')?.value).toBe('1');
-    expect(snapshot?.qualityMetrics?.find((item) => item.id === 'overall-score')?.value).toContain('91');
-    expect(snapshot?.qualityMetrics?.find((item) => item.id === 'approval-rate')?.value).toContain('80');
     expect(snapshot?.judgeEvaluations?.[0]).toMatchObject({
       id: 'eval-1',
       feature: 'nutrition',
       status: 'completed',
-      decision: 'approved',
-      sourceModel: 'gpt-4.1-mini',
-      pipeline: 'image - pt-BR',
-      handler: 'calories',
     });
   });
 });

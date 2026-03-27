@@ -60,11 +60,7 @@ export const SUPABASE_ANON_KEY = `${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
 export const SUPABASE_JUDGE_TABLE =
   `${process.env.EXPO_PUBLIC_SUPABASE_JUDGE_TABLE ?? 'llm_judge_evaluations'}`.trim() ||
   'llm_judge_evaluations';
-export const SUPABASE_JUDGE_FEATURE =
-  `${process.env.EXPO_PUBLIC_SUPABASE_JUDGE_FEATURE ?? 'chat'}`.trim() || 'chat';
-export const INTERNAL_ADMIN_JUDGE_FEATURE =
-  `${process.env.EXPO_PUBLIC_INTERNAL_ADMIN_JUDGE_FEATURE ?? SUPABASE_JUDGE_FEATURE}`.trim() ||
-  SUPABASE_JUDGE_FEATURE;
+export const SUPABASE_JUDGE_FEATURE = `${process.env.EXPO_PUBLIC_SUPABASE_JUDGE_FEATURE ?? ''}`.trim();
 const supabaseJudgeLimitRaw = Number(process.env.EXPO_PUBLIC_SUPABASE_JUDGE_LIMIT ?? '50');
 export const SUPABASE_JUDGE_LIMIT =
   Number.isFinite(supabaseJudgeLimitRaw) && supabaseJudgeLimitRaw > 0
