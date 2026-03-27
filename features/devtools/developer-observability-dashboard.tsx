@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import { NetworkDiagnosticsSection } from '@/features/devtools/network-diagnostics-section';
+import type { AdminTelemetryMetricsQuery } from '@/services/admin-telemetry';
 import {
   buildDeveloperObservabilitySnapshot,
   getDeveloperObservabilitySnapshotOverrides,
@@ -52,6 +53,11 @@ const BLOCKS: Array<{ id: DashboardBlockId; label: string }> = [
   { id: 'timeline', label: 'Timeline' },
   { id: 'logs', label: 'Logs' },
 ];
+const TELEMETRY_DAY_OPTIONS = [7, 14, 30] as const;
+const TELEMETRY_AGENT_OPTIONS: Array<{ label: string; value: string | null }> = [
+  { label: 'Chat', value: 'chat' },
+  { label: 'Todos', value: null },
+];
 
 function toneColors(tone: ObservabilityTone) {
   if (tone === 'positive') return { bg: '#EAF8EE', border: '#C8E7D2', text: Brand.greenDark };
@@ -97,14 +103,29 @@ export function DeveloperObservabilityDashboard({
   const [hiddenBlocks, setHiddenBlocks] = useState<DashboardBlockId[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [telemetryFilters, setTelemetryFilters] = useState<AdminTelemetryMetricsQuery>({
+    days: 7,
+    agent: 'chat',
+  });
   const [remoteSnapshot, setRemoteSnapshot] = useState<Awaited<
     ReturnType<typeof getDeveloperObservabilitySnapshotOverrides>
   > | null>(null);
+  const refreshRequestId = useRef(0);
 
   const fallbackSnapshot = useMemo(() => buildDeveloperObservabilitySnapshot(logs), [logs]);
   const snapshot = useMemo(
     () => mergeDeveloperObservabilitySnapshot(fallbackSnapshot, remoteSnapshot),
     [fallbackSnapshot, remoteSnapshot],
+  );
+  const heroMetaItems = useMemo(
+    () =>
+      [
+        { label: 'Fonte', value: sourceLabel(snapshot.source) },
+        { label: 'Atualizado', value: snapshot.generatedAtLabel },
+        snapshot.periodLabel ? { label: 'Periodo', value: snapshot.periodLabel } : null,
+        snapshot.scopeLabel ? { label: 'Escopo', value: snapshot.scopeLabel } : null,
+      ].filter(Boolean) as Array<{ label: string; value: string }>,
+    [snapshot.generatedAtLabel, snapshot.periodLabel, snapshot.scopeLabel, snapshot.source],
   );
 
   useEffect(() => {
@@ -122,22 +143,36 @@ export function DeveloperObservabilityDashboard({
   }, []);
 
   useEffect(() => {
-    void refreshDashboard();
-  }, []);
+    void refreshDashboard(telemetryFilters);
+  }, [telemetryFilters.agent, telemetryFilters.days]);
 
-  async function refreshDashboard() {
-    if (loading) return;
+  async function refreshDashboard(nextFilters: AdminTelemetryMetricsQuery = telemetryFilters) {
+    const requestId = refreshRequestId.current + 1;
+    refreshRequestId.current = requestId;
     setLoading(true);
+
     try {
-      const next = await getDeveloperObservabilitySnapshotOverrides();
+      const next = await getDeveloperObservabilitySnapshotOverrides(nextFilters);
+      if (requestId !== refreshRequestId.current) return;
+
       setRemoteSnapshot(next);
       setSyncMessage(
         next
-          ? `Dados sincronizados em ${next.generatedAtLabel ?? snapshot.generatedAtLabel}.`
+          ? `Dados sincronizados em ${next.generatedAtLabel ?? fallbackSnapshot.generatedAtLabel}.`
+          : 'Fontes remotas indisponiveis. Exibindo a telemetria local da sessao.',
+      );
+    } catch (error) {
+      if (requestId !== refreshRequestId.current) return;
+      setRemoteSnapshot(null);
+      setSyncMessage(
+        error instanceof Error
+          ? error.message
           : 'Fontes remotas indisponiveis. Exibindo a telemetria local da sessao.',
       );
     } finally {
-      setLoading(false);
+      if (requestId === refreshRequestId.current) {
+        setLoading(false);
+      }
     }
   }
 
@@ -184,8 +219,50 @@ export function DeveloperObservabilityDashboard({
         </Text>
 
         <View style={s.heroMetaRow}>
-          <HeroMeta label="Fonte" value={sourceLabel(snapshot.source)} />
-          <HeroMeta label="Atualizado" value={snapshot.generatedAtLabel} />
+          {heroMetaItems.map((item) => (
+            <HeroMeta key={`${item.label}-${item.value}`} label={item.label} value={item.value} />
+          ))}
+        </View>
+
+        <View style={s.filterPanel}>
+          <View style={s.filterGroup}>
+            <Text style={s.filterLabel}>Janela</Text>
+            <View style={s.filterChipWrap}>
+              {TELEMETRY_DAY_OPTIONS.map((days) => {
+                const active = telemetryFilters.days === days;
+                return (
+                  <Pressable
+                    key={`days-${days}`}
+                    style={({ pressed }) => [s.filterChip, active && s.filterChipActive, pressed && s.pressed]}
+                    onPress={() => setTelemetryFilters((current) => ({ ...current, days }))}>
+                    <Text style={[s.filterChipText, active && s.filterChipTextActive]}>{days}d</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={s.filterGroup}>
+            <Text style={s.filterLabel}>Agente</Text>
+            <View style={s.filterChipWrap}>
+              {TELEMETRY_AGENT_OPTIONS.map((option) => {
+                const active = telemetryFilters.agent === option.value;
+                return (
+                  <Pressable
+                    key={`agent-${option.value ?? 'all'}`}
+                    style={({ pressed }) => [s.filterChip, active && s.filterChipActive, pressed && s.pressed]}
+                    onPress={() =>
+                      setTelemetryFilters((current) => ({
+                        ...current,
+                        agent: option.value,
+                      }))
+                    }>
+                    <Text style={[s.filterChipText, active && s.filterChipTextActive]}>{option.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
         </View>
 
         {syncMessage ? <Text style={s.syncMessage}>{syncMessage}</Text> : null}
@@ -224,16 +301,16 @@ export function DeveloperObservabilityDashboard({
       ) : null}
 
       {isVisible('performance') ? (
-        <SectionCard title="Performance" subtitle="Latencia consolidada e ranking dos endpoints mais lentos.">
+        <SectionCard title="Performance" subtitle="Latencia consolidada e distribuicao do recorte atual.">
           <MetricGrid metrics={snapshot.performanceMetrics} />
-          <RankingList title="Latencia por endpoint" rows={snapshot.topEndpoints} />
+          <RankingList title={snapshot.topEndpointsTitle ?? 'Latencia por endpoint'} rows={snapshot.topEndpoints} />
         </SectionCard>
       ) : null}
 
       {isVisible('volume') ? (
-        <SectionCard title="Volume e erros" subtitle="Volume total, taxa de erro e concentracao de falhas.">
+        <SectionCard title="Volume e erros" subtitle="Volume total, falhas e agrupamentos do escopo selecionado.">
           <MetricGrid metrics={snapshot.volumeMetrics} />
-          <RankingList title="Erros por endpoint" rows={snapshot.errorEndpoints} />
+          <RankingList title={snapshot.errorEndpointsTitle ?? 'Erros por endpoint'} rows={snapshot.errorEndpoints} />
         </SectionCard>
       ) : null}
 
@@ -666,6 +743,36 @@ const s = StyleSheet.create({
   heroMetaLabel: { ...Typography.caption, color: Brand.textSecondary, fontWeight: '700' },
   heroMetaValue: { ...Typography.body, color: Brand.text, fontWeight: '700' },
   syncMessage: { ...Typography.caption, color: Brand.textSecondary },
+  filterPanel: { gap: 12 },
+  filterGroup: { gap: 8 },
+  filterLabel: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  filterChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterChip: {
+    borderRadius: Radii.pill,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: Brand.border,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  filterChipActive: {
+    backgroundColor: '#EAF8EE',
+    borderColor: '#C8E7D2',
+  },
+  filterChipText: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '700',
+  },
+  filterChipTextActive: {
+    color: Brand.greenDark,
+  },
   card: {
     borderRadius: Radii.xl,
     backgroundColor: Brand.card,

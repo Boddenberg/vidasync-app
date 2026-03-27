@@ -27,10 +27,10 @@ async function authHeaders(extra?: Record<string, string>): Promise<Record<strin
   const userId = await getStoredUserId();
   const accessToken = await getStoredAccessToken();
 
-  if (isValidUuid(userId)) {
+  if (!headers['X-User-Id'] && isValidUuid(userId)) {
     headers['X-User-Id'] = userId;
   }
-  if (accessToken) {
+  if (!headers['X-Access-Token'] && accessToken) {
     headers['X-Access-Token'] = accessToken;
   }
   return headers;

@@ -1,5 +1,8 @@
 import { SUPABASE_JUDGE_TABLE, SUPABASE_URL } from '@/constants/config';
-import { apiGetJson } from '@/services/api';
+import {
+  getAdminTelemetryMetricsSnapshotOverrides,
+  type AdminTelemetryMetricsQuery,
+} from '@/services/admin-telemetry';
 import { getDeveloperJudgeSnapshotOverrides } from '@/services/observability-judge';
 import type { NetworkInspectorLog } from '@/services/network-inspector';
 import type {
@@ -26,13 +29,14 @@ type QualityAccumulator = {
   count: number;
 };
 
-const METRIC_PATHS = {
-  overview: '/metrics/overview',
-  performance: '/metrics/performance',
-  llm: '/metrics/llm',
-  quality: '/metrics/quality',
-  insights: '/metrics/insights',
-} as const;
+const OBSERVABILITY_INTERNAL_PATHS = [
+  '/internal/admin/telemetry/metrics',
+  '/metrics/overview',
+  '/metrics/performance',
+  '/metrics/llm',
+  '/metrics/quality',
+  '/metrics/insights',
+] as const;
 
 const QUALITY_CRITERIA = [
   { id: 'coherence', label: 'Coerencia' },
@@ -144,7 +148,7 @@ function safeJsonParse(value: string | null): unknown | null {
 function isObservabilityInternalUrl(url: string): boolean {
   const normalizedUrl = url.toLowerCase();
 
-  if (Object.values(METRIC_PATHS).some((path) => normalizedUrl.includes(path))) {
+  if (OBSERVABILITY_INTERNAL_PATHS.some((path) => normalizedUrl.includes(path))) {
     return true;
   }
 
@@ -181,22 +185,6 @@ function findNumber(value: unknown, names: string[]): number | null {
     const nested = findNumber(child, names);
     if (nested != null) return nested;
   }
-  return null;
-}
-
-function findArray(value: unknown, name: string): unknown[] | null {
-  if (value == null) return null;
-  if (Array.isArray(value)) return value;
-  if (typeof value !== 'object') return null;
-
-  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-    if (normalizeKey(key) === normalizeKey(name) && Array.isArray(child)) {
-      return child;
-    }
-    const nested = findArray(child, name);
-    if (nested) return nested;
-  }
-
   return null;
 }
 
@@ -340,6 +328,8 @@ export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[])
       generatedAt: now,
       generatedAtLabel: formatTimestamp(now),
       source: 'fallback',
+      periodLabel: null,
+      scopeLabel: null,
       services: [
         { id: 'frontend', label: 'Frontend', status: 'healthy', summary: 'App ativo', detail: 'Painel pronto para observar requests.' },
         { id: 'bff', label: 'BFF', status: 'unknown', summary: 'Sem trafego', detail: 'Nenhuma chamada recente ao backend.' },
@@ -389,7 +379,9 @@ export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[])
           tone: 'neutral',
         },
       ],
+      topEndpointsTitle: null,
       topEndpoints: [{ id: 'empty-latency', label: 'Latencia por endpoint', avgLatency: '--', p95Latency: '--', volume: 'Nenhum endpoint observado', errors: '--' }],
+      errorEndpointsTitle: null,
       errorEndpoints: [{ id: 'empty-errors', label: 'Erros por endpoint', avgLatency: '--', p95Latency: '--', volume: 'Nenhuma falha observada', errors: '--' }],
       timeline: [],
       judgeEvaluations: [],
@@ -483,6 +475,8 @@ export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[])
     generatedAt: now,
     generatedAtLabel: formatTimestamp(now),
     source: 'fallback',
+    periodLabel: null,
+    scopeLabel: null,
     services: [
       { id: 'frontend', label: 'Frontend', status: 'healthy', summary: 'Capturando eventos', detail: `${requestCount} requests observados nesta sessao.` },
       serviceSummary('BFF', bffLogs),
@@ -535,7 +529,9 @@ export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[])
       totalTokens,
       averageQualityScore,
     }),
+    topEndpointsTitle: null,
     topEndpoints: slowEndpoints.length > 0 ? slowEndpoints.map((item, index) => endpointRow(`slow-${index}`, item)) : [buildDeveloperObservabilitySnapshot([]).topEndpoints[0]],
+    errorEndpointsTitle: null,
     errorEndpoints: failingEndpoints.length > 0 ? failingEndpoints.map((item, index) => endpointRow(`err-${index}`, item)) : [buildDeveloperObservabilitySnapshot([]).errorEndpoints[0]],
     timeline: relevantLogs.slice(0, 6).map((log) => ({
       id: log.id,
@@ -560,6 +556,8 @@ export function mergeDeveloperObservabilitySnapshot(
     generatedAt,
     generatedAtLabel: overrides.generatedAtLabel ?? formatTimestamp(generatedAt),
     source: overrides.source ?? fallback.source,
+    periodLabel: overrides.periodLabel ?? fallback.periodLabel ?? null,
+    scopeLabel: overrides.scopeLabel ?? fallback.scopeLabel ?? null,
     services: overrides.services?.length ? overrides.services : fallback.services,
     performanceMetrics: overrides.performanceMetrics?.length ? overrides.performanceMetrics : fallback.performanceMetrics,
     volumeMetrics: overrides.volumeMetrics?.length ? overrides.volumeMetrics : fallback.volumeMetrics,
@@ -568,119 +566,50 @@ export function mergeDeveloperObservabilitySnapshot(
     qualityMetrics: overrides.qualityMetrics?.length ? overrides.qualityMetrics : fallback.qualityMetrics,
     qualityCriteria: overrides.qualityCriteria?.length ? overrides.qualityCriteria : fallback.qualityCriteria,
     insights: overrides.insights?.length ? overrides.insights : fallback.insights,
+    topEndpointsTitle: overrides.topEndpointsTitle ?? fallback.topEndpointsTitle ?? null,
     topEndpoints: overrides.topEndpoints?.length ? overrides.topEndpoints : fallback.topEndpoints,
+    errorEndpointsTitle: overrides.errorEndpointsTitle ?? fallback.errorEndpointsTitle ?? null,
     errorEndpoints: overrides.errorEndpoints?.length ? overrides.errorEndpoints : fallback.errorEndpoints,
     timeline: overrides.timeline?.length ? overrides.timeline : fallback.timeline,
     judgeEvaluations: overrides.judgeEvaluations?.length ? overrides.judgeEvaluations : fallback.judgeEvaluations,
   };
 }
 
-export async function getDeveloperObservabilitySnapshotOverrides(): Promise<DeveloperObservabilitySnapshotOverrides | null> {
-  const [overview, performance, llm, quality, insights, judge] = await Promise.all([
-    apiGetJson(METRIC_PATHS.overview).catch(() => null),
-    apiGetJson(METRIC_PATHS.performance).catch(() => null),
-    apiGetJson(METRIC_PATHS.llm).catch(() => null),
-    apiGetJson(METRIC_PATHS.quality).catch(() => null),
-    apiGetJson(METRIC_PATHS.insights).catch(() => null),
-    getDeveloperJudgeSnapshotOverrides().catch(() => null),
+export async function getDeveloperObservabilitySnapshotOverrides(
+  query: AdminTelemetryMetricsQuery = {},
+): Promise<DeveloperObservabilitySnapshotOverrides | null> {
+  const [telemetryResult, judgeResult] = await Promise.allSettled([
+    getAdminTelemetryMetricsSnapshotOverrides(query),
+    getDeveloperJudgeSnapshotOverrides(),
   ]);
 
-  const available = [overview, performance, llm, quality, insights, judge].filter((item) => item != null);
-  if (available.length === 0) return null;
+  const telemetry =
+    telemetryResult.status === 'fulfilled' ? telemetryResult.value : null;
+  const judge = judgeResult.status === 'fulfilled' ? judgeResult.value : null;
 
-  const generatedAt = new Date().toISOString();
-  const servicesArray = findArray(overview, 'services');
-  const services: ObservabilityService[] = Array.isArray(servicesArray)
-    ? servicesArray
-        .map((item, index) => {
-          const row = item as Record<string, unknown>;
-          const label = `${row.label ?? row.name ?? row.service ?? `Servico ${index + 1}`}`.trim();
-          const status = normalizeKey(`${row.status ?? row.health ?? 'unknown'}`);
-          return {
-            id: `${normalizeKey(label)}-${index}`,
-            label,
-            status: ['healthy', 'ok', 'up'].includes(status)
-              ? 'healthy'
-              : ['warning', 'alert', 'degraded'].includes(status)
-                ? 'warning'
-                : ['critical', 'error', 'down'].includes(status)
-                  ? 'critical'
-                  : 'unknown',
-            summary: `${row.summary ?? row.message ?? 'Resumo nao informado'}`,
-            detail: `${row.detail ?? row.description ?? 'Sem detalhe adicional'}`,
-          } as ObservabilityService;
-        })
-        .slice(0, 5)
-    : [];
+  if (!telemetry && !judge) {
+    if (telemetryResult.status === 'rejected') throw telemetryResult.reason;
+    if (judgeResult.status === 'rejected') throw judgeResult.reason;
+    return null;
+  }
 
-  const totalRequests = findNumber(overview, ['total_requests', 'request_count', 'requests']);
-  const errorRate = findNumber(overview, ['error_rate', 'error_percentage']);
-  const avgLatency = findNumber(performance, ['average_latency', 'avg_latency', 'mean_latency']);
-  const p95Latency = findNumber(performance, ['p95', 'p95_latency']);
-  const dbLatency = findNumber(performance, ['database_latency', 'db_latency', 'query_latency']);
-  const totalTokens = findNumber(llm, ['total_tokens', 'tokens_used', 'tokens_total']);
-  const tokensPerRequest = findNumber(llm, ['tokens_per_request', 'average_tokens']);
-  const estimatedCost = findNumber(llm, ['estimated_cost_usd', 'estimated_cost', 'cost_usd']);
-  const cacheHitRate = findNumber(llm, ['cache_hit_rate', 'cache_hit_ratio']);
-  const overallScore = normalizeScore(findNumber(quality, ['overall_score', 'quality_score', 'judge_score']));
-  const approvalRate = normalizeScore(findNumber(quality, ['approval_rate', 'pass_rate']));
-  const approvedCount = findNumber(quality, ['approved_count', 'approved']);
-  const rejectedCount = findNumber(quality, ['rejected_count', 'rejected']);
-
-  const insightsArray = findArray(insights, 'insights') ?? findArray(insights, 'recommendations');
-  const normalizedInsights: ObservabilityInsight[] = Array.isArray(insightsArray)
-    ? insightsArray
-        .map((item, index) => ({
-          id: `insight-${index}`,
-          title: typeof item === 'string' ? `Insight ${index + 1}` : `${(item as Record<string, unknown>).title ?? `Insight ${index + 1}`}`,
-          description: typeof item === 'string' ? item : `${(item as Record<string, unknown>).description ?? (item as Record<string, unknown>).message ?? 'Sem descricao adicional.'}`,
-          tone: typeof item === 'string' ? 'neutral' : `${(item as Record<string, unknown>).tone ?? 'neutral'}` as ObservabilityTone,
-        }))
-        .slice(0, 5)
-    : [];
-
-  const fallbackQualityMetrics: ObservabilityMetric[] = [
-    overallScore != null ? metric('overall-score', 'Score geral', formatPercent(overallScore), 'Score geral informado pelo judge.', toneFromScore(overallScore)) : null,
-    approvalRate != null ? metric('approval-rate', 'Taxa de aprovacao', formatPercent(approvalRate), 'Aprovacao agregada do judge.', toneFromScore(approvalRate)) : null,
-    approvedCount != null ? metric('approved-count', 'Aprovado', formatCompactNumber(approvedCount), 'Total aprovado.', 'positive') : null,
-    rejectedCount != null ? metric('rejected-count', 'Reprovado', formatCompactNumber(rejectedCount), 'Total reprovado.', 'critical') : null,
-  ].filter(Boolean) as ObservabilityMetric[];
-
-  const fallbackQualityCriteria = QUALITY_CRITERIA.map((criterion) => {
-    const score = normalizeScore(findNumber(quality, [criterion.id]));
-    if (score == null) return null;
+  if (!telemetry) {
     return {
-      id: criterion.id,
-      label: criterion.label,
-      value: formatPercent(score),
-      classification: classificationFromScore(score),
+      ...judge,
+      source: 'hybrid',
     };
-  }).filter(Boolean) as DeveloperObservabilitySnapshot['qualityCriteria'];
+  }
+
+  if (!judge) {
+    return telemetry;
+  }
 
   return {
-    generatedAt,
-    generatedAtLabel: formatTimestamp(generatedAt),
+    ...telemetry,
     source: 'hybrid',
-    services,
-    performanceMetrics: [
-      avgLatency != null ? metric('avg-latency', 'Latencia media', formatDuration(avgLatency), 'Media consolidada pelo backend.', avgLatency >= 1200 ? 'warning' : 'positive') : null,
-      p95Latency != null ? metric('p95-latency', 'P95', formatDuration(p95Latency), 'P95 informado pelo backend.', p95Latency >= 1800 ? 'warning' : 'positive') : null,
-      dbLatency != null ? metric('db-latency', 'Banco de dados', formatDuration(dbLatency), 'Latencia media do banco.', dbLatency >= 400 ? 'warning' : 'neutral') : null,
-    ].filter(Boolean) as ObservabilityMetric[],
-    volumeMetrics: [
-      totalRequests != null ? metric('total-requests', 'Total de requests', formatCompactNumber(totalRequests), 'Volume consolidado pelo backend.', 'positive') : null,
-      errorRate != null ? metric('error-rate', 'Taxa de erro', formatPercent(errorRate), 'Erro percentual informado pelo backend.', (errorRate <= 1 ? errorRate : errorRate / 100) >= 0.05 ? 'critical' : 'positive') : null,
-    ].filter(Boolean) as ObservabilityMetric[],
-    llmMetrics: [
-      totalTokens != null ? metric('total-tokens', 'Tokens totais', formatCompactNumber(totalTokens), 'Uso total de tokens.', 'positive') : null,
-      tokensPerRequest != null ? metric('tokens-per-request', 'Tokens por request', formatCompactNumber(tokensPerRequest), 'Media de tokens por chamada.', 'neutral') : null,
-      estimatedCost != null ? metric('estimated-cost', 'Custo estimado', formatCurrency(estimatedCost), 'Custo agregado da IA.', 'warning') : null,
-      cacheHitRate != null ? metric('cache-hit-rate', 'Cache hit rate', formatPercent(cacheHitRate), 'Aproveitamento do cache informado pelo backend.', 'neutral') : null,
-    ].filter(Boolean) as ObservabilityMetric[],
-    judgeMetrics: judge?.judgeMetrics ?? [],
-    qualityMetrics: judge?.qualityMetrics?.length ? judge.qualityMetrics : fallbackQualityMetrics,
-    qualityCriteria: judge?.qualityCriteria?.length ? judge.qualityCriteria : fallbackQualityCriteria,
-    insights: normalizedInsights,
-    judgeEvaluations: judge?.judgeEvaluations ?? [],
+    judgeMetrics: judge.judgeMetrics ?? [],
+    qualityMetrics: judge.qualityMetrics?.length ? judge.qualityMetrics : telemetry.qualityMetrics ?? [],
+    qualityCriteria: judge.qualityCriteria?.length ? judge.qualityCriteria : telemetry.qualityCriteria ?? [],
+    judgeEvaluations: judge.judgeEvaluations ?? [],
   };
 }

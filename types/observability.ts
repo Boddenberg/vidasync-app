@@ -83,6 +83,8 @@ export type DeveloperObservabilitySnapshot = {
   generatedAt: string;
   generatedAtLabel: string;
   source: ObservabilitySource;
+  periodLabel?: string | null;
+  scopeLabel?: string | null;
   services: ObservabilityService[];
   performanceMetrics: ObservabilityMetric[];
   volumeMetrics: ObservabilityMetric[];
@@ -91,7 +93,9 @@ export type DeveloperObservabilitySnapshot = {
   qualityMetrics: ObservabilityMetric[];
   qualityCriteria: ObservabilityQualityCriterion[];
   insights: ObservabilityInsight[];
+  topEndpointsTitle?: string | null;
   topEndpoints: ObservabilityEndpointRow[];
+  errorEndpointsTitle?: string | null;
   errorEndpoints: ObservabilityEndpointRow[];
   timeline: ObservabilityTimelineEvent[];
   judgeEvaluations: ObservabilityJudgeEvaluation[];

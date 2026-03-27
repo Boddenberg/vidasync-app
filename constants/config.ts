@@ -29,7 +29,8 @@ function normalizeOptionalPath(path?: string | null): string {
 const LOCAL_API_BASE_URL = 'http://localhost:8080';
 const RAILWAY_API_BASE_URL = 'https://vidasync-bff-production.up.railway.app';
 const isDevEnv = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
-const defaultBaseUrl = normalizeBaseUrl(isDevEnv ? LOCAL_API_BASE_URL : RAILWAY_API_BASE_URL);
+const configuredBaseUrl = normalizeOptionalBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL);
+const defaultBaseUrl = configuredBaseUrl || normalizeBaseUrl(isDevEnv ? LOCAL_API_BASE_URL : RAILWAY_API_BASE_URL);
 
 /* URL base padrao do BFF (backend). */
 export const API_BASE_URL = defaultBaseUrl;
@@ -61,6 +62,9 @@ export const SUPABASE_JUDGE_TABLE =
   'llm_judge_evaluations';
 export const SUPABASE_JUDGE_FEATURE =
   `${process.env.EXPO_PUBLIC_SUPABASE_JUDGE_FEATURE ?? 'chat'}`.trim() || 'chat';
+export const INTERNAL_ADMIN_JUDGE_FEATURE =
+  `${process.env.EXPO_PUBLIC_INTERNAL_ADMIN_JUDGE_FEATURE ?? SUPABASE_JUDGE_FEATURE}`.trim() ||
+  SUPABASE_JUDGE_FEATURE;
 const supabaseJudgeLimitRaw = Number(process.env.EXPO_PUBLIC_SUPABASE_JUDGE_LIMIT ?? '50');
 export const SUPABASE_JUDGE_LIMIT =
   Number.isFinite(supabaseJudgeLimitRaw) && supabaseJudgeLimitRaw > 0
@@ -122,6 +126,7 @@ export const API_REQUIRE_REMOTE_FILE_URL =
  * Como roda no frontend, use apenas em builds internas controladas.
  */
 export const INTERNAL_ADMIN_API_KEY = `${process.env.EXPO_PUBLIC_INTERNAL_ADMIN_API_KEY ?? ''}`.trim();
+export const INTERNAL_ADMIN_USER_ID = `${process.env.EXPO_PUBLIC_INTERNAL_ADMIN_USER_ID ?? ''}`.trim();
 
 /* Nome do app. */
 export const APP_NAME = 'VidaSync';
