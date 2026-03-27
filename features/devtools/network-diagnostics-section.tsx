@@ -1,8 +1,18 @@
+import * as Clipboard from 'expo-clipboard';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
-import { prettyText, statusColor, timeLabel } from '@/features/devtools/devtools-utils';
+import {
+  prettyText,
+  statusColor,
+  timeLabel,
+} from '@/features/devtools/devtools-utils';
 import type { NetworkInspectorLog } from '@/services/network-inspector';
+import {
+  serializeNetworkInspectorLog,
+  serializeNetworkInspectorLogs,
+} from '@/utils/network-inspector-clipboard';
 
 type Props = {
   logs: NetworkInspectorLog[];
@@ -15,6 +25,8 @@ type Props = {
   onToggleExpand: (id: string) => void;
 };
 
+const COPY_FEEDBACK_TIMEOUT_MS = 2200;
+
 export function NetworkDiagnosticsSection({
   logs,
   enabled,
@@ -25,6 +37,48 @@ export function NetworkDiagnosticsSection({
   onClear,
   onToggleExpand,
 }: Props) {
+  const [copyFeedback, setCopyFeedback] = useState<{ id: string; message: string } | null>(null);
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function showCopyFeedback(id: string, message: string) {
+    setCopyFeedback({ id, message });
+
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
+    }
+
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setCopyFeedback(null);
+      feedbackTimeoutRef.current = null;
+    }, COPY_FEEDBACK_TIMEOUT_MS);
+  }
+
+  async function handleCopyAllLogs() {
+    try {
+      await Clipboard.setStringAsync(serializeNetworkInspectorLogs(logs));
+      showCopyFeedback('all', `${logs.length} logs copiados.`);
+    } catch {
+      showCopyFeedback('error', 'Nao foi possivel copiar os logs agora.');
+    }
+  }
+
+  async function handleCopyLog(item: NetworkInspectorLog) {
+    try {
+      await Clipboard.setStringAsync(serializeNetworkInspectorLog(item));
+      showCopyFeedback(item.id, `Log ${item.method} copiado.`);
+    } catch {
+      showCopyFeedback('error', 'Nao foi possivel copiar este log agora.');
+    }
+  }
+
   return (
     <>
       <View style={s.card}>
@@ -45,9 +99,26 @@ export function NetworkDiagnosticsSection({
           </Pressable>
         </View>
 
-        <Pressable style={({ pressed }) => [s.clearBtn, pressed && s.clearBtnPressed]} onPress={onClear}>
-          <Text style={s.clearBtnText}>Limpar logs</Text>
-        </Pressable>
+        <View style={s.actionRow}>
+          <Pressable
+            style={({ pressed }) => [
+              s.actionBtn,
+              logs.length === 0 && s.actionBtnDisabled,
+              pressed && logs.length > 0 && s.actionBtnPressed,
+            ]}
+            onPress={() => void handleCopyAllLogs()}
+            disabled={logs.length === 0}>
+            <Text style={[s.actionBtnText, logs.length === 0 && s.actionBtnTextDisabled]}>
+              {copyFeedback?.id === 'all' ? 'Copiado' : 'Copiar todos'}
+            </Text>
+          </Pressable>
+
+          <Pressable style={({ pressed }) => [s.actionBtn, pressed && s.actionBtnPressed]} onPress={onClear}>
+            <Text style={s.actionBtnText}>Limpar logs</Text>
+          </Pressable>
+        </View>
+
+        {copyFeedback ? <Text style={s.copyFeedback}>{copyFeedback.message}</Text> : null}
       </View>
 
       {logs.length === 0 ? (
@@ -63,6 +134,8 @@ export function NetworkDiagnosticsSection({
               item={item}
               expanded={!!expandedIds[item.id]}
               onToggleExpand={() => onToggleExpand(item.id)}
+              onCopyLog={() => void handleCopyLog(item)}
+              copyLabel={copyFeedback?.id === item.id ? 'Copiado' : 'Copiar log'}
             />
           ))}
         </View>
@@ -75,10 +148,14 @@ function LogCard({
   item,
   expanded,
   onToggleExpand,
+  onCopyLog,
+  copyLabel,
 }: {
   item: NetworkInspectorLog;
   expanded: boolean;
   onToggleExpand: () => void;
+  onCopyLog: () => void;
+  copyLabel: string;
 }) {
   const statusLabel = item.error ? 'ERR' : item.statusCode != null ? `${item.statusCode}` : '-';
   const requestBodyLabel = item.requestBodyTruncated
@@ -89,21 +166,35 @@ function LogCard({
     : prettyText(item.responseBody);
 
   return (
-    <Pressable style={s.logCard} onPress={onToggleExpand}>
-      <View style={s.cardTopRow}>
-        <View style={s.methodBadge}>
-          <Text style={s.methodBadgeText}>{item.method}</Text>
+    <View style={s.logCard}>
+      <Pressable style={({ pressed }) => [s.logSummaryBtn, pressed && s.logSummaryBtnPressed]} onPress={onToggleExpand}>
+        <View style={s.cardTopRow}>
+          <View style={s.methodBadge}>
+            <Text style={s.methodBadgeText}>{item.method}</Text>
+          </View>
+          <Text style={[s.statusText, { color: statusColor(item) }]}>{statusLabel}</Text>
+          <Text style={s.metaText}>{item.durationMs}ms</Text>
+          <Text style={s.metaText}>{timeLabel(item.timestamp)}</Text>
         </View>
-        <Text style={[s.statusText, { color: statusColor(item) }]}>{statusLabel}</Text>
-        <Text style={s.metaText}>{item.durationMs}ms</Text>
-        <Text style={s.metaText}>{timeLabel(item.timestamp)}</Text>
+
+        <Text style={s.urlText} numberOfLines={expanded ? undefined : 2}>
+          {item.url}
+        </Text>
+
+        {item.error ? <Text style={s.errorText}>{item.error}</Text> : null}
+      </Pressable>
+
+      <View style={s.logActionRow}>
+        <Pressable style={({ pressed }) => [s.logActionBtn, pressed && s.actionBtnPressed]} onPress={onToggleExpand}>
+          <Text style={s.logActionBtnText}>{expanded ? 'Recolher' : 'Expandir'}</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [s.logActionBtn, s.logActionBtnAccent, pressed && s.actionBtnPressed]}
+          onPress={onCopyLog}>
+          <Text style={[s.logActionBtnText, s.logActionBtnTextAccent]}>{copyLabel}</Text>
+        </Pressable>
       </View>
-
-      <Text style={s.urlText} numberOfLines={expanded ? undefined : 2}>
-        {item.url}
-      </Text>
-
-      {item.error ? <Text style={s.errorText}>{item.error}</Text> : null}
 
       {expanded ? (
         <View style={s.detailsWrap}>
@@ -113,7 +204,7 @@ function LogCard({
           <DetailBlock title="response body" value={responseBodyLabel} />
         </View>
       ) : null}
-    </Pressable>
+    </View>
   );
 }
 
@@ -166,6 +257,10 @@ const s = StyleSheet.create({
     color: Brand.text,
     fontWeight: '600',
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   toggleBtn: {
     minWidth: 90,
     alignItems: 'center',
@@ -192,7 +287,8 @@ const s = StyleSheet.create({
   toggleBtnTextActive: {
     color: Brand.greenDark,
   },
-  clearBtn: {
+  actionBtn: {
+    flex: 1,
     borderRadius: 14,
     backgroundColor: Brand.bg,
     borderWidth: 1,
@@ -200,12 +296,23 @@ const s = StyleSheet.create({
     paddingVertical: 13,
     alignItems: 'center',
   },
-  clearBtnPressed: {
+  actionBtnDisabled: {
+    opacity: 0.6,
+  },
+  actionBtnPressed: {
     opacity: 0.9,
   },
-  clearBtnText: {
+  actionBtnText: {
     ...Typography.body,
     color: Brand.text,
+    fontWeight: '700',
+  },
+  actionBtnTextDisabled: {
+    color: Brand.textMuted,
+  },
+  copyFeedback: {
+    ...Typography.caption,
+    color: Brand.greenDark,
     fontWeight: '700',
   },
   emptyWrap: {
@@ -235,8 +342,14 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: Brand.border,
     padding: 16,
-    gap: 10,
+    gap: 12,
     ...Shadows.card,
+  },
+  logSummaryBtn: {
+    gap: 10,
+  },
+  logSummaryBtnPressed: {
+    opacity: 0.94,
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -271,6 +384,32 @@ const s = StyleSheet.create({
   errorText: {
     ...Typography.body,
     color: Brand.danger,
+  },
+  logActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  logActionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    backgroundColor: Brand.bg,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  logActionBtnAccent: {
+    backgroundColor: '#EAF8EE',
+    borderColor: '#C8E7D2',
+  },
+  logActionBtnText: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '800',
+  },
+  logActionBtnTextAccent: {
+    color: Brand.greenDark,
   },
   detailsWrap: {
     gap: 10,
