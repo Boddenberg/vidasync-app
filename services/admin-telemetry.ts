@@ -5,6 +5,7 @@ import type {
   ObservabilityEndpointRow,
   ObservabilityInsight,
   ObservabilityMetric,
+  ObservabilityRecentRun,
   ObservabilityService,
   ObservabilityServiceStatus,
   ObservabilityTimelineEvent,
@@ -18,6 +19,10 @@ export type AdminTelemetryMetricsQuery = {
   status?: string | null;
 };
 
+export type AdminTelemetryRunsQuery = AdminTelemetryMetricsQuery & {
+  limit?: number;
+};
+
 export type AdminTelemetryMetricsPayload = {
   filters?: Record<string, unknown> | null;
   summary?: Record<string, unknown> | null;
@@ -26,8 +31,18 @@ export type AdminTelemetryMetricsPayload = {
   byModel?: Array<Record<string, unknown>> | null;
 };
 
+export type AdminTelemetryRunsPayload = {
+  filters?: Record<string, unknown> | null;
+  limit?: number | string | null;
+  recentRuns?: Array<Record<string, unknown>> | null;
+};
+
 type AdminTelemetryMetricsResponse = {
   metrics?: AdminTelemetryMetricsPayload | null;
+};
+
+type AdminTelemetryRunsResponse = {
+  runs?: AdminTelemetryRunsPayload | null;
 };
 
 type NormalizedFilters = {
@@ -92,8 +107,32 @@ type NormalizedByModelRow = {
   p95DurationMs: number | null;
 };
 
+type NormalizedRecentRunRow = {
+  runId: string;
+  requestId: string | null;
+  traceId: string | null;
+  agent: string | null;
+  endpoint: string | null;
+  requestPath: string | null;
+  httpMethod: string | null;
+  httpStatus: number | null;
+  status: string | null;
+  timeout: boolean;
+  durationMs: number | null;
+  totalCostUsd: number | null;
+  totalTokens: number | null;
+  llmCallCount: number | null;
+  toolCallCount: number | null;
+  stageEventCount: number | null;
+  errorMessage: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+};
+
 const METRICS_PATH = '/internal/admin/telemetry/metrics';
+const RUNS_PATH = '/internal/admin/telemetry/runs';
 const DEFAULT_DAYS = 7;
+const DEFAULT_RUN_LIMIT = 5;
 
 function asTrimmedString(value: unknown): string {
   return `${value ?? ''}`.trim();
@@ -110,6 +149,12 @@ function normalizeDays(value: number | null | undefined): number {
   const normalized = parseNumber(value) ?? DEFAULT_DAYS;
   if (!Number.isFinite(normalized) || normalized <= 0) return DEFAULT_DAYS;
   return Math.min(Math.round(normalized), 90);
+}
+
+function normalizeLimit(value: number | string | null | undefined): number {
+  const normalized = parseNumber(value) ?? DEFAULT_RUN_LIMIT;
+  if (!Number.isFinite(normalized) || normalized <= 0) return DEFAULT_RUN_LIMIT;
+  return Math.min(Math.round(normalized), 20);
 }
 
 function formatDuration(value: number | null | undefined): string {
@@ -133,6 +178,11 @@ function formatCompactNumber(value: number | null | undefined): string {
 function formatCurrency(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return '--';
   return `$${value.toFixed(value >= 10 ? 1 : 2)}`;
+}
+
+function formatOptionalTimestamp(value: string | null | undefined): string {
+  const trimmed = asTrimmedString(value);
+  return trimmed ? formatTimestamp(trimmed) : '--';
 }
 
 function formatDateOnly(value: string | null | undefined): string | null {
@@ -252,6 +302,57 @@ function normalizeByModelRow(value: Record<string, unknown>, index: number): Nor
     averageDurationMs: parseNumber(value.averageDurationMs),
     p95DurationMs: parseNumber(value.p95DurationMs),
   };
+}
+
+function normalizeRecentRunRow(value: Record<string, unknown>, index: number): NormalizedRecentRunRow {
+  const requestContext =
+    typeof value.requestContext === 'object' && value.requestContext != null && !Array.isArray(value.requestContext)
+      ? (value.requestContext as Record<string, unknown>)
+      : null;
+
+  return {
+    runId: asTrimmedString(value.runId) || `run-${index + 1}`,
+    requestId: asTrimmedString(value.requestId) || null,
+    traceId: asTrimmedString(value.traceId) || null,
+    agent: asTrimmedString(value.agent) || null,
+    endpoint: asTrimmedString(value.endpoint) || null,
+    requestPath: asTrimmedString(requestContext?.path) || null,
+    httpMethod: asTrimmedString(value.httpMethod) || null,
+    httpStatus: parseNumber(value.httpStatus),
+    status: asTrimmedString(value.status) || null,
+    timeout: value.timeout === true,
+    durationMs: parseNumber(value.durationMs),
+    totalCostUsd: parseNumber(value.totalCostUsd),
+    totalTokens: parseNumber(value.totalTokens),
+    llmCallCount: parseNumber(value.llmCallCount),
+    toolCallCount: parseNumber(value.toolCallCount),
+    stageEventCount: parseNumber(value.stageEventCount),
+    errorMessage: asTrimmedString(value.errorMessage) || null,
+    startedAt: asTrimmedString(value.startedAt) || null,
+    finishedAt: asTrimmedString(value.finishedAt) || null,
+  };
+}
+
+function normalizedRunStatus(value: string | null, timeout: boolean): ObservabilityRecentRun['status'] {
+  const normalized = asTrimmedString(value).toLowerCase();
+  if (timeout) return 'timeout';
+  if (normalized === 'success') return 'success';
+  if (['error', 'failed', 'failure'].includes(normalized)) return 'error';
+  return 'unknown';
+}
+
+function runStatusLabel(value: ObservabilityRecentRun['status']): string {
+  if (value === 'success') return 'Sucesso';
+  if (value === 'error') return 'Erro';
+  if (value === 'timeout') return 'Timeout';
+  return 'Sem status';
+}
+
+function runTone(value: ObservabilityRecentRun['status']): ObservabilityTone {
+  if (value === 'success') return 'positive';
+  if (value === 'timeout') return 'warning';
+  if (value === 'error') return 'critical';
+  return 'neutral';
 }
 
 function serviceStatusFromSummary(summary: NormalizedSummary): ObservabilityServiceStatus {
@@ -621,6 +722,70 @@ function buildTimeline(daily: NormalizedDailyRow[], periodLabel: string | null):
     }));
 }
 
+function buildRunsPath(query: AdminTelemetryRunsQuery): string {
+  const params = new URLSearchParams();
+  params.set('days', `${normalizeDays(query.days)}`);
+  params.set('limit', `${normalizeLimit(query.limit)}`);
+
+  const agent = asTrimmedString(query.agent);
+  const model = asTrimmedString(query.model);
+  const status = asTrimmedString(query.status);
+
+  if (agent) params.set('agent', agent);
+  if (model) params.set('model', model);
+  if (status) params.set('status', status);
+
+  return `${RUNS_PATH}?${params.toString()}`;
+}
+
+function buildRecentRuns(rows: NormalizedRecentRunRow[]): ObservabilityRecentRun[] {
+  return rows.map((row, index) => {
+    const status = normalizedRunStatus(row.status, row.timeout);
+    return {
+      id: `${row.runId}-${index + 1}`,
+      runId: row.runId,
+      requestId: row.requestId ?? '--',
+      traceId: row.traceId ?? '--',
+      agent: row.agent ?? 'desconhecido',
+      endpoint: row.endpoint ?? '--',
+      requestPath: row.requestPath ?? row.endpoint ?? '--',
+      httpMethod: row.httpMethod ?? '--',
+      httpStatusLabel: row.httpStatus != null ? `${Math.round(row.httpStatus)}` : '--',
+      status,
+      statusLabel: runStatusLabel(status),
+      tone: runTone(status),
+      timeout: row.timeout,
+      timeoutLabel: row.timeout ? 'Com timeout' : 'Sem timeout',
+      duration: formatDuration(row.durationMs),
+      totalCost: formatCurrency(row.totalCostUsd),
+      totalTokens: row.totalTokens != null ? formatCompactNumber(row.totalTokens) : '--',
+      llmCallCount: row.llmCallCount != null ? formatCompactNumber(row.llmCallCount) : '--',
+      toolCallCount: row.toolCallCount != null ? formatCompactNumber(row.toolCallCount) : '--',
+      stageEventCount: row.stageEventCount != null ? formatCompactNumber(row.stageEventCount) : '--',
+      startedAtLabel: formatOptionalTimestamp(row.startedAt),
+      finishedAtLabel: formatOptionalTimestamp(row.finishedAt),
+      errorMessage: row.errorMessage,
+    };
+  });
+}
+
+function buildRunsTimeline(rows: NormalizedRecentRunRow[]): ObservabilityTimelineEvent[] {
+  return rows.map((row, index) => {
+    const status = normalizedRunStatus(row.status, row.timeout);
+    const path = row.requestPath ?? row.endpoint ?? 'endpoint desconhecido';
+
+    return {
+      id: `recent-run-${row.runId}-${index + 1}`,
+      timestampLabel: formatOptionalTimestamp(row.startedAt),
+      title: `${(row.httpMethod ?? 'REQ').toUpperCase()} ${path}`,
+      description:
+        row.errorMessage ||
+        `${runStatusLabel(status)} - ${formatDuration(row.durationMs)} - status ${row.httpStatus ?? '--'}`,
+      tone: runTone(status),
+    };
+  });
+}
+
 function buildMetricsPath(query: AdminTelemetryMetricsQuery): string {
   const params = new URLSearchParams();
   params.set('days', `${normalizeDays(query.days)}`);
@@ -666,6 +831,25 @@ export function buildAdminTelemetryMetricsSnapshotOverrides(
   };
 }
 
+export function buildAdminTelemetryRunsSnapshotOverrides(
+  payload: AdminTelemetryRunsPayload,
+): DeveloperObservabilitySnapshotOverrides {
+  const filters = normalizeFilters(payload.filters);
+  const rows = Array.isArray(payload.recentRuns) ? payload.recentRuns.map(normalizeRecentRunRow) : [];
+  const generatedAt = new Date().toISOString();
+  const periodLabel = buildPeriodLabel(filters);
+
+  return {
+    generatedAt,
+    generatedAtLabel: formatTimestamp(generatedAt),
+    source: 'backend',
+    periodLabel,
+    scopeLabel: buildScopeLabel(filters),
+    timeline: rows.length > 0 ? buildRunsTimeline(rows) : [],
+    recentRuns: buildRecentRuns(rows),
+  };
+}
+
 export async function getAdminTelemetryMetricsSnapshotOverrides(
   query: AdminTelemetryMetricsQuery = {},
 ): Promise<DeveloperObservabilitySnapshotOverrides> {
@@ -688,4 +872,28 @@ export async function getAdminTelemetryMetricsSnapshotOverrides(
   }
 
   return buildAdminTelemetryMetricsSnapshotOverrides(data.metrics);
+}
+
+export async function getAdminTelemetryRunsSnapshotOverrides(
+  query: AdminTelemetryRunsQuery = {},
+): Promise<DeveloperObservabilitySnapshotOverrides> {
+  const headers: Record<string, string> = {};
+
+  if (INTERNAL_ADMIN_API_KEY) {
+    headers['X-Internal-Api-Key'] = INTERNAL_ADMIN_API_KEY;
+  }
+
+  if (INTERNAL_ADMIN_USER_ID) {
+    headers['X-User-Id'] = INTERNAL_ADMIN_USER_ID;
+  }
+
+  const data = await apiGetJson<AdminTelemetryRunsResponse>(
+    buildRunsPath(query),
+    Object.keys(headers).length > 0 ? headers : undefined,
+  );
+  if (!data?.runs) {
+    throw new Error('Resposta invalida do endpoint /internal/admin/telemetry/runs.');
+  }
+
+  return buildAdminTelemetryRunsSnapshotOverrides(data.runs);
 }

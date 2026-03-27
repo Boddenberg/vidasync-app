@@ -1,6 +1,7 @@
 import { SUPABASE_JUDGE_TABLE, SUPABASE_URL } from '@/constants/config';
 import {
   getAdminTelemetryMetricsSnapshotOverrides,
+  getAdminTelemetryRunsSnapshotOverrides,
   type AdminTelemetryMetricsQuery,
 } from '@/services/admin-telemetry';
 import { getDeveloperJudgeSnapshotOverrides } from '@/services/observability-judge';
@@ -31,6 +32,8 @@ type QualityAccumulator = {
 
 const OBSERVABILITY_INTERNAL_PATHS = [
   '/internal/admin/telemetry/metrics',
+  '/internal/admin/telemetry/runs',
+  '/internal/admin/llm-judge/metrics',
   '/metrics/overview',
   '/metrics/performance',
   '/metrics/llm',
@@ -385,6 +388,7 @@ export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[])
       errorEndpoints: [{ id: 'empty-errors', label: 'Erros por endpoint', avgLatency: '--', p95Latency: '--', volume: 'Nenhuma falha observada', errors: '--' }],
       timeline: [],
       judgeEvaluations: [],
+      recentRuns: [],
     };
   }
 
@@ -541,6 +545,7 @@ export function buildDeveloperObservabilitySnapshot(logs: NetworkInspectorLog[])
       tone: isErrorLog(log) ? 'critical' : log.durationMs >= 1800 ? 'warning' : 'neutral',
     })),
     judgeEvaluations: [],
+    recentRuns: [],
   };
 }
 
@@ -572,44 +577,58 @@ export function mergeDeveloperObservabilitySnapshot(
     errorEndpoints: overrides.errorEndpoints?.length ? overrides.errorEndpoints : fallback.errorEndpoints,
     timeline: overrides.timeline?.length ? overrides.timeline : fallback.timeline,
     judgeEvaluations: overrides.judgeEvaluations?.length ? overrides.judgeEvaluations : fallback.judgeEvaluations,
+    recentRuns: overrides.recentRuns?.length ? overrides.recentRuns : fallback.recentRuns,
   };
 }
 
 export async function getDeveloperObservabilitySnapshotOverrides(
   query: AdminTelemetryMetricsQuery = {},
 ): Promise<DeveloperObservabilitySnapshotOverrides | null> {
-  const [telemetryResult, judgeResult] = await Promise.allSettled([
+  const [telemetryResult, runsResult, judgeResult] = await Promise.allSettled([
     getAdminTelemetryMetricsSnapshotOverrides(query),
+    getAdminTelemetryRunsSnapshotOverrides({ ...query, limit: 5 }),
     getDeveloperJudgeSnapshotOverrides(),
   ]);
 
   const telemetry =
     telemetryResult.status === 'fulfilled' ? telemetryResult.value : null;
+  const runs =
+    runsResult.status === 'fulfilled' ? runsResult.value : null;
   const judge = judgeResult.status === 'fulfilled' ? judgeResult.value : null;
 
-  if (!telemetry && !judge) {
+  if (!telemetry && !runs && !judge) {
     if (telemetryResult.status === 'rejected') throw telemetryResult.reason;
+    if (runsResult.status === 'rejected') throw runsResult.reason;
     if (judgeResult.status === 'rejected') throw judgeResult.reason;
     return null;
   }
 
-  if (!telemetry) {
-    return {
-      ...judge,
-      source: 'hybrid',
-    };
-  }
-
-  if (!judge) {
-    return telemetry;
-  }
+  const sources = [telemetry, runs, judge].filter(Boolean).length;
+  const source =
+    sources > 1
+      ? 'hybrid'
+      : telemetry?.source ?? runs?.source ?? judge?.source ?? 'backend';
 
   return {
-    ...telemetry,
-    source: 'hybrid',
-    judgeMetrics: judge.judgeMetrics ?? [],
-    qualityMetrics: judge.qualityMetrics?.length ? judge.qualityMetrics : telemetry.qualityMetrics ?? [],
-    qualityCriteria: judge.qualityCriteria?.length ? judge.qualityCriteria : telemetry.qualityCriteria ?? [],
-    judgeEvaluations: judge.judgeEvaluations ?? [],
+    generatedAt: telemetry?.generatedAt ?? runs?.generatedAt ?? judge?.generatedAt,
+    generatedAtLabel: telemetry?.generatedAtLabel ?? runs?.generatedAtLabel ?? judge?.generatedAtLabel,
+    source,
+    periodLabel: telemetry?.periodLabel ?? runs?.periodLabel ?? judge?.periodLabel ?? null,
+    scopeLabel: telemetry?.scopeLabel ?? runs?.scopeLabel ?? judge?.scopeLabel ?? null,
+    services: telemetry?.services,
+    performanceMetrics: telemetry?.performanceMetrics,
+    volumeMetrics: telemetry?.volumeMetrics,
+    llmMetrics: telemetry?.llmMetrics,
+    judgeMetrics: judge?.judgeMetrics ?? [],
+    qualityMetrics: judge?.qualityMetrics?.length ? judge.qualityMetrics : telemetry?.qualityMetrics ?? [],
+    qualityCriteria: judge?.qualityCriteria?.length ? judge.qualityCriteria : telemetry?.qualityCriteria ?? [],
+    insights: telemetry?.insights,
+    topEndpointsTitle: telemetry?.topEndpointsTitle,
+    topEndpoints: telemetry?.topEndpoints,
+    errorEndpointsTitle: telemetry?.errorEndpointsTitle,
+    errorEndpoints: telemetry?.errorEndpoints,
+    timeline: runs?.timeline?.length ? runs.timeline : telemetry?.timeline,
+    judgeEvaluations: judge?.judgeEvaluations ?? [],
+    recentRuns: runs?.recentRuns ?? [],
   };
 }

@@ -17,6 +17,7 @@ import type {
   ObservabilityClassification,
   ObservabilityJudgeEvaluation,
   ObservabilityMetric,
+  ObservabilityRecentRun,
   ObservabilityService,
   ObservabilityTimelineEvent,
   ObservabilityTone,
@@ -26,6 +27,7 @@ type DashboardBlockId =
   | 'services'
   | 'performance'
   | 'volume'
+  | 'runs'
   | 'llm'
   | 'judge'
   | 'quality'
@@ -46,6 +48,7 @@ const BLOCKS: Array<{ id: DashboardBlockId; label: string }> = [
   { id: 'services', label: 'Saude' },
   { id: 'performance', label: 'Performance' },
   { id: 'volume', label: 'Volume' },
+  { id: 'runs', label: 'Runs' },
   { id: 'llm', label: 'IA / LLM' },
   { id: 'judge', label: 'Judge' },
   { id: 'quality', label: 'Qualidade' },
@@ -80,10 +83,34 @@ function judgeStatusColors(status: ObservabilityJudgeEvaluation['status']) {
   return { bg: Brand.bg, border: Brand.border, text: Brand.textSecondary };
 }
 
+function runStatusColors(status: ObservabilityRecentRun['status']) {
+  if (status === 'success') return { bg: '#EAF8EE', border: '#C8E7D2', text: Brand.greenDark };
+  if (status === 'timeout') return { bg: '#FFF3E3', border: '#F3D2A8', text: '#B96B00' };
+  if (status === 'error') return { bg: '#FDE7E7', border: '#F5C2C2', text: Brand.danger };
+  return { bg: Brand.bg, border: Brand.border, text: Brand.textSecondary };
+}
+
 function sourceLabel(source: 'fallback' | 'hybrid' | 'backend') {
   if (source === 'backend') return 'Backend';
   if (source === 'hybrid') return 'Hibrido';
   return 'Sessao local';
+}
+
+function syncErrorMessage(error: unknown): string {
+  const fallback = 'Fontes remotas indisponiveis. Exibindo a telemetria local da sessao.';
+  if (!(error instanceof Error)) return fallback;
+
+  const normalized = error.message.toLowerCase();
+  if (
+    normalized.includes('404') ||
+    normalized.includes('not found') ||
+    normalized.includes('nao localizado') ||
+    normalized.includes('não localizado')
+  ) {
+    return 'O host configurado ainda nao expoe as rotas remotas de observabilidade. Exibindo a telemetria local da sessao.';
+  }
+
+  return error.message || fallback;
 }
 
 function orderedBlocks(initialMode?: 'logs' | null) {
@@ -164,11 +191,7 @@ export function DeveloperObservabilityDashboard({
     } catch (error) {
       if (requestId !== refreshRequestId.current) return;
       setRemoteSnapshot(null);
-      setSyncMessage(
-        error instanceof Error
-          ? error.message
-          : 'Fontes remotas indisponiveis. Exibindo a telemetria local da sessao.',
-      );
+      setSyncMessage(syncErrorMessage(error));
     } finally {
       if (requestId === refreshRequestId.current) {
         setLoading(false);
@@ -314,6 +337,22 @@ export function DeveloperObservabilityDashboard({
         </SectionCard>
       ) : null}
 
+      {isVisible('runs') ? (
+        <SectionCard title="Runs recentes" subtitle="Execucoes recentes do backend para tracing rapido por request.">
+          {snapshot.recentRuns.length > 0 ? (
+            <View style={s.judgeList}>
+              {snapshot.recentRuns.map((run) => (
+                <RecentRunCard key={run.id} run={run} />
+              ))}
+            </View>
+          ) : (
+            <Text style={s.emptyText}>
+              Os runs recentes aparecem aqui assim que o endpoint `/internal/admin/telemetry/runs` estiver acessivel.
+            </Text>
+          )}
+        </SectionCard>
+      ) : null}
+
       {isVisible('llm') ? (
         <SectionCard title="IA / LLM metrics" subtitle="Tokens, custo estimado e sinais de cache.">
           <MetricGrid metrics={snapshot.llmMetrics} />
@@ -323,7 +362,7 @@ export function DeveloperObservabilityDashboard({
       {isVisible('judge') ? (
         <SectionCard
           title="LLM as Judge"
-          subtitle="Leitura direta do banco com fila async, score e diagnostico por avaliacao.">
+          subtitle="Metricas do judge com fila async, score e diagnostico por avaliacao.">
           <MetricGrid metrics={snapshot.judgeMetrics} />
           {snapshot.judgeEvaluations.length > 0 ? (
             <View style={s.judgeList}>
@@ -333,8 +372,7 @@ export function DeveloperObservabilityDashboard({
             </View>
           ) : (
             <Text style={s.emptyText}>
-              As avaliacoes recentes do judge aparecem aqui assim que a tabela do Supabase estiver
-              acessivel para o app.
+              As avaliacoes recentes do judge aparecem aqui assim que o endpoint remoto estiver acessivel.
             </Text>
           )}
         </SectionCard>
@@ -600,6 +638,90 @@ function JudgeEvaluationCard({ evaluation }: { evaluation: ObservabilityJudgeEva
         <View style={[s.judgeErrorBox, { backgroundColor: '#FDE7E7', borderColor: '#F5C2C2' }]}>
           <Text style={s.judgeErrorTitle}>Erro do judge</Text>
           <Text style={s.judgeErrorText}>{evaluation.error}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function RecentRunCard({ run }: { run: ObservabilityRecentRun }) {
+  const statusColors = runStatusColors(run.status);
+
+  return (
+    <View style={s.judgeCard}>
+      <View style={s.judgeHeader}>
+        <View style={s.judgeBadgeRow}>
+          <Badge
+            label={run.agent.toUpperCase()}
+            backgroundColor={Brand.bg}
+            borderColor={Brand.border}
+            textColor={Brand.textSecondary}
+          />
+          <Badge
+            label={run.statusLabel}
+            backgroundColor={statusColors.bg}
+            borderColor={statusColors.border}
+            textColor={statusColors.text}
+          />
+          <Badge
+            label={run.httpMethod}
+            backgroundColor={Brand.bg}
+            borderColor={Brand.border}
+            textColor={Brand.textSecondary}
+          />
+          <Badge
+            label={run.httpStatusLabel}
+            backgroundColor={Brand.bg}
+            borderColor={Brand.border}
+            textColor={Brand.textSecondary}
+          />
+          {run.timeout ? (
+            <Badge
+              label={run.timeoutLabel}
+              backgroundColor="#FFF3E3"
+              borderColor="#F3D2A8"
+              textColor="#B96B00"
+            />
+          ) : null}
+        </View>
+        <Text style={s.judgeTimestamp}>{run.startedAtLabel}</Text>
+      </View>
+
+      <Text style={s.judgeSummary}>{`${run.httpMethod} ${run.requestPath}`}</Text>
+
+      <View style={s.judgeStatRow}>
+        <JudgeStatCard
+          label="Duracao"
+          value={run.duration}
+          tone={{ bg: statusColors.bg, border: statusColors.border, text: statusColors.text }}
+        />
+        <JudgeStatCard
+          label="Tokens"
+          value={run.totalTokens}
+          tone={{ bg: Brand.bg, border: Brand.border, text: Brand.text }}
+        />
+        <JudgeStatCard
+          label="Custo"
+          value={run.totalCost}
+          tone={{ bg: Brand.bg, border: Brand.border, text: Brand.text }}
+        />
+      </View>
+
+      <View style={s.metaWrap}>
+        <MetaChip label="Run" value={run.runId} />
+        {run.requestId !== '--' ? <MetaChip label="Request" value={run.requestId} /> : null}
+        {run.traceId !== '--' ? <MetaChip label="Trace" value={run.traceId} /> : null}
+        <MetaChip label="Endpoint" value={run.endpoint} />
+        <MetaChip label="Finalizado" value={run.finishedAtLabel} />
+        <MetaChip label="LLM calls" value={run.llmCallCount} />
+        <MetaChip label="Tool calls" value={run.toolCallCount} />
+        <MetaChip label="Stages" value={run.stageEventCount} />
+      </View>
+
+      {run.errorMessage ? (
+        <View style={[s.judgeErrorBox, { backgroundColor: '#FDE7E7', borderColor: '#F5C2C2' }]}>
+          <Text style={s.judgeErrorTitle}>Erro da execucao</Text>
+          <Text style={s.judgeErrorText}>{run.errorMessage}</Text>
         </View>
       ) : null}
     </View>

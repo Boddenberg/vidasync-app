@@ -3,6 +3,7 @@ export type ObservabilityServiceStatus = 'healthy' | 'warning' | 'critical' | 'u
 export type ObservabilityClassification = 'approved' | 'alert' | 'rejected' | 'unknown';
 export type ObservabilitySource = 'fallback' | 'hybrid' | 'backend';
 export type ObservabilityJudgeStatus = 'pending' | 'completed' | 'failed' | 'unknown';
+export type ObservabilityRunStatus = 'success' | 'error' | 'timeout' | 'unknown';
 
 export type ObservabilityMetric = {
   id: string;
@@ -79,6 +80,32 @@ export type ObservabilityJudgeEvaluation = {
   error: string | null;
 };
 
+export type ObservabilityRecentRun = {
+  id: string;
+  runId: string;
+  requestId: string;
+  traceId: string;
+  agent: string;
+  endpoint: string;
+  requestPath: string;
+  httpMethod: string;
+  httpStatusLabel: string;
+  status: ObservabilityRunStatus;
+  statusLabel: string;
+  tone: ObservabilityTone;
+  timeout: boolean;
+  timeoutLabel: string;
+  duration: string;
+  totalCost: string;
+  totalTokens: string;
+  llmCallCount: string;
+  toolCallCount: string;
+  stageEventCount: string;
+  startedAtLabel: string;
+  finishedAtLabel: string;
+  errorMessage: string | null;
+};
+
 export type DeveloperObservabilitySnapshot = {
   generatedAt: string;
   generatedAtLabel: string;
@@ -99,6 +126,7 @@ export type DeveloperObservabilitySnapshot = {
   errorEndpoints: ObservabilityEndpointRow[];
   timeline: ObservabilityTimelineEvent[];
   judgeEvaluations: ObservabilityJudgeEvaluation[];
+  recentRuns: ObservabilityRecentRun[];
 };
 
 export type DeveloperObservabilitySnapshotOverrides = Partial<

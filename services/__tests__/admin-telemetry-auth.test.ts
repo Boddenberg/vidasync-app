@@ -12,7 +12,10 @@ vi.mock('@/hooks/use-auth', () => ({
   isValidUuid: vi.fn(() => true),
 }));
 
-import { getAdminTelemetryMetricsSnapshotOverrides } from '@/services/admin-telemetry';
+import {
+  getAdminTelemetryMetricsSnapshotOverrides,
+  getAdminTelemetryRunsSnapshotOverrides,
+} from '@/services/admin-telemetry';
 
 const fetchMock = vi.fn();
 
@@ -69,5 +72,58 @@ describe('getAdminTelemetryMetricsSnapshotOverrides without internal admin key',
 
     expect(snapshot.source).toBe('backend');
     expect(snapshot.volumeMetrics?.find((item) => item.id === 'total-runs')?.value).toBe('5');
+  });
+
+  it('calls telemetry runs with the app auth flow when no internal key is configured', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          runs: {
+            filters: {
+              startDate: '2026-03-20',
+              endDate: '2026-03-26',
+              days: 7,
+              status: 'error',
+            },
+            limit: 2,
+            recentRuns: [
+              {
+                runId: 'run-1',
+                agent: 'chat',
+                endpoint: '/chat',
+                httpMethod: 'POST',
+                httpStatus: 500,
+                status: 'error',
+                timeout: false,
+                durationMs: 1200,
+                startedAt: '2026-03-26T18:00:00Z',
+                finishedAt: '2026-03-26T18:00:01Z',
+                requestContext: {
+                  path: '/chat',
+                },
+              },
+            ],
+          },
+        }),
+    });
+
+    const snapshot = await getAdminTelemetryRunsSnapshotOverrides({ limit: 2, status: 'error' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/internal/admin/telemetry/runs?days=7&limit=2&status=error');
+    expect(options.headers).toMatchObject({
+      'X-User-Id': '00000000-0000-4000-8000-000000000001',
+      'X-Access-Token': 'user-access-token',
+    });
+    expect((options.headers as Record<string, string>)['X-Internal-Api-Key']).toBeUndefined();
+
+    expect(snapshot.recentRuns?.[0]).toMatchObject({
+      runId: 'run-1',
+      status: 'error',
+      requestPath: '/chat',
+    });
   });
 });

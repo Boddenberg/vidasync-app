@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildAdminTelemetryMetricsSnapshotOverrides,
+  buildAdminTelemetryRunsSnapshotOverrides,
   type AdminTelemetryMetricsPayload,
+  type AdminTelemetryRunsPayload,
 } from '@/services/admin-telemetry';
 
 describe('buildAdminTelemetryMetricsSnapshotOverrides', () => {
@@ -97,5 +99,66 @@ describe('buildAdminTelemetryMetricsSnapshotOverrides', () => {
       title: '3 execucoes no dia',
     });
     expect(snapshot.insights?.some((item) => item.title.includes('Agente dominante'))).toBe(true);
+  });
+
+  it('maps telemetry runs into recent run cards and timeline events', () => {
+    const payload: AdminTelemetryRunsPayload = {
+      filters: {
+        startDate: '2026-03-20',
+        endDate: '2026-03-26',
+        days: 7,
+        agent: null,
+        model: null,
+        status: 'error',
+      },
+      limit: 2,
+      recentRuns: [
+        {
+          runId: 'run-1',
+          requestId: 'req-1',
+          traceId: 'trace-1',
+          agent: 'chat',
+          endpoint: '/chat',
+          httpMethod: 'POST',
+          httpStatus: 502,
+          status: 'error',
+          timeout: false,
+          durationMs: 800,
+          totalCostUsd: 0.12,
+          totalTokens: 400,
+          llmCallCount: 1,
+          toolCallCount: 0,
+          stageEventCount: 3,
+          errorMessage: 'Bad gateway',
+          startedAt: '2026-03-26T18:00:00Z',
+          finishedAt: '2026-03-26T18:00:01Z',
+          requestContext: {
+            path: '/chat',
+          },
+        },
+      ],
+    };
+
+    const snapshot = buildAdminTelemetryRunsSnapshotOverrides(payload);
+
+    expect(snapshot.scopeLabel).toBe('Todos os agentes - Status error');
+    expect(snapshot.recentRuns?.[0]).toMatchObject({
+      runId: 'run-1',
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      agent: 'chat',
+      requestPath: '/chat',
+      httpMethod: 'POST',
+      httpStatusLabel: '502',
+      status: 'error',
+      statusLabel: 'Erro',
+      totalTokens: '400',
+      llmCallCount: '1',
+    });
+    expect(snapshot.timeline?.[0]).toMatchObject({
+      title: 'POST /chat',
+      description: 'Bad gateway',
+      tone: 'critical',
+    });
   });
 });

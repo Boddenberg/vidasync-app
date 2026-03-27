@@ -31,6 +31,16 @@ describe('buildDeveloperObservabilitySnapshot', () => {
         durationMs: 90,
       }),
       createLog({
+        id: 'telemetry-runs',
+        url: 'https://vidasync-bff-production.up.railway.app/internal/admin/telemetry/runs?limit=5',
+        durationMs: 70,
+      }),
+      createLog({
+        id: 'judge-metrics',
+        url: 'https://vidasync-bff-production.up.railway.app/internal/admin/llm-judge/metrics?days=7',
+        durationMs: 65,
+      }),
+      createLog({
         id: 'bff-1',
         url: 'https://vidasync-bff-production.up.railway.app/meals/summary?date=2026-03-20',
         durationMs: 180,
@@ -78,5 +88,6 @@ describe('buildDeveloperObservabilitySnapshot', () => {
     expect(snapshot.qualityMetrics.find((item) => item.id === 'rejected-count')?.value).toBe('1');
     expect(snapshot.topEndpoints[0]?.label).toBe('/review/confirm');
     expect(snapshot.insights.some((item) => item.title.includes('erro'))).toBe(true);
+    expect(snapshot.recentRuns).toEqual([]);
   });
 });
