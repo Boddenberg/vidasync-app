@@ -1,4 +1,7 @@
 import {
+  INTERNAL_ADMIN_API_KEY,
+  INTERNAL_ADMIN_JUDGE_FEATURE,
+  INTERNAL_ADMIN_USER_ID,
   SUPABASE_ANON_KEY,
   SUPABASE_JUDGE_FEATURE,
   SUPABASE_JUDGE_LIMIT,
@@ -6,6 +9,7 @@ import {
   SUPABASE_URL,
 } from '@/constants/config';
 import { getStoredAccessToken } from '@/hooks/use-auth';
+import { apiGetJson } from '@/services/api';
 import type {
   DeveloperObservabilitySnapshotOverrides,
   ObservabilityClassification,
@@ -41,6 +45,59 @@ type JudgeRow = {
   judge_rejection_reasons?: unknown;
   judge_result?: unknown;
   judge_error?: string | null;
+};
+
+type JudgeApiMetricsPayload = {
+  filters?: Record<string, unknown> | null;
+  summary?: Record<string, unknown> | null;
+  byFeature?: Array<Record<string, unknown>> | null;
+  byPipeline?: Array<Record<string, unknown>> | null;
+  byHandler?: Array<Record<string, unknown>> | null;
+  byIdioma?: Array<Record<string, unknown>> | null;
+  bySourceModel?: Array<Record<string, unknown>> | null;
+  daily?: Array<Record<string, unknown>> | null;
+  topRejectionReasons?: Array<Record<string, unknown>> | null;
+  recentEvaluations?: Array<Record<string, unknown>> | null;
+};
+
+type JudgeApiMetricsResponse = {
+  metrics?: JudgeApiMetricsPayload | null;
+};
+
+type NormalizedJudgeSummary = {
+  totalEvaluations: number;
+  completedCount: number;
+  pendingCount: number;
+  failedCount: number;
+  approvedCount: number;
+  rejectedCount: number;
+  completionRatePercent: number | null;
+  failureRatePercent: number | null;
+  approvalRatePercent: number | null;
+  averageOverallScore: number | null;
+  averageSourceDurationMs: number | null;
+  averageJudgeDurationMs: number | null;
+  averageSourceTotalTokens: number | null;
+  averageJudgeTotalTokens: number | null;
+  latestEvaluationAt: string | null;
+  oldestEvaluationAt: string | null;
+};
+
+type NormalizedRecentEvaluation = {
+  evaluationId: string;
+  createdAt: string;
+  feature: string;
+  judgeStatus: ObservabilityJudgeStatus;
+  judgeDecision: ObservabilityClassification;
+  judgeOverallScore: number | null;
+  idioma: string | null;
+  pipeline: string | null;
+  handler: string | null;
+  sourceModel: string | null;
+  sourceDurationMs: number | null;
+  judgeDurationMs: number | null;
+  sourceTotalTokens: number | null;
+  judgeTotalTokens: number | null;
 };
 
 type ScoreAccumulator = {
@@ -86,6 +143,9 @@ const SUPABASE_JUDGE_SELECT = [
   'judge_result',
   'judge_error',
 ].join(',');
+
+const JUDGE_METRICS_PATH = '/internal/admin/llm-judge/metrics';
+const DEFAULT_JUDGE_DAYS = 7;
 
 function normalizeKey(value: string): string {
   return value.replace(/[^a-z0-9]+/gi, '').toLowerCase();
@@ -172,7 +232,11 @@ function statusLabel(status: ObservabilityJudgeStatus): string {
   return 'Sem status';
 }
 
-function decisionFromValue(value: unknown, score: number | null, status: ObservabilityJudgeStatus): ObservabilityClassification {
+function decisionFromValue(
+  value: unknown,
+  score: number | null,
+  status: ObservabilityJudgeStatus,
+): ObservabilityClassification {
   const normalized = normalizeKey(asTrimmedString(value));
   if (['approved', 'approve', 'pass', 'passed', 'ok'].includes(normalized)) return 'approved';
   if (['alert', 'warning', 'review'].includes(normalized)) return 'alert';
@@ -284,6 +348,15 @@ function extractCriterionScore(scoreMap: Record<string, unknown>, names: string[
   return null;
 }
 
+function emptyQualityCriteria(): ObservabilityQualityCriterion[] {
+  return QUALITY_CRITERIA.map((criterion) => ({
+    id: criterion.id,
+    label: criterion.label,
+    value: '--',
+    classification: 'unknown',
+  }));
+}
+
 function normalizeJudgeRow(row: JudgeRow, index: number): ObservabilityJudgeEvaluation {
   const createdAt = asTrimmedString(row.created_at) || new Date().toISOString();
   const updatedAt = asTrimmedString(row.updated_at) || createdAt;
@@ -362,7 +435,7 @@ function buildJudgeCriteria(rows: JudgeRow[]): ObservabilityQualityCriterion[] {
   });
 }
 
-function buildJudgeMetrics(rows: JudgeRow[]): Pick<
+function buildJudgeMetricsFromRows(rows: JudgeRow[]): Pick<
   DeveloperObservabilitySnapshotOverrides,
   'judgeMetrics' | 'qualityMetrics' | 'qualityCriteria' | 'judgeEvaluations'
 > {
@@ -469,6 +542,236 @@ function buildJudgeMetrics(rows: JudgeRow[]): Pick<
   };
 }
 
+function normalizeJudgeSummary(value: Record<string, unknown> | null | undefined): NormalizedJudgeSummary {
+  return {
+    totalEvaluations: parseNumber(value?.totalEvaluations) ?? 0,
+    completedCount: parseNumber(value?.completedCount) ?? 0,
+    pendingCount: parseNumber(value?.pendingCount) ?? 0,
+    failedCount: parseNumber(value?.failedCount) ?? 0,
+    approvedCount: parseNumber(value?.approvedCount) ?? 0,
+    rejectedCount: parseNumber(value?.rejectedCount) ?? 0,
+    completionRatePercent: parseNumber(value?.completionRatePercent),
+    failureRatePercent: parseNumber(value?.failureRatePercent),
+    approvalRatePercent: parseNumber(value?.approvalRatePercent),
+    averageOverallScore: normalizeScore(value?.averageOverallScore),
+    averageSourceDurationMs: parseNumber(value?.averageSourceDurationMs),
+    averageJudgeDurationMs: parseNumber(value?.averageJudgeDurationMs),
+    averageSourceTotalTokens: parseNumber(value?.averageSourceTotalTokens),
+    averageJudgeTotalTokens: parseNumber(value?.averageJudgeTotalTokens),
+    latestEvaluationAt: asTrimmedString(value?.latestEvaluationAt) || null,
+    oldestEvaluationAt: asTrimmedString(value?.oldestEvaluationAt) || null,
+  };
+}
+
+function normalizeRecentEvaluation(value: Record<string, unknown>, index: number): NormalizedRecentEvaluation {
+  const score = normalizeScore(value.judgeOverallScore);
+  const status = statusFromValue(value.judgeStatus);
+
+  return {
+    evaluationId: asTrimmedString(value.evaluationId) || `judge-metric-eval-${index + 1}`,
+    createdAt: asTrimmedString(value.createdAt) || new Date().toISOString(),
+    feature: asTrimmedString(value.feature) || INTERNAL_ADMIN_JUDGE_FEATURE || 'chat',
+    judgeStatus: status,
+    judgeDecision: decisionFromValue(value.judgeDecision, score, status),
+    judgeOverallScore: score,
+    idioma: asTrimmedString(value.idioma) || null,
+    pipeline: asTrimmedString(value.pipeline) || null,
+    handler: asTrimmedString(value.handler) || null,
+    sourceModel: asTrimmedString(value.sourceModel) || null,
+    sourceDurationMs: parseNumber(value.sourceDurationMs),
+    judgeDurationMs: parseNumber(value.judgeDurationMs),
+    sourceTotalTokens: parseNumber(value.sourceTotalTokens),
+    judgeTotalTokens: parseNumber(value.judgeTotalTokens),
+  };
+}
+
+function buildApiEvaluationSummary(value: NormalizedRecentEvaluation): string {
+  if (value.judgeStatus === 'pending') {
+    return 'Avaliacao agendada e aguardando processamento.';
+  }
+
+  if (value.judgeStatus === 'failed') {
+    return 'A avaliacao falhou antes de produzir detalhes adicionais.';
+  }
+
+  if (value.judgeDecision === 'approved') {
+    return 'Avaliacao concluida e aprovada pelo judge.';
+  }
+
+  if (value.judgeDecision === 'rejected') {
+    return 'Avaliacao concluida e reprovada pelo judge.';
+  }
+
+  if (value.judgeDecision === 'alert') {
+    return 'Avaliacao concluida com alerta do judge.';
+  }
+
+  return 'Avaliacao concluida sem detalhes adicionais.';
+}
+
+function normalizeApiEvaluations(
+  rows: Array<Record<string, unknown>> | null | undefined,
+): ObservabilityJudgeEvaluation[] {
+  if (!Array.isArray(rows)) return [];
+
+  return rows.map((row, index) => {
+    const value = normalizeRecentEvaluation(row, index);
+    const pipeline =
+      value.pipeline && value.idioma ? `${value.pipeline} - ${value.idioma}` : value.pipeline ?? 'Nao informado';
+
+    return {
+      id: value.evaluationId,
+      createdAt: value.createdAt,
+      createdAtLabel: formatTimestamp(value.createdAt),
+      updatedAtLabel: formatTimestamp(value.createdAt),
+      feature: value.feature,
+      status: value.judgeStatus,
+      statusLabel: statusLabel(value.judgeStatus),
+      decision: value.judgeDecision,
+      decisionLabel: decisionLabel(value.judgeDecision),
+      tone: toneFromDecision(value.judgeDecision, value.judgeStatus, value.judgeOverallScore),
+      score: value.judgeOverallScore != null ? formatPercent(value.judgeOverallScore) : '--',
+      summary: buildApiEvaluationSummary(value),
+      pipeline,
+      handler: value.handler ?? 'Nao informado',
+      requestId: '--',
+      conversationId: '--',
+      messageId: '--',
+      userId: '--',
+      sourceModel: value.sourceModel ?? '--',
+      judgeModel: '--',
+      sourceDuration: formatDuration(value.sourceDurationMs),
+      judgeDuration: formatDuration(value.judgeDurationMs),
+      improvements: [],
+      rejectionReasons: [],
+      error: value.judgeStatus === 'failed' ? 'Falha registrada pelo judge.' : null,
+    };
+  });
+}
+
+function buildJudgeMetricsFromApi(
+  payload: JudgeApiMetricsPayload,
+): Pick<DeveloperObservabilitySnapshotOverrides, 'judgeMetrics' | 'qualityMetrics' | 'qualityCriteria' | 'judgeEvaluations'> {
+  const summary = normalizeJudgeSummary(payload.summary);
+
+  return {
+    judgeMetrics: [
+      metric(
+        'judge-total',
+        'Avaliacoes',
+        formatCompactNumber(summary.totalEvaluations),
+        summary.totalEvaluations > 0
+          ? 'Volume consolidado pelo endpoint interno do judge.'
+          : 'Sem avaliacoes no recorte remoto atual.',
+        summary.totalEvaluations > 0 ? 'positive' : 'neutral',
+      ),
+      metric(
+        'judge-pending',
+        'Pendentes',
+        formatCompactNumber(summary.pendingCount),
+        summary.pendingCount > 0
+          ? 'Avaliacoes aguardando processamento do judge.'
+          : 'Nenhuma avaliacao pendente no recorte atual.',
+        summary.pendingCount > 0 ? 'warning' : 'positive',
+      ),
+      metric(
+        'judge-failed',
+        'Falhas',
+        formatCompactNumber(summary.failedCount),
+        summary.failedCount > 0
+          ? `${formatPercent(summary.failureRatePercent)} de falha no recorte atual.`
+          : 'Nenhuma falha do judge no recorte atual.',
+        summary.failedCount > 0 ? 'critical' : 'positive',
+      ),
+      metric(
+        'judge-latency',
+        'Tempo medio',
+        formatDuration(summary.averageJudgeDurationMs),
+        summary.averageSourceDurationMs != null
+          ? `Fonte ${formatDuration(summary.averageSourceDurationMs)} e judge ${formatDuration(summary.averageJudgeDurationMs)}.`
+          : 'Sem duracao suficiente para consolidar ainda.',
+        summary.averageJudgeDurationMs == null
+          ? 'neutral'
+          : summary.averageJudgeDurationMs >= 1000
+            ? 'warning'
+            : 'positive',
+      ),
+    ],
+    qualityMetrics: [
+      metric(
+        'overall-score',
+        'Score geral',
+        summary.averageOverallScore != null ? formatPercent(summary.averageOverallScore) : '--',
+        summary.averageOverallScore != null
+          ? 'Score medio consolidado pelo endpoint remoto.'
+          : 'Sem score medio disponivel no recorte atual.',
+        toneFromScore(summary.averageOverallScore),
+      ),
+      metric(
+        'approval-rate',
+        'Taxa de aprovacao',
+        summary.approvalRatePercent != null ? formatPercent(summary.approvalRatePercent) : '--',
+        summary.approvalRatePercent != null
+          ? `${formatCompactNumber(summary.approvedCount)} aprovadas e ${formatCompactNumber(summary.rejectedCount)} reprovadas.`
+          : 'Sem aprovacoes suficientes para calcular.',
+        summary.approvalRatePercent == null
+          ? 'neutral'
+          : summary.approvalRatePercent >= 80
+            ? 'positive'
+            : summary.approvalRatePercent >= 60
+              ? 'warning'
+              : 'critical',
+      ),
+      metric(
+        'approved-count',
+        'Aprovado',
+        formatCompactNumber(summary.approvedCount),
+        'Total aprovado no recorte do endpoint interno.',
+        summary.approvedCount > 0 ? 'positive' : 'neutral',
+      ),
+      metric(
+        'rejected-count',
+        'Reprovado',
+        formatCompactNumber(summary.rejectedCount),
+        'Total reprovado no recorte do endpoint interno.',
+        summary.rejectedCount > 0 ? 'critical' : 'neutral',
+      ),
+    ],
+    qualityCriteria: emptyQualityCriteria(),
+    judgeEvaluations: normalizeApiEvaluations(payload.recentEvaluations),
+  };
+}
+
+function buildJudgeMetricsPath(): string {
+  const params = new URLSearchParams();
+  params.set('days', `${DEFAULT_JUDGE_DAYS}`);
+
+  if (INTERNAL_ADMIN_JUDGE_FEATURE) {
+    params.set('feature', INTERNAL_ADMIN_JUDGE_FEATURE);
+  }
+
+  return `${JUDGE_METRICS_PATH}?${params.toString()}`;
+}
+
+async function fetchJudgeApiMetrics(): Promise<JudgeApiMetricsPayload | null> {
+  if (!INTERNAL_ADMIN_API_KEY) return null;
+
+  const headers: Record<string, string> = {
+    'X-Internal-Api-Key': INTERNAL_ADMIN_API_KEY,
+  };
+
+  if (INTERNAL_ADMIN_USER_ID) {
+    headers['X-User-Id'] = INTERNAL_ADMIN_USER_ID;
+  }
+
+  const data = await apiGetJson<JudgeApiMetricsResponse>(buildJudgeMetricsPath(), headers);
+  if (!data?.metrics) {
+    throw new Error('Resposta invalida do endpoint /internal/admin/llm-judge/metrics.');
+  }
+
+  return data.metrics;
+}
+
 async function fetchJudgeRows(): Promise<JudgeRow[] | null> {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
 
@@ -499,7 +802,34 @@ async function fetchJudgeRows(): Promise<JudgeRow[] | null> {
 }
 
 export async function getDeveloperJudgeSnapshotOverrides(): Promise<DeveloperObservabilitySnapshotOverrides | null> {
-  const rows = await fetchJudgeRows();
-  if (!rows) return null;
-  return buildJudgeMetrics(rows);
+  const [apiResult, rowsResult] = await Promise.allSettled([
+    fetchJudgeApiMetrics(),
+    fetchJudgeRows(),
+  ]);
+
+  const apiPayload = apiResult.status === 'fulfilled' ? apiResult.value : null;
+  const rows = rowsResult.status === 'fulfilled' ? rowsResult.value : null;
+
+  const apiSnapshot = apiPayload ? buildJudgeMetricsFromApi(apiPayload) : null;
+  const rowSnapshot = rows?.length ? buildJudgeMetricsFromRows(rows) : null;
+
+  if (!apiSnapshot && !rowSnapshot) {
+    if (apiResult.status === 'rejected') throw apiResult.reason;
+    if (rowsResult.status === 'rejected') throw rowsResult.reason;
+    return null;
+  }
+
+  if (!apiSnapshot) {
+    return rowSnapshot;
+  }
+
+  if (!rowSnapshot) {
+    return apiSnapshot;
+  }
+
+  return {
+    ...apiSnapshot,
+    qualityCriteria: rowSnapshot.qualityCriteria,
+    judgeEvaluations: rowSnapshot.judgeEvaluations,
+  };
 }

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/constants/config', () => ({
+  INTERNAL_ADMIN_API_KEY: '',
+  INTERNAL_ADMIN_JUDGE_FEATURE: 'chat',
+  INTERNAL_ADMIN_USER_ID: '',
   SUPABASE_URL: 'https://demo-project.supabase.co',
   SUPABASE_ANON_KEY: 'anon-key',
   SUPABASE_JUDGE_TABLE: 'llm_judge_evaluations',
