@@ -105,7 +105,11 @@ export default function HomeScreen() {
       <View pointerEvents="none" style={s.backgroundOrbBottom} />
 
       <ScrollView
+        bounces={false}
+        alwaysBounceVertical={false}
         contentContainerStyle={[s.scroll, { paddingTop: insets.top + Spacing.sm, paddingBottom: bottomContentPadding }]}
+        contentInsetAdjustmentBehavior="never"
+        overScrollMode="never"
         scrollIndicatorInsets={{ bottom: bottomContentPadding }}
         refreshControl={
           <RefreshControl
