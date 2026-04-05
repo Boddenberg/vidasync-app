@@ -251,7 +251,14 @@ export default function MyDishesScreen() {
       <View style={[s.root, { paddingTop: insets.top }]}>
         <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
 
-        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          bounces={false}
+          alwaysBounceVertical={false}
+          contentInsetAdjustmentBehavior="never"
+          overScrollMode="never"
+          contentContainerStyle={s.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
           {isFromHome ? <ReturnHomeButton onPress={() => router.replace('/(tabs)' as any)} /> : null}
           <Text style={s.title}>Pratos</Text>
           <Text style={s.subtitle}>{subtitle}</Text>

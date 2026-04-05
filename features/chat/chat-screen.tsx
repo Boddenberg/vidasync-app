@@ -260,6 +260,10 @@ export function ChatScreen() {
 
         <ScrollView
           ref={scrollRef}
+          bounces={false}
+          alwaysBounceVertical={false}
+          contentInsetAdjustmentBehavior="never"
+          overScrollMode="never"
           style={s.scrollView}
           contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}

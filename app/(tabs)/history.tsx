@@ -211,7 +211,13 @@ export default function HistoryScreen() {
     <View style={[s.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
 
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        bounces={false}
+        alwaysBounceVertical={false}
+        contentInsetAdjustmentBehavior="never"
+        overScrollMode="never"
+        contentContainerStyle={s.scroll}
+        showsVerticalScrollIndicator={false}>
         <Text style={s.title}>Progresso</Text>
         <Text style={s.subtitle}>
           Consistência, refeições e hidratação organizadas em um painel diário.
