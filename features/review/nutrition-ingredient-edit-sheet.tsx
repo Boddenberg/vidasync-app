@@ -83,12 +83,6 @@ export function NutritionIngredientEditSheet({
 
           {currentItem ? <CurrentIngredientOverview item={currentItem} /> : null}
 
-          {isAddMode ? (
-            <View style={s.metaRow}>
-              <ModeBadge label="Novo item" />
-            </View>
-          ) : null}
-
           <View style={s.modeSwitchRow}>
             <ModeSwitchButton
               label="Recalcular"
@@ -109,43 +103,7 @@ export function NutritionIngredientEditSheet({
                 subtitle={copy.recalculateSectionSubtitle}
               />
 
-              <View style={s.formCard}>
-                <Text style={s.label}>Nome do alimento</Text>
-                <AppInput
-                  placeholder="Ex.: arroz branco"
-                  value={draft.name}
-                  onChangeText={(value) => onChangeDraft({ name: value })}
-                  maxLength={60}
-                />
-
-                <Text style={s.label}>Quantidade</Text>
-                <View style={s.quantityRow}>
-                  <View style={s.quantityInputWrap}>
-                    <AppInput
-                      placeholder="Qtd."
-                      value={draft.quantityValue}
-                      onChangeText={(value) =>
-                        onChangeDraft({ quantityValue: value.replace(/[^0-9.,]/g, '') })
-                      }
-                      keyboardType="numeric"
-                      maxLength={7}
-                    />
-                  </View>
-
-                  <View style={s.unitRow}>
-                    {UNITS.map((unit) => (
-                      <Pressable
-                        key={unit}
-                        style={[s.unitBtn, draft.quantityUnit === unit && s.unitBtnActive]}
-                        onPress={() => onChangeDraft({ quantityUnit: unit })}>
-                        <Text style={[s.unitText, draft.quantityUnit === unit && s.unitTextActive]}>
-                          {unit}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              </View>
+              <IngredientBasicsForm draft={draft} onChangeDraft={onChangeDraft} />
 
               <View style={s.primaryActionCard}>
                 <AppButton
@@ -219,63 +177,67 @@ export function NutritionIngredientEditSheet({
           ) : null}
 
           {activeAdjustmentMode === 'manual' ? (
-            <View style={s.formCard}>
+            <>
               <ModeContentHeader title={copy.manualSectionTitle} subtitle={copy.manualSectionSubtitle} />
 
-              <View style={s.manualBody}>
-                <View style={s.gridRow}>
-                  <View style={s.gridCell}>
-                    <Text style={s.label}>Calorias</Text>
-                    <AppInput
-                      placeholder="0 kcal"
-                      value={draft.calories}
-                      onChangeText={(value) =>
-                        onChangeDraft({ calories: value.replace(/[^0-9a-zA-Z.,\s]/g, '') })
-                      }
-                    />
-                  </View>
-                  <View style={s.gridCell}>
-                    <Text style={s.label}>Proteina</Text>
-                    <AppInput
-                      placeholder="0 g"
-                      value={draft.protein}
-                      onChangeText={(value) =>
-                        onChangeDraft({ protein: value.replace(/[^0-9a-zA-Z.,\s]/g, '') })
-                      }
-                    />
-                  </View>
-                </View>
+              <IngredientBasicsForm draft={draft} onChangeDraft={onChangeDraft} />
 
-                <View style={s.gridRow}>
-                  <View style={s.gridCell}>
-                    <Text style={s.label}>Carboidratos</Text>
-                    <AppInput
-                      placeholder="0 g"
-                      value={draft.carbs}
-                      onChangeText={(value) =>
-                        onChangeDraft({ carbs: value.replace(/[^0-9a-zA-Z.,\s]/g, '') })
-                      }
-                    />
+              <View style={s.formCard}>
+                <View style={s.manualBody}>
+                  <View style={s.gridRow}>
+                    <View style={s.gridCell}>
+                      <Text style={s.label}>Calorias</Text>
+                      <AppInput
+                        placeholder="0 kcal"
+                        value={draft.calories}
+                        onChangeText={(value) =>
+                          onChangeDraft({ calories: value.replace(/[^0-9a-zA-Z.,\s]/g, '') })
+                        }
+                      />
+                    </View>
+                    <View style={s.gridCell}>
+                      <Text style={s.label}>Proteina</Text>
+                      <AppInput
+                        placeholder="0 g"
+                        value={draft.protein}
+                        onChangeText={(value) =>
+                          onChangeDraft({ protein: value.replace(/[^0-9a-zA-Z.,\s]/g, '') })
+                        }
+                      />
+                    </View>
                   </View>
-                  <View style={s.gridCell}>
-                    <Text style={s.label}>Gorduras</Text>
-                    <AppInput
-                      placeholder="0 g"
-                      value={draft.fat}
-                      onChangeText={(value) =>
-                        onChangeDraft({ fat: value.replace(/[^0-9a-zA-Z.,\s]/g, '') })
-                      }
-                    />
-                  </View>
-                </View>
 
-                <AppButton
-                  title={copy.manualActionTitle}
-                  onPress={onApplyManual}
-                  disabled={!canApplyManual}
-                />
+                  <View style={s.gridRow}>
+                    <View style={s.gridCell}>
+                      <Text style={s.label}>Carboidratos</Text>
+                      <AppInput
+                        placeholder="0 g"
+                        value={draft.carbs}
+                        onChangeText={(value) =>
+                          onChangeDraft({ carbs: value.replace(/[^0-9a-zA-Z.,\s]/g, '') })
+                        }
+                      />
+                    </View>
+                    <View style={s.gridCell}>
+                      <Text style={s.label}>Gorduras</Text>
+                      <AppInput
+                        placeholder="0 g"
+                        value={draft.fat}
+                        onChangeText={(value) =>
+                          onChangeDraft({ fat: value.replace(/[^0-9a-zA-Z.,\s]/g, '') })
+                        }
+                      />
+                    </View>
+                  </View>
+
+                  <AppButton
+                    title={copy.manualActionTitle}
+                    onPress={onApplyManual}
+                    disabled={!canApplyManual}
+                  />
+                </View>
               </View>
-            </View>
+            </>
           ) : null}
 
           {onRemove ? (
@@ -328,14 +290,6 @@ function resolveSheetCopy(mode: NutritionIngredientSheetMode) {
   };
 }
 
-function ModeBadge({ label }: { label: string }) {
-  return (
-    <View style={s.modeBadge}>
-      <Text style={s.modeBadgeText}>{label}</Text>
-    </View>
-  );
-}
-
 function ModeSwitchButton({
   label,
   active,
@@ -363,6 +317,50 @@ function ModeContentHeader({
     <View style={s.modeContentHeader}>
       <Text style={s.modeContentTitle}>{title}</Text>
       <Text style={s.modeContentSubtitle}>{subtitle}</Text>
+    </View>
+  );
+}
+
+function IngredientBasicsForm({
+  draft,
+  onChangeDraft,
+}: {
+  draft: NutritionIngredientSheetDraft;
+  onChangeDraft: (patch: Partial<NutritionIngredientSheetDraft>) => void;
+}) {
+  return (
+    <View style={s.formCard}>
+      <Text style={s.label}>Nome do alimento</Text>
+      <AppInput
+        placeholder="Ex.: arroz branco"
+        value={draft.name}
+        onChangeText={(value) => onChangeDraft({ name: value })}
+        maxLength={60}
+      />
+
+      <Text style={s.label}>Quantidade</Text>
+      <View style={s.quantityRow}>
+        <View style={s.quantityInputWrap}>
+          <AppInput
+            placeholder="Qtd."
+            value={draft.quantityValue}
+            onChangeText={(value) => onChangeDraft({ quantityValue: value.replace(/[^0-9.,]/g, '') })}
+            keyboardType="numeric"
+            maxLength={7}
+          />
+        </View>
+
+        <View style={s.unitRow}>
+          {UNITS.map((unit) => (
+            <Pressable
+              key={unit}
+              style={[s.unitBtn, draft.quantityUnit === unit && s.unitBtnActive]}
+              onPress={() => onChangeDraft({ quantityUnit: unit })}>
+              <Text style={[s.unitText, draft.quantityUnit === unit && s.unitTextActive]}>{unit}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
     </View>
   );
 }
@@ -429,11 +427,6 @@ const s = StyleSheet.create({
   subtitle: {
     ...Typography.body,
     color: Brand.textSecondary,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
   },
   modeSwitchRow: {
     flexDirection: 'row',
@@ -503,17 +496,6 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.xs,
-  },
-  modeBadge: {
-    borderRadius: Radii.pill,
-    backgroundColor: Brand.positiveBg,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  modeBadgeText: {
-    ...Typography.caption,
-    color: Brand.greenDark,
-    fontWeight: '800',
   },
   formCard: {
     borderRadius: Radii.xl,
