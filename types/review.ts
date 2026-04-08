@@ -4,6 +4,7 @@ import type { PlanPdfAnalysisResult } from '@/types/plan';
 export type ReviewSource = 'photo' | 'audio' | 'pdf';
 
 export type NutritionReviewItemStatus = 'automatic' | 'recalculated' | 'manual' | 'added';
+export type NutritionReviewQuantityUnit = 'g' | 'ml' | 'un';
 
 export type ReviewSession =
   | {
@@ -30,10 +31,27 @@ export type NutritionReviewDraftItem = {
   carbs: string;
   fat: string;
   status: NutritionReviewItemStatus;
+  quantityValue: string;
+  quantityUnit: NutritionReviewQuantityUnit;
   quantityLabel?: string | null;
   precisaRevisao: boolean;
   warnings: string[];
 };
+
+export type NutritionReviewDraftItemPatch = Partial<
+  Pick<
+    NutritionReviewDraftItem,
+    | 'name'
+    | 'calories'
+    | 'protein'
+    | 'carbs'
+    | 'fat'
+    | 'status'
+    | 'quantityValue'
+    | 'quantityUnit'
+    | 'quantityLabel'
+  >
+>;
 
 export type PlanReviewDraftSection = {
   id: string;

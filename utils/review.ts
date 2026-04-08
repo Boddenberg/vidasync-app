@@ -58,6 +58,8 @@ function buildNutritionDraft(session: Extract<ReviewSession, { kind: 'nutrition'
     carbs: item.nutrition.carbs,
     fat: item.nutrition.fat,
     status: resolveNutritionItemStatus(item.name, session.result.corrections),
+    quantityValue: '',
+    quantityUnit: 'g' as const,
     quantityLabel: null,
     precisaRevisao: item.precisaRevisao,
     warnings: item.warnings,

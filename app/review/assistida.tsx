@@ -8,6 +8,7 @@ import { CalculatedDishActionsCard } from '@/features/nutrition/calculated-dish-
 import { NutritionReviewEditor } from '@/features/review/nutrition-review-editor';
 import { PlanReviewEditor } from '@/features/review/plan-review-editor';
 import {
+  buildQuantityLabel,
   resolveNutritionTitle,
   screenCopy,
 } from '@/features/review/review-utils';
@@ -15,7 +16,13 @@ import { useAsync } from '@/hooks/use-async';
 import { submitReviewAdjustments } from '@/services/review-feedback';
 import { clearReviewSession, getReviewSession } from '@/services/review-session';
 import type { NutritionCorrection } from '@/types/nutrition';
-import type { NutritionReviewDraft, PlanReviewDraft, ReviewDraft } from '@/types/review';
+import type {
+  NutritionReviewDraft,
+  NutritionReviewDraftItemPatch,
+  PlanReviewDraft,
+  ReviewDraft,
+} from '@/types/review';
+import { formatIngredient } from '@/utils/helpers';
 import { buildReviewDraft, buildReviewSubmitPayload } from '@/utils/review';
 
 export default function AssistedReviewScreen() {
@@ -56,11 +63,7 @@ export default function AssistedReviewScreen() {
     });
   }
 
-  function updateNutritionItem(
-    itemId: string,
-    field: 'name' | 'calories' | 'protein' | 'carbs' | 'fat',
-    value: string,
-  ) {
+  function commitNutritionItem(itemId: string, patch: NutritionReviewDraftItemPatch) {
     setDraft((prev) => {
       if (!prev || prev.kind !== 'nutrition') return prev;
       return {
@@ -69,36 +72,14 @@ export default function AssistedReviewScreen() {
           item.id === itemId
             ? {
                 ...item,
-                [field]: value,
-                status: item.status === 'added' ? 'added' : 'manual',
+                ...patch,
+                quantityLabel: buildQuantityLabel(
+                  patch.quantityValue ?? item.quantityValue,
+                  patch.quantityUnit ?? item.quantityUnit,
+                ),
               }
             : item,
         ),
-      };
-    });
-  }
-
-  function addNutritionItem() {
-    setDraft((prev) => {
-      if (!prev || prev.kind !== 'nutrition') return prev;
-      const nextId = `nutrition-item-${prev.items.length + 1}`;
-      return {
-        ...prev,
-        items: [
-          ...prev.items,
-          {
-            id: nextId,
-            name: '',
-            calories: '',
-            protein: '',
-            carbs: '',
-            fat: '',
-            status: 'added',
-            quantityLabel: null,
-            precisaRevisao: false,
-            warnings: [],
-          },
-        ],
       };
     });
   }
@@ -179,7 +160,15 @@ export default function AssistedReviewScreen() {
   const nutritionFoodsLabel =
     draft.kind === 'nutrition'
       ? draft.items
-          .map((item) => item.name.trim())
+          .map((item) =>
+            item.quantityValue.trim()
+              ? formatIngredient({
+                  name: item.name.trim(),
+                  weight: item.quantityValue.trim(),
+                  unit: item.quantityUnit,
+                })
+              : item.name.trim(),
+          )
           .filter((item) => item.length > 0)
           .join(', ')
       : '';
@@ -198,8 +187,7 @@ export default function AssistedReviewScreen() {
             photoUri={nutritionPhotoPreviewUri}
             corrections={nutritionContext.corrections as NutritionCorrection[]}
             onChangeSummary={updateNutritionSummary}
-            onChangeItem={updateNutritionItem}
-            onAddItem={addNutritionItem}
+            onCommitItem={commitNutritionItem}
             onRemoveItem={removeNutritionItem}
           />
         ) : null}

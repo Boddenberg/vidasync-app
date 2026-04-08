@@ -1,13 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image, Pressable, Text, View } from 'react-native';
 
 import { AppInput } from '@/components/app-input';
 import { Brand } from '@/constants/theme';
+import { NutritionIngredientEditSheet, type NutritionIngredientSheetDraft } from '@/features/review/nutrition-ingredient-edit-sheet';
 import { s } from '@/features/review/review-editor-styles';
-import { buildRevealStyle, sourceLabel } from '@/features/review/review-utils';
+import { buildQuantityLabel, buildRevealStyle, sourceLabel } from '@/features/review/review-utils';
 import type { NutritionCorrection } from '@/types/nutrition';
-import type { NutritionReviewDraft, NutritionReviewDraftItem, NutritionReviewItemStatus } from '@/types/review';
+import type {
+  NutritionReviewDraft,
+  NutritionReviewDraftItem,
+  NutritionReviewDraftItemPatch,
+  NutritionReviewItemStatus,
+} from '@/types/review';
 
 type Props = {
   draft: NutritionReviewDraft;
@@ -19,24 +25,48 @@ type Props = {
     field: 'calories' | 'protein' | 'carbs' | 'fat',
     value: string,
   ) => void;
-  onChangeItem: (
-    itemId: string,
-    field: 'name' | 'calories' | 'protein' | 'carbs' | 'fat',
-    value: string,
-  ) => void;
-  onAddItem: () => void;
+  onCommitItem: (itemId: string, patch: NutritionReviewDraftItemPatch) => void;
   onRemoveItem: (itemId: string) => void;
 };
 
-export function NutritionReviewEditor(props: Props) {
-  const { draft, source, title, photoUri, corrections, onChangeSummary } = props;
+type IngredientEditorState = {
+  itemId: string | null;
+  draft: NutritionIngredientSheetDraft | null;
+  manualSectionOpen: boolean;
+};
+
+const INITIAL_EDITOR_STATE: IngredientEditorState = {
+  itemId: null,
+  draft: null,
+  manualSectionOpen: false,
+};
+
+export function NutritionReviewEditor({
+  draft,
+  source,
+  title,
+  photoUri,
+  corrections,
+  onChangeSummary,
+  onCommitItem,
+  onRemoveItem,
+}: Props) {
   const [showManualEditor, setShowManualEditor] = useState(false);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [ingredientEditor, setIngredientEditor] = useState<IngredientEditorState>(INITIAL_EDITOR_STATE);
 
   const heroAnim = useRef(new Animated.Value(0)).current;
   const correctionAnim = useRef(new Animated.Value(0)).current;
   const itemsAnim = useRef(new Animated.Value(0)).current;
   const editorAnim = useRef(new Animated.Value(0)).current;
+
+  const activeItem = useMemo(
+    () =>
+      ingredientEditor.itemId
+        ? draft.items.find((item) => item.id === ingredientEditor.itemId) ?? null
+        : null,
+    [draft.items, ingredientEditor.itemId],
+  );
+  const isIngredientSheetVisible = ingredientEditor.itemId != null && ingredientEditor.draft != null;
 
   useEffect(() => {
     const sequence = [heroAnim, correctionAnim, itemsAnim, editorAnim];
@@ -67,10 +97,78 @@ export function NutritionReviewEditor(props: Props) {
   ]);
 
   useEffect(() => {
-    setSelectedItemId((current) =>
-      current && draft.items.some((item) => item.id === current) ? current : null,
+    if (ingredientEditor.itemId && !activeItem) {
+      setIngredientEditor(INITIAL_EDITOR_STATE);
+    }
+  }, [activeItem, ingredientEditor.itemId]);
+
+  function openIngredientEditor(item: NutritionReviewDraftItem) {
+    setIngredientEditor({
+      itemId: item.id,
+      draft: buildIngredientSheetDraft(item),
+      manualSectionOpen: false,
+    });
+  }
+
+  function closeIngredientEditor() {
+    setIngredientEditor(INITIAL_EDITOR_STATE);
+  }
+
+  function updateIngredientEditorDraft(patch: Partial<NutritionIngredientSheetDraft>) {
+    setIngredientEditor((current) =>
+      current.draft
+        ? {
+            ...current,
+            draft: {
+              ...current.draft,
+              ...patch,
+            },
+          }
+        : current,
     );
-  }, [draft.items]);
+  }
+
+  function handleRecalculateIngredient() {
+    if (!ingredientEditor.itemId || !ingredientEditor.draft) return;
+
+    onCommitItem(ingredientEditor.itemId, {
+      name: ingredientEditor.draft.name.trim(),
+      quantityValue: ingredientEditor.draft.quantityValue.trim(),
+      quantityUnit: ingredientEditor.draft.quantityUnit,
+      quantityLabel: buildQuantityLabel(
+        ingredientEditor.draft.quantityValue,
+        ingredientEditor.draft.quantityUnit,
+      ),
+    });
+    closeIngredientEditor();
+  }
+
+  function handleApplyManualAdjustment() {
+    if (!ingredientEditor.itemId || !ingredientEditor.draft) return;
+
+    onCommitItem(ingredientEditor.itemId, {
+      name: ingredientEditor.draft.name.trim(),
+      quantityValue: ingredientEditor.draft.quantityValue.trim(),
+      quantityUnit: ingredientEditor.draft.quantityUnit,
+      quantityLabel: buildQuantityLabel(
+        ingredientEditor.draft.quantityValue,
+        ingredientEditor.draft.quantityUnit,
+      ),
+      calories: ingredientEditor.draft.calories.trim(),
+      protein: ingredientEditor.draft.protein.trim(),
+      carbs: ingredientEditor.draft.carbs.trim(),
+      fat: ingredientEditor.draft.fat.trim(),
+      status: 'manual',
+    });
+    closeIngredientEditor();
+  }
+
+  function handleRemoveIngredient() {
+    if (!ingredientEditor.itemId) return;
+    const itemId = ingredientEditor.itemId;
+    closeIngredientEditor();
+    onRemoveItem(itemId);
+  }
 
   return (
     <>
@@ -175,7 +273,7 @@ export function NutritionReviewEditor(props: Props) {
         <View style={s.sectionHeaderRow}>
           <View style={s.sectionCopy}>
             <Text style={s.sectionTitle}>Ingredientes identificados</Text>
-            <Text style={s.sectionHint}>Cards compactos prontos para a proxima etapa de edicao.</Text>
+            <Text style={s.sectionHint}>Toque em um card para revisar um ingrediente por vez.</Text>
           </View>
           {draft.items.length > 0 ? (
             <View style={s.sectionCountBadge}>
@@ -186,51 +284,37 @@ export function NutritionReviewEditor(props: Props) {
 
         {draft.items.length > 0 ? (
           <View style={s.ingredientList}>
-            {draft.items.map((item) => {
-              const isSelected = selectedItemId === item.id;
-
-              return (
-                <Pressable
-                  key={item.id}
-                  style={({ pressed }) => [
-                    s.ingredientCard,
-                    isSelected && s.ingredientCardActive,
-                    pressed && s.ingredientCardPressed,
-                  ]}
-                  onPress={() => setSelectedItemId((current) => (current === item.id ? null : item.id))}>
-                  <View style={s.ingredientHeader}>
-                    <View style={s.ingredientCopy}>
-                      <Text style={s.ingredientName}>{item.name || 'Ingrediente sem nome'}</Text>
-                      {item.quantityLabel ? (
-                        <Text style={s.ingredientMetaText}>{item.quantityLabel}</Text>
-                      ) : null}
-                    </View>
-
-                    <View style={s.ingredientHeaderRight}>
-                      <StatusPill status={item.status} />
-                      <Ionicons
-                        name={isSelected ? 'chevron-up-outline' : 'chevron-forward-outline'}
-                        size={16}
-                        color={Brand.textSecondary}
-                      />
-                    </View>
+            {draft.items.map((item) => (
+              <Pressable
+                key={item.id}
+                style={({ pressed }) => [s.ingredientCard, pressed && s.ingredientCardPressed]}
+                onPress={() => openIngredientEditor(item)}>
+                <View style={s.ingredientHeader}>
+                  <View style={s.ingredientCopy}>
+                    <Text style={s.ingredientName}>{item.name || 'Ingrediente sem nome'}</Text>
+                    {item.quantityLabel ? (
+                      <Text style={s.ingredientMetaText}>{item.quantityLabel}</Text>
+                    ) : null}
                   </View>
 
-                  <View style={s.detectedMacroRow}>
-                    <MacroChip label="kcal" value={item.calories} color={Brand.greenDark} bg="#ECF8ED" compact />
-                    <MacroChip label="prot" value={item.protein} color="#2D89C6" bg="#E8F4FC" compact />
-                    <MacroChip label="carb" value={item.carbs} color="#D98A32" bg="#FFF2E4" compact />
-                    <MacroChip label="gord" value={item.fat} color="#D24E40" bg="#FEEDEA" compact />
+                  <View style={s.ingredientHeaderRight}>
+                    <StatusPill status={item.status} />
+                    <Ionicons name="chevron-forward-outline" size={16} color={Brand.textSecondary} />
                   </View>
+                </View>
 
-                  {item.precisaRevisao ? (
-                    <Text style={s.ingredientAttentionText}>Este item foi sinalizado para revisao.</Text>
-                  ) : null}
+                <View style={s.detectedMacroRow}>
+                  <MacroChip label="kcal" value={item.calories} color={Brand.greenDark} bg="#ECF8ED" compact />
+                  <MacroChip label="prot" value={item.protein} color="#2D89C6" bg="#E8F4FC" compact />
+                  <MacroChip label="carb" value={item.carbs} color="#D98A32" bg="#FFF2E4" compact />
+                  <MacroChip label="gord" value={item.fat} color="#D24E40" bg="#FEEDEA" compact />
+                </View>
 
-                  {isSelected ? <IngredientReviewDetails item={item} /> : null}
-                </Pressable>
-              );
-            })}
+                {item.precisaRevisao ? (
+                  <Text style={s.ingredientAttentionText}>Este item foi sinalizado para revisao.</Text>
+                ) : null}
+              </Pressable>
+            ))}
           </View>
         ) : (
           <Text style={s.emptyInlineText}>
@@ -244,7 +328,7 @@ export function NutritionReviewEditor(props: Props) {
           <View style={s.sectionCopy}>
             <Text style={s.sectionTitle}>Ajustes rapidos</Text>
             <Text style={s.sectionHint}>
-              Ajuste apenas o resumo total agora. A edicao por ingrediente entra na proxima etapa.
+              Ajuste apenas o resumo total agora. A edicao por ingrediente fica dentro do sheet.
             </Text>
           </View>
 
@@ -299,28 +383,39 @@ export function NutritionReviewEditor(props: Props) {
           </Text>
         )}
       </Animated.View>
+
+      <NutritionIngredientEditSheet
+        visible={isIngredientSheetVisible}
+        draft={ingredientEditor.draft}
+        itemStatus={activeItem?.status ?? null}
+        warnings={activeItem?.warnings ?? []}
+        manualSectionOpen={ingredientEditor.manualSectionOpen}
+        onClose={closeIngredientEditor}
+        onChangeDraft={updateIngredientEditorDraft}
+        onToggleManualSection={() =>
+          setIngredientEditor((current) => ({
+            ...current,
+            manualSectionOpen: !current.manualSectionOpen,
+          }))
+        }
+        onRecalculate={handleRecalculateIngredient}
+        onApplyManual={handleApplyManualAdjustment}
+        onRemove={handleRemoveIngredient}
+      />
     </>
   );
 }
 
-function IngredientReviewDetails({ item }: { item: NutritionReviewDraftItem }) {
-  return (
-    <View style={s.ingredientDetailsCard}>
-      {item.warnings.length > 0 ? (
-        <View style={s.ingredientWarningsList}>
-          {item.warnings.map((warning, index) => (
-            <Text key={`${warning}-${index}`} style={s.ingredientWarningText}>
-              {warning}
-            </Text>
-          ))}
-        </View>
-      ) : null}
-
-      <Text style={s.ingredientFutureHint}>
-        A edicao detalhada deste ingrediente entra na proxima etapa da revisao.
-      </Text>
-    </View>
-  );
+function buildIngredientSheetDraft(item: NutritionReviewDraftItem): NutritionIngredientSheetDraft {
+  return {
+    name: item.name,
+    quantityValue: item.quantityValue,
+    quantityUnit: item.quantityUnit,
+    calories: item.calories,
+    protein: item.protein,
+    carbs: item.carbs,
+    fat: item.fat,
+  };
 }
 
 function InfoBadge({

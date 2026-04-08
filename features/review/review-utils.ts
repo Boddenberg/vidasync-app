@@ -2,7 +2,7 @@ import { Animated } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import type { NutritionCorrection } from '@/types/nutrition';
-import type { NutritionReviewDraft } from '@/types/review';
+import type { NutritionReviewDraft, NutritionReviewQuantityUnit } from '@/types/review';
 
 export function sourceLabel(source: 'photo' | 'audio' | 'pdf'): string {
   if (source === 'photo') return 'Foto';
@@ -80,6 +80,15 @@ export function resolveNutritionTitle(
   if (itemName) return itemName;
 
   return 'meu prato';
+}
+
+export function buildQuantityLabel(
+  quantityValue: string,
+  quantityUnit: NutritionReviewQuantityUnit,
+): string | null {
+  const value = `${quantityValue}`.trim();
+  if (!value) return null;
+  return `${value}${quantityUnit}`;
 }
 
 export function buildRevealStyle(progress: Animated.Value) {
