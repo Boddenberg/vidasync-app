@@ -216,7 +216,7 @@ export function NutritionReviewEditor({
       setIngredientRecalculation({
         loading: false,
         preview: null,
-        error: error?.message ?? 'Nao foi possivel recalcular este ingrediente agora.',
+        error: resolveIngredientRecalculationErrorMessage(),
         lookupLabel,
       });
     }
@@ -513,7 +513,6 @@ export function NutritionReviewEditor({
         mode={ingredientSheet.mode ?? 'edit'}
         draft={ingredientSheet.draft}
         itemStatus={activeItem?.status ?? null}
-        warnings={ingredientSheet.mode === 'edit' ? activeItem?.warnings ?? [] : []}
         manualSectionOpen={ingredientSheet.manualSectionOpen}
         onClose={closeIngredientSheet}
         onChangeDraft={updateIngredientSheetDraft}
@@ -616,6 +615,10 @@ function normalizeNutritionValue(value: string, unit: 'kcal' | 'g'): string {
   const trimmed = value.trim();
   if (trimmed.length > 0) return trimmed;
   return unit === 'kcal' ? '0 kcal' : '0 g';
+}
+
+function resolveIngredientRecalculationErrorMessage() {
+  return 'Nao conseguimos recalcular esse ingrediente agora. Revise os dados e tente novamente.';
 }
 
 function InfoBadge({

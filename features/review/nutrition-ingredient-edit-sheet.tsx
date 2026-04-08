@@ -26,7 +26,6 @@ type Props = {
   mode: NutritionIngredientSheetMode;
   draft: NutritionIngredientSheetDraft | null;
   itemStatus: NutritionReviewItemStatus | null;
-  warnings: string[];
   manualSectionOpen: boolean;
   recalculationPreview: NutritionData | null;
   recalculationLookupLabel: string | null;
@@ -46,7 +45,6 @@ export function NutritionIngredientEditSheet({
   mode,
   draft,
   itemStatus,
-  warnings,
   manualSectionOpen,
   recalculationPreview,
   recalculationLookupLabel,
@@ -84,14 +82,6 @@ export function NutritionIngredientEditSheet({
 
           <View style={s.metaRow}>
             {isAddMode ? <ModeBadge label="Novo item" /> : <StatusBadge status={itemStatus} />}
-            {warnings.length > 0 ? (
-              <View style={s.warningCountBadge}>
-                <Ionicons name="alert-circle-outline" size={14} color={Brand.warning} />
-                <Text style={s.warningCountText}>
-                  {warnings.length} {warnings.length === 1 ? 'alerta' : 'alertas'}
-                </Text>
-              </View>
-            ) : null}
           </View>
 
           <View style={s.formCard}>
@@ -131,16 +121,6 @@ export function NutritionIngredientEditSheet({
               </View>
             </View>
           </View>
-
-          {warnings.length > 0 ? (
-            <View style={s.warningCard}>
-              {warnings.map((warning, index) => (
-                <Text key={`${warning}-${index}`} style={s.warningText}>
-                  {warning}
-                </Text>
-              ))}
-            </View>
-          ) : null}
 
           <View style={s.primaryActionCard}>
             <AppButton
@@ -421,20 +401,6 @@ const s = StyleSheet.create({
     ...Typography.caption,
     fontWeight: '800',
   },
-  warningCountBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: Radii.pill,
-    backgroundColor: Brand.warningBg,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  warningCountText: {
-    ...Typography.caption,
-    color: Brand.warning,
-    fontWeight: '800',
-  },
   formCard: {
     borderRadius: Radii.xl,
     backgroundColor: Brand.card,
@@ -484,16 +450,6 @@ const s = StyleSheet.create({
   },
   unitTextActive: {
     color: Brand.greenDark,
-  },
-  warningCard: {
-    borderRadius: Radii.xl,
-    backgroundColor: Brand.warningBg,
-    padding: Spacing.md,
-    gap: Spacing.xs,
-  },
-  warningText: {
-    ...Typography.helper,
-    color: Brand.warning,
   },
   primaryActionCard: {
     gap: Spacing.sm,
