@@ -104,6 +104,11 @@ export function NutritionIngredientEditSheet({
 
           {activeAdjustmentMode === 'recalculate' ? (
             <>
+              <ModeContentHeader
+                title={copy.recalculateSectionTitle}
+                subtitle={copy.recalculateSectionSubtitle}
+              />
+
               <View style={s.formCard}>
                 <Text style={s.label}>Nome do alimento</Text>
                 <AppInput
@@ -167,7 +172,7 @@ export function NutritionIngredientEditSheet({
 
                 {recalculationLoading ? (
                   <View style={s.previewState}>
-                    <Text style={s.previewStateText}>Recalculando macros do ingrediente...</Text>
+                    <Text style={s.previewStateText}>Buscando uma nova estimativa para esse ingrediente...</Text>
                   </View>
                 ) : recalculationError ? (
                   <View style={s.previewFeedbackCard}>
@@ -294,11 +299,14 @@ function resolveSheetCopy(mode: NutritionIngredientSheetMode) {
     return {
       title: 'Adicionar alimento faltando',
       subtitle: 'Inclua um item que nao apareceu na analise e revise os macros antes de adicionar.',
+      recalculateSectionTitle: 'Buscar macros para o novo alimento',
+      recalculateSectionSubtitle:
+        'Preencha o nome, a quantidade e a unidade para gerar uma estimativa antes de adicionar.',
       recalculateActionTitle: 'Calcular macros do alimento',
       recalculateHint: 'Use a busca nutricional do app para preencher os macros deste novo item.',
       applyPreviewTitle: 'Adicionar alimento',
       emptyPreviewHint:
-        'Calcule para visualizar calorias, proteina, carboidratos e gorduras antes de adicionar.',
+        'Toque em "Calcular macros do alimento" para visualizar a estimativa antes de adicionar.',
       manualHint: 'Preencha os macros se preferir adicionar o item manualmente.',
       manualActionTitle: 'Adicionar manualmente',
     };
@@ -307,11 +315,14 @@ function resolveSheetCopy(mode: NutritionIngredientSheetMode) {
   return {
     title: 'Editar ingrediente',
     subtitle: 'Revise nome, quantidade e unidade antes de seguir.',
+    recalculateSectionTitle: 'Buscar um novo resultado',
+    recalculateSectionSubtitle:
+      'Ajuste nome, quantidade e unidade para comparar uma nova estimativa antes de salvar.',
     recalculateActionTitle: 'Recalcular ingrediente',
-    recalculateHint: 'Consulte os macros atualizados deste ingrediente antes de aplicar na refeicao.',
+    recalculateHint: 'Geramos uma nova estimativa para voce revisar antes de aplicar na refeicao.',
     applyPreviewTitle: 'Aplicar ajuste',
     emptyPreviewHint:
-      'Recalcule para visualizar calorias, proteina, carboidratos e gorduras antes de aplicar.',
+      'Toque em "Recalcular ingrediente" para comparar uma nova estimativa deste item.',
     manualHint: 'Use so se quiser substituir os macros deste item.',
     manualActionTitle: 'Aplicar ajuste manual',
   };
@@ -338,6 +349,21 @@ function ModeSwitchButton({
     <Pressable style={[s.modeSwitchButton, active && s.modeSwitchButtonActive]} onPress={onPress}>
       <Text style={[s.modeSwitchText, active && s.modeSwitchTextActive]}>{label}</Text>
     </Pressable>
+  );
+}
+
+function ModeContentHeader({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <View style={s.modeContentHeader}>
+      <Text style={s.modeContentTitle}>{title}</Text>
+      <Text style={s.modeContentSubtitle}>{subtitle}</Text>
+    </View>
   );
 }
 
@@ -435,6 +461,18 @@ const s = StyleSheet.create({
   },
   modeSwitchTextActive: {
     color: Brand.greenDark,
+  },
+  modeContentHeader: {
+    gap: 4,
+  },
+  modeContentTitle: {
+    ...Typography.body,
+    color: Brand.text,
+    fontWeight: '800',
+  },
+  modeContentSubtitle: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
   },
   currentCard: {
     borderRadius: Radii.xl,
