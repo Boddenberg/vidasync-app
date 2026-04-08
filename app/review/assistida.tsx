@@ -65,7 +65,15 @@ export default function AssistedReviewScreen() {
       if (!prev || prev.kind !== 'nutrition') return prev;
       return {
         ...prev,
-        items: prev.items.map((item) => (item.id === itemId ? { ...item, [field]: value } : item)),
+        items: prev.items.map((item) =>
+          item.id === itemId
+            ? {
+                ...item,
+                [field]: value,
+                status: item.status === 'added' ? 'added' : 'manual',
+              }
+            : item,
+        ),
       };
     });
   }
@@ -85,6 +93,8 @@ export default function AssistedReviewScreen() {
             protein: '',
             carbs: '',
             fat: '',
+            status: 'added',
+            quantityLabel: null,
             precisaRevisao: false,
             warnings: [],
           },

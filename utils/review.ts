@@ -1,6 +1,7 @@
-import type { NutritionData } from '@/types/nutrition';
+import type { NutritionCorrection, NutritionData } from '@/types/nutrition';
 import type {
   NutritionReviewDraft,
+  NutritionReviewItemStatus,
   PlanReviewDraft,
   PlanReviewDraftSection,
   ReviewDraft,
@@ -22,6 +23,30 @@ function nutritionClone(data: NutritionData): NutritionData {
   };
 }
 
+function normalizeReviewLabel(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function resolveNutritionItemStatus(
+  name: string,
+  corrections: NutritionCorrection[],
+): NutritionReviewItemStatus {
+  const normalizedName = normalizeReviewLabel(name);
+  if (!normalizedName) return 'automatic';
+
+  const wasAdjusted = corrections.some((entry) => {
+    const original = normalizeReviewLabel(entry.original);
+    const corrected = normalizeReviewLabel(entry.corrected);
+    return original === normalizedName || corrected === normalizedName;
+  });
+
+  return wasAdjusted ? 'recalculated' : 'automatic';
+}
+
 function buildNutritionDraft(session: Extract<ReviewSession, { kind: 'nutrition' }>): NutritionReviewDraft {
   const summary = nutritionClone(session.result.nutrition);
 
@@ -32,6 +57,8 @@ function buildNutritionDraft(session: Extract<ReviewSession, { kind: 'nutrition'
     protein: item.nutrition.protein,
     carbs: item.nutrition.carbs,
     fat: item.nutrition.fat,
+    status: resolveNutritionItemStatus(item.name, session.result.corrections),
+    quantityLabel: null,
     precisaRevisao: item.precisaRevisao,
     warnings: item.warnings,
   }));

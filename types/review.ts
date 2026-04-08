@@ -3,6 +3,8 @@ import type { PlanPdfAnalysisResult } from '@/types/plan';
 
 export type ReviewSource = 'photo' | 'audio' | 'pdf';
 
+export type NutritionReviewItemStatus = 'automatic' | 'recalculated' | 'manual' | 'added';
+
 export type ReviewSession =
   | {
       kind: 'nutrition';
@@ -27,6 +29,8 @@ export type NutritionReviewDraftItem = {
   protein: string;
   carbs: string;
   fat: string;
+  status: NutritionReviewItemStatus;
+  quantityLabel?: string | null;
   precisaRevisao: boolean;
   warnings: string[];
 };
