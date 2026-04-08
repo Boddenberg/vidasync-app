@@ -61,7 +61,6 @@ export function NutritionIngredientEditSheet({
 }: Props) {
   if (!draft) return null;
 
-  const isAddMode = mode === 'add';
   const canRecalculate = draft.name.trim().length > 0;
   const canApplyManual =
     draft.name.trim().length > 0 &&
