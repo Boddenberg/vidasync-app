@@ -164,8 +164,8 @@ export default function AssistedReviewScreen() {
     return (
       <View style={s.root}>
         <View style={s.emptyWrap}>
-          <Text style={s.title}>Resultado da análise</Text>
-          <Text style={s.emptyText}>Nenhum dado disponível para revisão.</Text>
+          <Text style={s.title}>Resultado da analise</Text>
+          <Text style={s.emptyText}>Nenhum dado disponivel para revisao.</Text>
           <AppButton title="Voltar" onPress={closeReview} />
         </View>
       </View>
@@ -245,7 +245,7 @@ export default function AssistedReviewScreen() {
           <TextInput
             value={draft.observation}
             onChangeText={updateObservation}
-            placeholder="Escreva observações opcionais sobre esta análise..."
+            placeholder="Conte aqui algum detalhe que faltou, como molho, bebida ou um item ao fundo."
             placeholderTextColor={Brand.textSecondary}
             multiline
             style={s.multiInput}
@@ -254,7 +254,7 @@ export default function AssistedReviewScreen() {
 
         {resend.error ? (
           <View style={s.errorCard}>
-            <Text style={s.errorText}>{resend.error}</Text>
+            <Text style={s.errorText}>{resolveReviewFeedbackErrorMessage()}</Text>
             <Pressable onPress={handleResend}>
               <Text style={s.retryText}>Tentar novamente</Text>
             </Pressable>
@@ -265,7 +265,7 @@ export default function AssistedReviewScreen() {
           <View style={s.successCard}>
             <Text style={s.successTitle}>Ajustes enviados</Text>
             <Text style={s.successText}>
-              Recebemos suas observações. Obrigado por ajudar a melhorar seus registros.
+              Recebemos sua revisao. Obrigado por ajudar a melhorar seus registros.
             </Text>
           </View>
         ) : null}
@@ -423,4 +423,8 @@ function buildNutritionSummaryFromItems(items: NutritionReviewDraft['items']): N
 
 function buildNutritionItemId(index: number): string {
   return `nutrition-item-${Date.now()}-${index + 1}`;
+}
+
+function resolveReviewFeedbackErrorMessage() {
+  return 'Nao conseguimos enviar sua revisao agora. Tente novamente em instantes.';
 }
