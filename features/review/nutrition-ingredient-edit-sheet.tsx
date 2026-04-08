@@ -5,10 +5,10 @@ import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { DraggableSheetModal } from '@/components/ui/draggable-sheet-modal';
 import { Brand, Radii, Spacing, Typography } from '@/constants/theme';
+import { ExploreMacroChip } from '@/features/explore/explore-macro-chip';
 import type { NutritionData } from '@/types/nutrition';
 import type {
   NutritionReviewDraftItem,
-  NutritionReviewItemStatus,
   NutritionReviewQuantityUnit,
 } from '@/types/review';
 
@@ -24,8 +24,8 @@ export type NutritionIngredientSheetDraft = Pick<
 type Props = {
   visible: boolean;
   mode: NutritionIngredientSheetMode;
+  currentItem: NutritionReviewDraftItem | null;
   draft: NutritionIngredientSheetDraft | null;
-  itemStatus: NutritionReviewItemStatus | null;
   manualSectionOpen: boolean;
   recalculationPreview: NutritionData | null;
   recalculationLookupLabel: string | null;
@@ -43,8 +43,8 @@ type Props = {
 export function NutritionIngredientEditSheet({
   visible,
   mode,
+  currentItem,
   draft,
-  itemStatus,
   manualSectionOpen,
   recalculationPreview,
   recalculationLookupLabel,
@@ -80,9 +80,13 @@ export function NutritionIngredientEditSheet({
             <Text style={s.subtitle}>{copy.subtitle}</Text>
           </View>
 
-          <View style={s.metaRow}>
-            {isAddMode ? <ModeBadge label="Novo item" /> : <StatusBadge status={itemStatus} />}
-          </View>
+          {currentItem ? <CurrentIngredientOverview item={currentItem} /> : null}
+
+          {isAddMode ? (
+            <View style={s.metaRow}>
+              <ModeBadge label="Novo item" />
+            </View>
+          ) : null}
 
           <View style={s.formCard}>
             <Text style={s.label}>Nome do alimento</Text>
@@ -310,30 +314,27 @@ function ModeBadge({ label }: { label: string }) {
   );
 }
 
-function StatusBadge({ status }: { status: NutritionReviewItemStatus | null }) {
-  const palette = resolveStatusPalette(status);
-
+function CurrentIngredientOverview({ item }: { item: NutritionReviewDraftItem }) {
   return (
-    <View style={[s.statusBadge, { backgroundColor: palette.bg }]}>
-      <Text style={[s.statusBadgeText, { color: palette.text }]}>{palette.label}</Text>
+    <View style={s.currentCard}>
+      <View style={s.currentCopy}>
+        <Text style={s.currentEyebrow}>Como esta agora</Text>
+        <Text style={s.currentName}>{item.name || 'Ingrediente sem nome'}</Text>
+        {item.quantityLabel ? (
+          <Text style={s.currentMeta}>{item.quantityLabel}</Text>
+        ) : (
+          <Text style={s.currentMeta}>Quantidade nao informada</Text>
+        )}
+      </View>
+
+      <View style={s.currentMacroRow}>
+        <ExploreMacroChip label="kcal" value={item.calories} color={Brand.greenDark} bg={Brand.positiveBg} />
+        <ExploreMacroChip label="prot" value={item.protein} color={Brand.hydration} bg={Brand.hydrationBg} />
+        <ExploreMacroChip label="carb" value={item.carbs} color={Brand.warning} bg={Brand.warningBg} />
+        <ExploreMacroChip label="gord" value={item.fat} color={Brand.fat} bg={Brand.fatBg} />
+      </View>
     </View>
   );
-}
-
-function resolveStatusPalette(status: NutritionReviewItemStatus | null) {
-  if (status === 'manual') {
-    return { label: 'Manual', bg: Brand.hydrationBg, text: Brand.hydration };
-  }
-
-  if (status === 'added') {
-    return { label: 'Adicionado', bg: Brand.positiveBg, text: Brand.greenDark };
-  }
-
-  if (status === 'recalculated') {
-    return { label: 'Recalculado', bg: Brand.warningBg, text: Brand.warning };
-  }
-
-  return { label: 'Automatico', bg: Brand.surfaceSoft, text: Brand.greenDark };
 }
 
 function PreviewMetric({
@@ -381,6 +382,36 @@ const s = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.xs,
   },
+  currentCard: {
+    borderRadius: Radii.xl,
+    backgroundColor: Brand.surfaceSoft,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  currentCopy: {
+    gap: 4,
+  },
+  currentEyebrow: {
+    ...Typography.caption,
+    color: Brand.greenDark,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  currentName: {
+    ...Typography.body,
+    color: Brand.text,
+    fontWeight: '800',
+  },
+  currentMeta: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+  },
+  currentMacroRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
   modeBadge: {
     borderRadius: Radii.pill,
     backgroundColor: Brand.positiveBg,
@@ -390,15 +421,6 @@ const s = StyleSheet.create({
   modeBadgeText: {
     ...Typography.caption,
     color: Brand.greenDark,
-    fontWeight: '800',
-  },
-  statusBadge: {
-    borderRadius: Radii.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  statusBadgeText: {
-    ...Typography.caption,
     fontWeight: '800',
   },
   formCard: {

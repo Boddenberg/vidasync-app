@@ -511,8 +511,8 @@ export function NutritionReviewEditor({
       <NutritionIngredientEditSheet
         visible={isIngredientSheetVisible}
         mode={ingredientSheet.mode ?? 'edit'}
+        currentItem={activeItem}
         draft={ingredientSheet.draft}
-        itemStatus={activeItem?.status ?? null}
         manualSectionOpen={ingredientSheet.manualSectionOpen}
         onClose={closeIngredientSheet}
         onChangeDraft={updateIngredientSheetDraft}
