@@ -220,10 +220,7 @@ export function NutritionIngredientEditSheet({
 
           {activeAdjustmentMode === 'manual' ? (
             <View style={s.formCard}>
-              <View style={s.manualToggleCopy}>
-                <Text style={s.manualToggleTitle}>Ajuste manual</Text>
-                <Text style={s.manualToggleSubtitle}>{copy.manualHint}</Text>
-              </View>
+              <ModeContentHeader title={copy.manualSectionTitle} subtitle={copy.manualSectionSubtitle} />
 
               <View style={s.manualBody}>
                 <View style={s.gridRow}>
@@ -274,7 +271,6 @@ export function NutritionIngredientEditSheet({
 
                 <AppButton
                   title={copy.manualActionTitle}
-                  variant="secondary"
                   onPress={onApplyManual}
                   disabled={!canApplyManual}
                 />
@@ -307,7 +303,9 @@ function resolveSheetCopy(mode: NutritionIngredientSheetMode) {
       applyPreviewTitle: 'Adicionar alimento',
       emptyPreviewHint:
         'Toque em "Calcular macros do alimento" para visualizar a estimativa antes de adicionar.',
-      manualHint: 'Preencha os macros se preferir adicionar o item manualmente.',
+      manualSectionTitle: 'Preencher manualmente',
+      manualSectionSubtitle:
+        'Informe calorias, proteina, carboidratos e gorduras para adicionar esse alimento manualmente.',
       manualActionTitle: 'Adicionar manualmente',
     };
   }
@@ -323,7 +321,9 @@ function resolveSheetCopy(mode: NutritionIngredientSheetMode) {
     applyPreviewTitle: 'Aplicar ajuste',
     emptyPreviewHint:
       'Toque em "Recalcular ingrediente" para comparar uma nova estimativa deste item.',
-    manualHint: 'Use so se quiser substituir os macros deste item.',
+    manualSectionTitle: 'Substituir com ajuste manual',
+    manualSectionSubtitle:
+      'Preencha os macros abaixo para salvar esse ingrediente com os valores informados por voce.',
     manualActionTitle: 'Aplicar ajuste manual',
   };
 }
@@ -638,19 +638,6 @@ const s = StyleSheet.create({
   previewErrorText: {
     ...Typography.helper,
     color: Brand.danger,
-  },
-  manualToggleCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  manualToggleTitle: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  manualToggleSubtitle: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
   },
   manualBody: {
     gap: Spacing.sm,
