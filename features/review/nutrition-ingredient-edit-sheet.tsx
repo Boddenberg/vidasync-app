@@ -5,6 +5,7 @@ import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { DraggableSheetModal } from '@/components/ui/draggable-sheet-modal';
 import { Brand, Radii, Spacing, Typography } from '@/constants/theme';
+import type { NutritionData } from '@/types/nutrition';
 import type {
   NutritionReviewDraftItem,
   NutritionReviewItemStatus,
@@ -24,10 +25,15 @@ type Props = {
   itemStatus: NutritionReviewItemStatus | null;
   warnings: string[];
   manualSectionOpen: boolean;
+  recalculationPreview: NutritionData | null;
+  recalculationLookupLabel: string | null;
+  recalculationLoading: boolean;
+  recalculationError: string | null;
   onClose: () => void;
   onChangeDraft: (patch: Partial<NutritionIngredientSheetDraft>) => void;
   onToggleManualSection: () => void;
   onRecalculate: () => void;
+  onApplyRecalculation: () => void;
   onApplyManual: () => void;
   onRemove: () => void;
 };
@@ -38,10 +44,15 @@ export function NutritionIngredientEditSheet({
   itemStatus,
   warnings,
   manualSectionOpen,
+  recalculationPreview,
+  recalculationLookupLabel,
+  recalculationLoading,
+  recalculationError,
   onClose,
   onChangeDraft,
   onToggleManualSection,
   onRecalculate,
+  onApplyRecalculation,
   onApplyManual,
   onRemove,
 }: Props) {
@@ -122,10 +133,75 @@ export function NutritionIngredientEditSheet({
           ) : null}
 
           <View style={s.primaryActionCard}>
-            <AppButton title="Recalcular ingrediente" onPress={onRecalculate} />
+            <AppButton
+              title="Recalcular ingrediente"
+              onPress={onRecalculate}
+              loading={recalculationLoading}
+              variant={recalculationPreview ? 'secondary' : 'primary'}
+            />
             <Text style={s.primaryActionHint}>
-              Nesta etapa, a acao salva a revisao local e deixa o item pronto para o proximo recalculo.
+              Consulte os macros atualizados deste ingrediente antes de aplicar na refeicao.
             </Text>
+          </View>
+
+          <View style={s.previewCard}>
+            <View style={s.previewHeader}>
+              <Text style={s.previewTitle}>Previa do novo resultado</Text>
+              {recalculationLookupLabel ? (
+                <Text style={s.previewLookupText}>{recalculationLookupLabel}</Text>
+              ) : (
+                <Text style={s.previewLookupText}>
+                  Revise o nome, a quantidade e a unidade para gerar a previa.
+                </Text>
+              )}
+            </View>
+
+            {recalculationLoading ? (
+              <View style={s.previewState}>
+                <Text style={s.previewStateText}>Recalculando macros do ingrediente...</Text>
+              </View>
+            ) : recalculationError ? (
+              <View style={s.previewFeedbackCard}>
+                <Text style={s.previewErrorText}>{recalculationError}</Text>
+              </View>
+            ) : recalculationPreview ? (
+              <View style={s.previewBody}>
+                <View style={s.previewGrid}>
+                  <PreviewMetric
+                    label="Calorias"
+                    value={recalculationPreview.calories}
+                    backgroundColor={Brand.positiveBg}
+                    textColor={Brand.greenDark}
+                  />
+                  <PreviewMetric
+                    label="Proteina"
+                    value={recalculationPreview.protein}
+                    backgroundColor={Brand.hydrationBg}
+                    textColor={Brand.hydration}
+                  />
+                  <PreviewMetric
+                    label="Carboidratos"
+                    value={recalculationPreview.carbs}
+                    backgroundColor={Brand.warningBg}
+                    textColor={Brand.warning}
+                  />
+                  <PreviewMetric
+                    label="Gorduras"
+                    value={recalculationPreview.fat}
+                    backgroundColor={Brand.fatBg}
+                    textColor={Brand.fat}
+                  />
+                </View>
+
+                <AppButton title="Aplicar ajuste" onPress={onApplyRecalculation} />
+              </View>
+            ) : (
+              <View style={s.previewState}>
+                <Text style={s.previewStateText}>
+                  Recalcule para visualizar calorias, proteina, carboidratos e gorduras antes de aplicar.
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={s.formCard}>
@@ -230,6 +306,25 @@ function resolveStatusPalette(status: NutritionReviewItemStatus | null) {
   }
 
   return { label: 'Automatico', bg: Brand.surfaceSoft, text: Brand.greenDark };
+}
+
+function PreviewMetric({
+  label,
+  value,
+  backgroundColor,
+  textColor,
+}: {
+  label: string;
+  value: string;
+  backgroundColor: string;
+  textColor: string;
+}) {
+  return (
+    <View style={[s.previewMetricCard, { backgroundColor }]}>
+      <Text style={[s.previewMetricLabel, { color: textColor }]}>{label}</Text>
+      <Text style={s.previewMetricValue}>{value}</Text>
+    </View>
+  );
 }
 
 const s = StyleSheet.create({
@@ -348,6 +443,72 @@ const s = StyleSheet.create({
     ...Typography.caption,
     color: Brand.textSecondary,
     lineHeight: 18,
+  },
+  previewCard: {
+    borderRadius: Radii.xl,
+    backgroundColor: Brand.surfaceSoft,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  previewHeader: {
+    gap: 4,
+  },
+  previewTitle: {
+    ...Typography.body,
+    color: Brand.text,
+    fontWeight: '800',
+  },
+  previewLookupText: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+  },
+  previewBody: {
+    gap: Spacing.sm,
+  },
+  previewGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  previewMetricCard: {
+    flexGrow: 1,
+    flexBasis: '47%',
+    minWidth: 128,
+    borderRadius: Radii.lg,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    gap: 4,
+  },
+  previewMetricLabel: {
+    ...Typography.caption,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  previewMetricValue: {
+    ...Typography.body,
+    color: Brand.text,
+    fontWeight: '800',
+  },
+  previewState: {
+    borderRadius: Radii.lg,
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    padding: Spacing.sm,
+  },
+  previewStateText: {
+    ...Typography.helper,
+    color: Brand.textSecondary,
+  },
+  previewFeedbackCard: {
+    borderRadius: Radii.lg,
+    backgroundColor: '#FFF0F0',
+    padding: Spacing.sm,
+  },
+  previewErrorText: {
+    ...Typography.helper,
+    color: Brand.danger,
   },
   manualToggleRow: {
     flexDirection: 'row',

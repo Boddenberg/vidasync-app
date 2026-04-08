@@ -15,7 +15,7 @@ import {
 import { useAsync } from '@/hooks/use-async';
 import { submitReviewAdjustments } from '@/services/review-feedback';
 import { clearReviewSession, getReviewSession } from '@/services/review-session';
-import type { NutritionCorrection } from '@/types/nutrition';
+import type { NutritionCorrection, NutritionData } from '@/types/nutrition';
 import type {
   NutritionReviewDraft,
   NutritionReviewDraftItemPatch,
@@ -23,7 +23,15 @@ import type {
   ReviewDraft,
 } from '@/types/review';
 import { formatIngredient } from '@/utils/helpers';
+import { sumNutritionData } from '@/utils/nutrition-math';
 import { buildReviewDraft, buildReviewSubmitPayload } from '@/utils/review';
+
+const EMPTY_NUTRITION_DATA: NutritionData = {
+  calories: '0 kcal',
+  protein: '0g',
+  carbs: '0g',
+  fat: '0g',
+};
 
 export default function AssistedReviewScreen() {
   const router = useRouter();
@@ -66,20 +74,23 @@ export default function AssistedReviewScreen() {
   function commitNutritionItem(itemId: string, patch: NutritionReviewDraftItemPatch) {
     setDraft((prev) => {
       if (!prev || prev.kind !== 'nutrition') return prev;
+      const nextItems = prev.items.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              ...patch,
+              quantityLabel: buildQuantityLabel(
+                patch.quantityValue ?? item.quantityValue,
+                patch.quantityUnit ?? item.quantityUnit,
+              ),
+            }
+          : item,
+      );
+
       return {
         ...prev,
-        items: prev.items.map((item) =>
-          item.id === itemId
-            ? {
-                ...item,
-                ...patch,
-                quantityLabel: buildQuantityLabel(
-                  patch.quantityValue ?? item.quantityValue,
-                  patch.quantityUnit ?? item.quantityUnit,
-                ),
-              }
-            : item,
-        ),
+        summary: buildNutritionSummaryFromItems(nextItems),
+        items: nextItems,
       };
     });
   }
@@ -87,9 +98,12 @@ export default function AssistedReviewScreen() {
   function removeNutritionItem(itemId: string) {
     setDraft((prev) => {
       if (!prev || prev.kind !== 'nutrition') return prev;
+      const nextItems = prev.items.filter((item) => item.id !== itemId);
+
       return {
         ...prev,
-        items: prev.items.filter((item) => item.id !== itemId),
+        summary: buildNutritionSummaryFromItems(nextItems),
+        items: nextItems,
       };
     });
   }
@@ -363,3 +377,16 @@ const s = StyleSheet.create({
     color: Brand.textSecondary,
   },
 });
+
+function buildNutritionSummaryFromItems(items: NutritionReviewDraft['items']): NutritionData {
+  return items.reduce(
+    (acc, item) =>
+      sumNutritionData(acc, {
+        calories: item.calories,
+        protein: item.protein,
+        carbs: item.carbs,
+        fat: item.fat,
+      }),
+    EMPTY_NUTRITION_DATA,
+  );
+}

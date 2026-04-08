@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image, Pressable, Text, View } from 'react-native';
 
 import { AppInput } from '@/components/app-input';
@@ -7,6 +7,7 @@ import { Brand } from '@/constants/theme';
 import { NutritionIngredientEditSheet, type NutritionIngredientSheetDraft } from '@/features/review/nutrition-ingredient-edit-sheet';
 import { s } from '@/features/review/review-editor-styles';
 import { buildQuantityLabel, buildRevealStyle, sourceLabel } from '@/features/review/review-utils';
+import { getNutrition } from '@/services/nutrition';
 import type { NutritionCorrection } from '@/types/nutrition';
 import type {
   NutritionReviewDraft,
@@ -14,6 +15,7 @@ import type {
   NutritionReviewDraftItemPatch,
   NutritionReviewItemStatus,
 } from '@/types/review';
+import { formatIngredient } from '@/utils/helpers';
 
 type Props = {
   draft: NutritionReviewDraft;
@@ -35,10 +37,29 @@ type IngredientEditorState = {
   manualSectionOpen: boolean;
 };
 
+type IngredientRecalculationState = {
+  loading: boolean;
+  preview: {
+    calories: string;
+    protein: string;
+    carbs: string;
+    fat: string;
+  } | null;
+  error: string | null;
+  lookupLabel: string | null;
+};
+
 const INITIAL_EDITOR_STATE: IngredientEditorState = {
   itemId: null,
   draft: null,
   manualSectionOpen: false,
+};
+
+const INITIAL_RECALCULATION_STATE: IngredientRecalculationState = {
+  loading: false,
+  preview: null,
+  error: null,
+  lookupLabel: null,
 };
 
 export function NutritionReviewEditor({
@@ -53,11 +74,19 @@ export function NutritionReviewEditor({
 }: Props) {
   const [showManualEditor, setShowManualEditor] = useState(false);
   const [ingredientEditor, setIngredientEditor] = useState<IngredientEditorState>(INITIAL_EDITOR_STATE);
+  const [ingredientRecalculation, setIngredientRecalculation] = useState<IngredientRecalculationState>(
+    INITIAL_RECALCULATION_STATE,
+  );
 
   const heroAnim = useRef(new Animated.Value(0)).current;
   const correctionAnim = useRef(new Animated.Value(0)).current;
   const itemsAnim = useRef(new Animated.Value(0)).current;
   const editorAnim = useRef(new Animated.Value(0)).current;
+  const ingredientRecalculationRequestRef = useRef(0);
+  const resetIngredientRecalculation = useCallback(() => {
+    ingredientRecalculationRequestRef.current += 1;
+    setIngredientRecalculation(INITIAL_RECALCULATION_STATE);
+  }, []);
 
   const activeItem = useMemo(
     () =>
@@ -98,11 +127,13 @@ export function NutritionReviewEditor({
 
   useEffect(() => {
     if (ingredientEditor.itemId && !activeItem) {
+      resetIngredientRecalculation();
       setIngredientEditor(INITIAL_EDITOR_STATE);
     }
-  }, [activeItem, ingredientEditor.itemId]);
+  }, [activeItem, ingredientEditor.itemId, resetIngredientRecalculation]);
 
   function openIngredientEditor(item: NutritionReviewDraftItem) {
+    resetIngredientRecalculation();
     setIngredientEditor({
       itemId: item.id,
       draft: buildIngredientSheetDraft(item),
@@ -111,10 +142,12 @@ export function NutritionReviewEditor({
   }
 
   function closeIngredientEditor() {
+    resetIngredientRecalculation();
     setIngredientEditor(INITIAL_EDITOR_STATE);
   }
 
   function updateIngredientEditorDraft(patch: Partial<NutritionIngredientSheetDraft>) {
+    resetIngredientRecalculation();
     setIngredientEditor((current) =>
       current.draft
         ? {
@@ -128,8 +161,53 @@ export function NutritionReviewEditor({
     );
   }
 
-  function handleRecalculateIngredient() {
-    if (!ingredientEditor.itemId || !ingredientEditor.draft) return;
+  async function handleRecalculateIngredient() {
+    if (!ingredientEditor.draft) return;
+
+    const lookupLabel = buildIngredientLookupLabel(ingredientEditor.draft);
+    if (!lookupLabel) {
+      setIngredientRecalculation({
+        loading: false,
+        preview: null,
+        error: 'Informe o nome do ingrediente para recalcular.',
+        lookupLabel: null,
+      });
+      return;
+    }
+
+    const requestId = ingredientRecalculationRequestRef.current + 1;
+    ingredientRecalculationRequestRef.current = requestId;
+    setIngredientRecalculation({
+      loading: true,
+      preview: null,
+      error: null,
+      lookupLabel,
+    });
+
+    try {
+      const preview = await getNutrition(lookupLabel);
+      if (ingredientRecalculationRequestRef.current !== requestId) return;
+
+      setIngredientRecalculation({
+        loading: false,
+        preview,
+        error: null,
+        lookupLabel,
+      });
+    } catch (error: any) {
+      if (ingredientRecalculationRequestRef.current !== requestId) return;
+
+      setIngredientRecalculation({
+        loading: false,
+        preview: null,
+        error: error?.message ?? 'Nao foi possivel recalcular este ingrediente agora.',
+        lookupLabel,
+      });
+    }
+  }
+
+  function handleApplyRecalculatedIngredient() {
+    if (!ingredientEditor.itemId || !ingredientEditor.draft || !ingredientRecalculation.preview) return;
 
     onCommitItem(ingredientEditor.itemId, {
       name: ingredientEditor.draft.name.trim(),
@@ -139,6 +217,11 @@ export function NutritionReviewEditor({
         ingredientEditor.draft.quantityValue,
         ingredientEditor.draft.quantityUnit,
       ),
+      calories: ingredientRecalculation.preview.calories,
+      protein: ingredientRecalculation.preview.protein,
+      carbs: ingredientRecalculation.preview.carbs,
+      fat: ingredientRecalculation.preview.fat,
+      status: 'recalculated',
     });
     closeIngredientEditor();
   }
@@ -398,7 +481,12 @@ export function NutritionReviewEditor({
             manualSectionOpen: !current.manualSectionOpen,
           }))
         }
+        recalculationPreview={ingredientRecalculation.preview}
+        recalculationLookupLabel={ingredientRecalculation.lookupLabel}
+        recalculationLoading={ingredientRecalculation.loading}
+        recalculationError={ingredientRecalculation.error}
         onRecalculate={handleRecalculateIngredient}
+        onApplyRecalculation={handleApplyRecalculatedIngredient}
         onApplyManual={handleApplyManualAdjustment}
         onRemove={handleRemoveIngredient}
       />
@@ -416,6 +504,20 @@ function buildIngredientSheetDraft(item: NutritionReviewDraftItem): NutritionIng
     carbs: item.carbs,
     fat: item.fat,
   };
+}
+
+function buildIngredientLookupLabel(draft: NutritionIngredientSheetDraft): string {
+  const name = draft.name.trim();
+  const quantityValue = draft.quantityValue.trim();
+
+  if (!name) return '';
+  if (!quantityValue) return name;
+
+  return formatIngredient({
+    name,
+    weight: quantityValue,
+    unit: draft.quantityUnit,
+  });
 }
 
 function InfoBadge({
