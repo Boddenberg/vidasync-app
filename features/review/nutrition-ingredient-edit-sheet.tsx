@@ -14,6 +14,8 @@ import type {
 
 const UNITS: NutritionReviewQuantityUnit[] = ['g', 'ml', 'un'];
 
+export type NutritionIngredientSheetMode = 'edit' | 'add';
+
 export type NutritionIngredientSheetDraft = Pick<
   NutritionReviewDraftItem,
   'name' | 'calories' | 'protein' | 'carbs' | 'fat' | 'quantityValue' | 'quantityUnit'
@@ -21,6 +23,7 @@ export type NutritionIngredientSheetDraft = Pick<
 
 type Props = {
   visible: boolean;
+  mode: NutritionIngredientSheetMode;
   draft: NutritionIngredientSheetDraft | null;
   itemStatus: NutritionReviewItemStatus | null;
   warnings: string[];
@@ -35,11 +38,12 @@ type Props = {
   onRecalculate: () => void;
   onApplyRecalculation: () => void;
   onApplyManual: () => void;
-  onRemove: () => void;
+  onRemove?: () => void;
 };
 
 export function NutritionIngredientEditSheet({
   visible,
+  mode,
   draft,
   itemStatus,
   warnings,
@@ -58,6 +62,14 @@ export function NutritionIngredientEditSheet({
 }: Props) {
   if (!draft) return null;
 
+  const isAddMode = mode === 'add';
+  const canRecalculate = draft.name.trim().length > 0;
+  const canApplyManual =
+    draft.name.trim().length > 0 &&
+    [draft.calories, draft.protein, draft.carbs, draft.fat].every((value) => value.trim().length > 0);
+
+  const copy = resolveSheetCopy(mode);
+
   return (
     <DraggableSheetModal visible={visible} onClose={onClose} sheetStyle={s.sheet}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -66,14 +78,12 @@ export function NutritionIngredientEditSheet({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           <View style={s.header}>
-            <Text style={s.title}>Editar ingrediente</Text>
-            <Text style={s.subtitle}>
-              Revise nome, quantidade e unidade antes de seguir.
-            </Text>
+            <Text style={s.title}>{copy.title}</Text>
+            <Text style={s.subtitle}>{copy.subtitle}</Text>
           </View>
 
           <View style={s.metaRow}>
-            <StatusBadge status={itemStatus} />
+            {isAddMode ? <ModeBadge label="Novo item" /> : <StatusBadge status={itemStatus} />}
             {warnings.length > 0 ? (
               <View style={s.warningCountBadge}>
                 <Ionicons name="alert-circle-outline" size={14} color={Brand.warning} />
@@ -134,14 +144,13 @@ export function NutritionIngredientEditSheet({
 
           <View style={s.primaryActionCard}>
             <AppButton
-              title="Recalcular ingrediente"
+              title={copy.recalculateActionTitle}
               onPress={onRecalculate}
               loading={recalculationLoading}
+              disabled={!canRecalculate}
               variant={recalculationPreview ? 'secondary' : 'primary'}
             />
-            <Text style={s.primaryActionHint}>
-              Consulte os macros atualizados deste ingrediente antes de aplicar na refeicao.
-            </Text>
+            <Text style={s.primaryActionHint}>{copy.recalculateHint}</Text>
           </View>
 
           <View style={s.previewCard}>
@@ -193,13 +202,11 @@ export function NutritionIngredientEditSheet({
                   />
                 </View>
 
-                <AppButton title="Aplicar ajuste" onPress={onApplyRecalculation} />
+                <AppButton title={copy.applyPreviewTitle} onPress={onApplyRecalculation} />
               </View>
             ) : (
               <View style={s.previewState}>
-                <Text style={s.previewStateText}>
-                  Recalcule para visualizar calorias, proteina, carboidratos e gorduras antes de aplicar.
-                </Text>
+                <Text style={s.previewStateText}>{copy.emptyPreviewHint}</Text>
               </View>
             )}
           </View>
@@ -208,9 +215,7 @@ export function NutritionIngredientEditSheet({
             <Pressable style={s.manualToggleRow} onPress={onToggleManualSection}>
               <View style={s.manualToggleCopy}>
                 <Text style={s.manualToggleTitle}>Ajuste manual</Text>
-                <Text style={s.manualToggleSubtitle}>
-                  Use so se quiser substituir os macros deste item.
-                </Text>
+                <Text style={s.manualToggleSubtitle}>{copy.manualHint}</Text>
               </View>
               <Ionicons
                 name={manualSectionOpen ? 'chevron-up-outline' : 'chevron-down-outline'}
@@ -267,18 +272,61 @@ export function NutritionIngredientEditSheet({
                   </View>
                 </View>
 
-                <AppButton title="Aplicar ajuste manual" variant="secondary" onPress={onApplyManual} />
+                <AppButton
+                  title={copy.manualActionTitle}
+                  variant="secondary"
+                  onPress={onApplyManual}
+                  disabled={!canApplyManual}
+                />
               </View>
             ) : null}
           </View>
 
-          <Pressable style={s.removeButton} onPress={onRemove}>
-            <Ionicons name="trash-outline" size={16} color={Brand.danger} />
-            <Text style={s.removeButtonText}>Remover ingrediente</Text>
-          </Pressable>
+          {onRemove ? (
+            <Pressable style={s.removeButton} onPress={onRemove}>
+              <Ionicons name="trash-outline" size={16} color={Brand.danger} />
+              <Text style={s.removeButtonText}>Remover ingrediente</Text>
+            </Pressable>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </DraggableSheetModal>
+  );
+}
+
+function resolveSheetCopy(mode: NutritionIngredientSheetMode) {
+  if (mode === 'add') {
+    return {
+      title: 'Adicionar alimento faltando',
+      subtitle: 'Inclua um item que nao apareceu na analise e revise os macros antes de adicionar.',
+      recalculateActionTitle: 'Calcular macros do alimento',
+      recalculateHint: 'Use a busca nutricional do app para preencher os macros deste novo item.',
+      applyPreviewTitle: 'Adicionar alimento',
+      emptyPreviewHint:
+        'Calcule para visualizar calorias, proteina, carboidratos e gorduras antes de adicionar.',
+      manualHint: 'Preencha os macros se preferir adicionar o item manualmente.',
+      manualActionTitle: 'Adicionar manualmente',
+    };
+  }
+
+  return {
+    title: 'Editar ingrediente',
+    subtitle: 'Revise nome, quantidade e unidade antes de seguir.',
+    recalculateActionTitle: 'Recalcular ingrediente',
+    recalculateHint: 'Consulte os macros atualizados deste ingrediente antes de aplicar na refeicao.',
+    applyPreviewTitle: 'Aplicar ajuste',
+    emptyPreviewHint:
+      'Recalcule para visualizar calorias, proteina, carboidratos e gorduras antes de aplicar.',
+    manualHint: 'Use so se quiser substituir os macros deste item.',
+    manualActionTitle: 'Aplicar ajuste manual',
+  };
+}
+
+function ModeBadge({ label }: { label: string }) {
+  return (
+    <View style={s.modeBadge}>
+      <Text style={s.modeBadgeText}>{label}</Text>
+    </View>
   );
 }
 
@@ -352,6 +400,17 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.xs,
+  },
+  modeBadge: {
+    borderRadius: Radii.pill,
+    backgroundColor: Brand.positiveBg,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  modeBadgeText: {
+    ...Typography.caption,
+    color: Brand.greenDark,
+    fontWeight: '800',
   },
   statusBadge: {
     borderRadius: Radii.pill,

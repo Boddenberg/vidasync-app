@@ -18,6 +18,7 @@ import { clearReviewSession, getReviewSession } from '@/services/review-session'
 import type { NutritionCorrection, NutritionData } from '@/types/nutrition';
 import type {
   NutritionReviewDraft,
+  NutritionReviewDraftItemInput,
   NutritionReviewDraftItemPatch,
   PlanReviewDraft,
   ReviewDraft,
@@ -99,6 +100,26 @@ export default function AssistedReviewScreen() {
     setDraft((prev) => {
       if (!prev || prev.kind !== 'nutrition') return prev;
       const nextItems = prev.items.filter((item) => item.id !== itemId);
+
+      return {
+        ...prev,
+        summary: buildNutritionSummaryFromItems(nextItems),
+        items: nextItems,
+      };
+    });
+  }
+
+  function addNutritionItem(item: NutritionReviewDraftItemInput) {
+    setDraft((prev) => {
+      if (!prev || prev.kind !== 'nutrition') return prev;
+      const nextItems = [
+        ...prev.items,
+        {
+          ...item,
+          id: buildNutritionItemId(prev.items.length),
+          quantityLabel: buildQuantityLabel(item.quantityValue, item.quantityUnit),
+        },
+      ];
 
       return {
         ...prev,
@@ -202,6 +223,7 @@ export default function AssistedReviewScreen() {
             corrections={nutritionContext.corrections as NutritionCorrection[]}
             onChangeSummary={updateNutritionSummary}
             onCommitItem={commitNutritionItem}
+            onAddItem={addNutritionItem}
             onRemoveItem={removeNutritionItem}
           />
         ) : null}
@@ -216,7 +238,10 @@ export default function AssistedReviewScreen() {
         ) : null}
 
         <View style={s.card}>
-          <Text style={s.sectionTitle}>Quer acrescentar algo?</Text>
+          <Text style={s.sectionTitle}>Observacao opcional</Text>
+          <Text style={s.sectionHint}>
+            Conte, por exemplo, se havia um molho, bebida ou item ao fundo que nao apareceu na analise.
+          </Text>
           <TextInput
             value={draft.observation}
             onChangeText={updateObservation}
@@ -266,10 +291,10 @@ export default function AssistedReviewScreen() {
       <View style={s.footer}>
         <View style={s.footerRow}>
           <View style={s.footerButton}>
-            <AppButton title="Tudo certo" onPress={closeReview} />
+            <AppButton title="Enviar revisao" onPress={handleResend} loading={resend.loading} variant="secondary" />
           </View>
           <View style={s.footerButton}>
-            <AppButton title="Enviar ajustes" onPress={handleResend} loading={resend.loading} />
+            <AppButton title="Confirmar refeicao" onPress={closeReview} />
           </View>
         </View>
       </View>
@@ -309,6 +334,11 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Brand.text,
+  },
+  sectionHint: {
+    fontSize: 13,
+    color: Brand.textSecondary,
+    lineHeight: 19,
   },
   multiInput: {
     minHeight: 130,
@@ -389,4 +419,8 @@ function buildNutritionSummaryFromItems(items: NutritionReviewDraft['items']): N
       }),
     EMPTY_NUTRITION_DATA,
   );
+}
+
+function buildNutritionItemId(index: number): string {
+  return `nutrition-item-${Date.now()}-${index + 1}`;
 }

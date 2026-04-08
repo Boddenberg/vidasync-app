@@ -1,17 +1,23 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image, Pressable, Text, View } from 'react-native';
+import { Alert, Animated, Easing, Image, Pressable, Text, View } from 'react-native';
 
+import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { Brand } from '@/constants/theme';
-import { NutritionIngredientEditSheet, type NutritionIngredientSheetDraft } from '@/features/review/nutrition-ingredient-edit-sheet';
+import {
+  NutritionIngredientEditSheet,
+  type NutritionIngredientSheetDraft,
+  type NutritionIngredientSheetMode,
+} from '@/features/review/nutrition-ingredient-edit-sheet';
 import { s } from '@/features/review/review-editor-styles';
 import { buildQuantityLabel, buildRevealStyle, sourceLabel } from '@/features/review/review-utils';
 import { getNutrition } from '@/services/nutrition';
-import type { NutritionCorrection } from '@/types/nutrition';
+import type { NutritionCorrection, NutritionData } from '@/types/nutrition';
 import type {
   NutritionReviewDraft,
   NutritionReviewDraftItem,
+  NutritionReviewDraftItemInput,
   NutritionReviewDraftItemPatch,
   NutritionReviewItemStatus,
 } from '@/types/review';
@@ -28,10 +34,12 @@ type Props = {
     value: string,
   ) => void;
   onCommitItem: (itemId: string, patch: NutritionReviewDraftItemPatch) => void;
+  onAddItem: (item: NutritionReviewDraftItemInput) => void;
   onRemoveItem: (itemId: string) => void;
 };
 
-type IngredientEditorState = {
+type IngredientSheetState = {
+  mode: NutritionIngredientSheetMode | null;
   itemId: string | null;
   draft: NutritionIngredientSheetDraft | null;
   manualSectionOpen: boolean;
@@ -39,17 +47,13 @@ type IngredientEditorState = {
 
 type IngredientRecalculationState = {
   loading: boolean;
-  preview: {
-    calories: string;
-    protein: string;
-    carbs: string;
-    fat: string;
-  } | null;
+  preview: NutritionData | null;
   error: string | null;
   lookupLabel: string | null;
 };
 
-const INITIAL_EDITOR_STATE: IngredientEditorState = {
+const INITIAL_SHEET_STATE: IngredientSheetState = {
+  mode: null,
   itemId: null,
   draft: null,
   manualSectionOpen: false,
@@ -70,10 +74,11 @@ export function NutritionReviewEditor({
   corrections,
   onChangeSummary,
   onCommitItem,
+  onAddItem,
   onRemoveItem,
 }: Props) {
   const [showManualEditor, setShowManualEditor] = useState(false);
-  const [ingredientEditor, setIngredientEditor] = useState<IngredientEditorState>(INITIAL_EDITOR_STATE);
+  const [ingredientSheet, setIngredientSheet] = useState<IngredientSheetState>(INITIAL_SHEET_STATE);
   const [ingredientRecalculation, setIngredientRecalculation] = useState<IngredientRecalculationState>(
     INITIAL_RECALCULATION_STATE,
   );
@@ -90,12 +95,12 @@ export function NutritionReviewEditor({
 
   const activeItem = useMemo(
     () =>
-      ingredientEditor.itemId
-        ? draft.items.find((item) => item.id === ingredientEditor.itemId) ?? null
+      ingredientSheet.mode === 'edit' && ingredientSheet.itemId
+        ? draft.items.find((item) => item.id === ingredientSheet.itemId) ?? null
         : null,
-    [draft.items, ingredientEditor.itemId],
+    [draft.items, ingredientSheet.itemId, ingredientSheet.mode],
   );
-  const isIngredientSheetVisible = ingredientEditor.itemId != null && ingredientEditor.draft != null;
+  const isIngredientSheetVisible = ingredientSheet.mode != null && ingredientSheet.draft != null;
 
   useEffect(() => {
     const sequence = [heroAnim, correctionAnim, itemsAnim, editorAnim];
@@ -126,29 +131,40 @@ export function NutritionReviewEditor({
   ]);
 
   useEffect(() => {
-    if (ingredientEditor.itemId && !activeItem) {
+    if (ingredientSheet.mode === 'edit' && ingredientSheet.itemId && !activeItem) {
       resetIngredientRecalculation();
-      setIngredientEditor(INITIAL_EDITOR_STATE);
+      setIngredientSheet(INITIAL_SHEET_STATE);
     }
-  }, [activeItem, ingredientEditor.itemId, resetIngredientRecalculation]);
+  }, [activeItem, ingredientSheet.itemId, ingredientSheet.mode, resetIngredientRecalculation]);
 
   function openIngredientEditor(item: NutritionReviewDraftItem) {
     resetIngredientRecalculation();
-    setIngredientEditor({
+    setIngredientSheet({
+      mode: 'edit',
       itemId: item.id,
       draft: buildIngredientSheetDraft(item),
       manualSectionOpen: false,
     });
   }
 
-  function closeIngredientEditor() {
+  function openAddIngredientSheet() {
     resetIngredientRecalculation();
-    setIngredientEditor(INITIAL_EDITOR_STATE);
+    setIngredientSheet({
+      mode: 'add',
+      itemId: null,
+      draft: buildEmptyIngredientSheetDraft(),
+      manualSectionOpen: false,
+    });
   }
 
-  function updateIngredientEditorDraft(patch: Partial<NutritionIngredientSheetDraft>) {
+  function closeIngredientSheet() {
     resetIngredientRecalculation();
-    setIngredientEditor((current) =>
+    setIngredientSheet(INITIAL_SHEET_STATE);
+  }
+
+  function updateIngredientSheetDraft(patch: Partial<NutritionIngredientSheetDraft>) {
+    resetIngredientRecalculation();
+    setIngredientSheet((current) =>
       current.draft
         ? {
             ...current,
@@ -162,9 +178,9 @@ export function NutritionReviewEditor({
   }
 
   async function handleRecalculateIngredient() {
-    if (!ingredientEditor.draft) return;
+    if (!ingredientSheet.draft) return;
 
-    const lookupLabel = buildIngredientLookupLabel(ingredientEditor.draft);
+    const lookupLabel = buildIngredientLookupLabel(ingredientSheet.draft);
     if (!lookupLabel) {
       setIngredientRecalculation({
         loading: false,
@@ -207,50 +223,66 @@ export function NutritionReviewEditor({
   }
 
   function handleApplyRecalculatedIngredient() {
-    if (!ingredientEditor.itemId || !ingredientEditor.draft || !ingredientRecalculation.preview) return;
+    if (!ingredientSheet.mode || !ingredientSheet.draft || !ingredientRecalculation.preview) return;
 
-    onCommitItem(ingredientEditor.itemId, {
-      name: ingredientEditor.draft.name.trim(),
-      quantityValue: ingredientEditor.draft.quantityValue.trim(),
-      quantityUnit: ingredientEditor.draft.quantityUnit,
-      quantityLabel: buildQuantityLabel(
-        ingredientEditor.draft.quantityValue,
-        ingredientEditor.draft.quantityUnit,
-      ),
+    if (ingredientSheet.mode === 'add') {
+      onAddItem(buildIngredientInput(ingredientSheet.draft, ingredientRecalculation.preview, 'added'));
+      closeIngredientSheet();
+      return;
+    }
+
+    if (!ingredientSheet.itemId) return;
+
+    onCommitItem(ingredientSheet.itemId, {
+      ...buildIngredientPatch(ingredientSheet.draft),
       calories: ingredientRecalculation.preview.calories,
       protein: ingredientRecalculation.preview.protein,
       carbs: ingredientRecalculation.preview.carbs,
       fat: ingredientRecalculation.preview.fat,
       status: 'recalculated',
     });
-    closeIngredientEditor();
+    closeIngredientSheet();
   }
 
   function handleApplyManualAdjustment() {
-    if (!ingredientEditor.itemId || !ingredientEditor.draft) return;
+    if (!ingredientSheet.mode || !ingredientSheet.draft || !ingredientSheet.draft.name.trim()) return;
 
-    onCommitItem(ingredientEditor.itemId, {
-      name: ingredientEditor.draft.name.trim(),
-      quantityValue: ingredientEditor.draft.quantityValue.trim(),
-      quantityUnit: ingredientEditor.draft.quantityUnit,
-      quantityLabel: buildQuantityLabel(
-        ingredientEditor.draft.quantityValue,
-        ingredientEditor.draft.quantityUnit,
-      ),
-      calories: ingredientEditor.draft.calories.trim(),
-      protein: ingredientEditor.draft.protein.trim(),
-      carbs: ingredientEditor.draft.carbs.trim(),
-      fat: ingredientEditor.draft.fat.trim(),
+    const manualNutrition = buildManualNutritionDataFromDraft(ingredientSheet.draft);
+
+    if (ingredientSheet.mode === 'add') {
+      onAddItem(buildIngredientInput(ingredientSheet.draft, manualNutrition, 'added'));
+      closeIngredientSheet();
+      return;
+    }
+
+    if (!ingredientSheet.itemId) return;
+
+    onCommitItem(ingredientSheet.itemId, {
+      ...buildIngredientPatch(ingredientSheet.draft),
+      calories: manualNutrition.calories,
+      protein: manualNutrition.protein,
+      carbs: manualNutrition.carbs,
+      fat: manualNutrition.fat,
       status: 'manual',
     });
-    closeIngredientEditor();
+    closeIngredientSheet();
   }
 
   function handleRemoveIngredient() {
-    if (!ingredientEditor.itemId) return;
-    const itemId = ingredientEditor.itemId;
-    closeIngredientEditor();
-    onRemoveItem(itemId);
+    if (ingredientSheet.mode !== 'edit' || !ingredientSheet.itemId) return;
+
+    const itemId = ingredientSheet.itemId;
+    Alert.alert('Remover ingrediente?', 'Esse item sera removido da refeicao revisada.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Remover',
+        style: 'destructive',
+        onPress: () => {
+          closeIngredientSheet();
+          onRemoveItem(itemId);
+        },
+      },
+    ]);
   }
 
   return (
@@ -404,79 +436,89 @@ export function NutritionReviewEditor({
             Nesta leitura recebemos apenas o resumo geral, sem separacao por itens.
           </Text>
         )}
-      </Animated.View>
 
-      <Animated.View style={[s.reviewCard, buildRevealStyle(editorAnim)]}>
-        <View style={s.sectionHeaderRow}>
-          <View style={s.sectionCopy}>
-            <Text style={s.sectionTitle}>Ajustes rapidos</Text>
-            <Text style={s.sectionHint}>
-              Ajuste apenas o resumo total agora. A edicao por ingrediente fica dentro do sheet.
-            </Text>
-          </View>
-
-          <Pressable style={s.manualToggleButton} onPress={() => setShowManualEditor((current) => !current)}>
-            <Text style={s.manualToggleText}>{showManualEditor ? 'Ocultar' : 'Ajustar totais'}</Text>
-          </Pressable>
-        </View>
-
-        {showManualEditor ? (
-          <View style={s.manualEditorBody}>
-            <View style={s.gridRow}>
-              <View style={s.gridCell}>
-                <Text style={s.inputLabel}>Calorias</Text>
-                <AppInput
-                  value={draft.summary.calories}
-                  onChangeText={(value) => onChangeSummary('calories', value)}
-                  placeholder="0 kcal"
-                />
-              </View>
-              <View style={s.gridCell}>
-                <Text style={s.inputLabel}>Proteina</Text>
-                <AppInput
-                  value={draft.summary.protein}
-                  onChangeText={(value) => onChangeSummary('protein', value)}
-                  placeholder="0 g"
-                />
-              </View>
-            </View>
-
-            <View style={s.gridRow}>
-              <View style={s.gridCell}>
-                <Text style={s.inputLabel}>Carboidratos</Text>
-                <AppInput
-                  value={draft.summary.carbs}
-                  onChangeText={(value) => onChangeSummary('carbs', value)}
-                  placeholder="0 g"
-                />
-              </View>
-              <View style={s.gridCell}>
-                <Text style={s.inputLabel}>Gorduras</Text>
-                <AppInput
-                  value={draft.summary.fat}
-                  onChangeText={(value) => onChangeSummary('fat', value)}
-                  placeholder="0 g"
-                />
-              </View>
-            </View>
-          </View>
-        ) : (
+        <View style={s.manualEditorBody}>
           <Text style={s.manualHint}>
-            Use esta opcao apenas se quiser corrigir os totais antes do reenvio.
+            Nao encontrou tudo? Adicione um alimento faltando sem sair desta revisao.
           </Text>
-        )}
+          <AppButton title="Adicionar alimento faltando" variant="secondary" onPress={openAddIngredientSheet} />
+        </View>
       </Animated.View>
+
+      {draft.items.length === 0 ? (
+        <Animated.View style={[s.reviewCard, buildRevealStyle(editorAnim)]}>
+          <View style={s.sectionHeaderRow}>
+            <View style={s.sectionCopy}>
+              <Text style={s.sectionTitle}>Ajustes rapidos</Text>
+              <Text style={s.sectionHint}>
+                Como nao recebemos os itens separados, ajuste o resumo manualmente se precisar.
+              </Text>
+            </View>
+
+            <Pressable style={s.manualToggleButton} onPress={() => setShowManualEditor((current) => !current)}>
+              <Text style={s.manualToggleText}>{showManualEditor ? 'Ocultar' : 'Ajustar totais'}</Text>
+            </Pressable>
+          </View>
+
+          {showManualEditor ? (
+            <View style={s.manualEditorBody}>
+              <View style={s.gridRow}>
+                <View style={s.gridCell}>
+                  <Text style={s.inputLabel}>Calorias</Text>
+                  <AppInput
+                    value={draft.summary.calories}
+                    onChangeText={(value) => onChangeSummary('calories', value)}
+                    placeholder="0 kcal"
+                  />
+                </View>
+                <View style={s.gridCell}>
+                  <Text style={s.inputLabel}>Proteina</Text>
+                  <AppInput
+                    value={draft.summary.protein}
+                    onChangeText={(value) => onChangeSummary('protein', value)}
+                    placeholder="0 g"
+                  />
+                </View>
+              </View>
+
+              <View style={s.gridRow}>
+                <View style={s.gridCell}>
+                  <Text style={s.inputLabel}>Carboidratos</Text>
+                  <AppInput
+                    value={draft.summary.carbs}
+                    onChangeText={(value) => onChangeSummary('carbs', value)}
+                    placeholder="0 g"
+                  />
+                </View>
+                <View style={s.gridCell}>
+                  <Text style={s.inputLabel}>Gorduras</Text>
+                  <AppInput
+                    value={draft.summary.fat}
+                    onChangeText={(value) => onChangeSummary('fat', value)}
+                    placeholder="0 g"
+                  />
+                </View>
+              </View>
+            </View>
+          ) : (
+            <Text style={s.manualHint}>
+              Use esta opcao apenas se quiser corrigir o resumo final sem ingredientes separados.
+            </Text>
+          )}
+        </Animated.View>
+      ) : null}
 
       <NutritionIngredientEditSheet
         visible={isIngredientSheetVisible}
-        draft={ingredientEditor.draft}
+        mode={ingredientSheet.mode ?? 'edit'}
+        draft={ingredientSheet.draft}
         itemStatus={activeItem?.status ?? null}
-        warnings={activeItem?.warnings ?? []}
-        manualSectionOpen={ingredientEditor.manualSectionOpen}
-        onClose={closeIngredientEditor}
-        onChangeDraft={updateIngredientEditorDraft}
+        warnings={ingredientSheet.mode === 'edit' ? activeItem?.warnings ?? [] : []}
+        manualSectionOpen={ingredientSheet.manualSectionOpen}
+        onClose={closeIngredientSheet}
+        onChangeDraft={updateIngredientSheetDraft}
         onToggleManualSection={() =>
-          setIngredientEditor((current) => ({
+          setIngredientSheet((current) => ({
             ...current,
             manualSectionOpen: !current.manualSectionOpen,
           }))
@@ -488,7 +530,7 @@ export function NutritionReviewEditor({
         onRecalculate={handleRecalculateIngredient}
         onApplyRecalculation={handleApplyRecalculatedIngredient}
         onApplyManual={handleApplyManualAdjustment}
-        onRemove={handleRemoveIngredient}
+        onRemove={ingredientSheet.mode === 'edit' ? handleRemoveIngredient : undefined}
       />
     </>
   );
@@ -506,6 +548,18 @@ function buildIngredientSheetDraft(item: NutritionReviewDraftItem): NutritionIng
   };
 }
 
+function buildEmptyIngredientSheetDraft(): NutritionIngredientSheetDraft {
+  return {
+    name: '',
+    quantityValue: '',
+    quantityUnit: 'g',
+    calories: '',
+    protein: '',
+    carbs: '',
+    fat: '',
+  };
+}
+
 function buildIngredientLookupLabel(draft: NutritionIngredientSheetDraft): string {
   const name = draft.name.trim();
   const quantityValue = draft.quantityValue.trim();
@@ -518,6 +572,50 @@ function buildIngredientLookupLabel(draft: NutritionIngredientSheetDraft): strin
     weight: quantityValue,
     unit: draft.quantityUnit,
   });
+}
+
+function buildIngredientPatch(draft: NutritionIngredientSheetDraft): NutritionReviewDraftItemPatch {
+  return {
+    name: draft.name.trim(),
+    quantityValue: draft.quantityValue.trim(),
+    quantityUnit: draft.quantityUnit,
+    quantityLabel: buildQuantityLabel(draft.quantityValue, draft.quantityUnit),
+  };
+}
+
+function buildIngredientInput(
+  draft: NutritionIngredientSheetDraft,
+  nutrition: NutritionData,
+  status: NutritionReviewItemStatus,
+): NutritionReviewDraftItemInput {
+  return {
+    name: draft.name.trim(),
+    quantityValue: draft.quantityValue.trim(),
+    quantityUnit: draft.quantityUnit,
+    quantityLabel: buildQuantityLabel(draft.quantityValue, draft.quantityUnit),
+    calories: nutrition.calories,
+    protein: nutrition.protein,
+    carbs: nutrition.carbs,
+    fat: nutrition.fat,
+    status,
+    precisaRevisao: false,
+    warnings: [],
+  };
+}
+
+function buildManualNutritionDataFromDraft(draft: NutritionIngredientSheetDraft): NutritionData {
+  return {
+    calories: normalizeNutritionValue(draft.calories, 'kcal'),
+    protein: normalizeNutritionValue(draft.protein, 'g'),
+    carbs: normalizeNutritionValue(draft.carbs, 'g'),
+    fat: normalizeNutritionValue(draft.fat, 'g'),
+  };
+}
+
+function normalizeNutritionValue(value: string, unit: 'kcal' | 'g'): string {
+  const trimmed = value.trim();
+  if (trimmed.length > 0) return trimmed;
+  return unit === 'kcal' ? '0 kcal' : '0 g';
 }
 
 function InfoBadge({

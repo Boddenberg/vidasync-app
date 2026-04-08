@@ -38,6 +38,8 @@ export type NutritionReviewDraftItem = {
   warnings: string[];
 };
 
+export type NutritionReviewDraftItemInput = Omit<NutritionReviewDraftItem, 'id'>;
+
 export type NutritionReviewDraftItemPatch = Partial<
   Pick<
     NutritionReviewDraftItem,
