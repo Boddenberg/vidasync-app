@@ -6,6 +6,7 @@ import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { Brand } from '@/constants/theme';
 import {
+  type NutritionIngredientAdjustmentMode,
   NutritionIngredientEditSheet,
   type NutritionIngredientSheetDraft,
   type NutritionIngredientSheetMode,
@@ -42,7 +43,7 @@ type IngredientSheetState = {
   mode: NutritionIngredientSheetMode | null;
   itemId: string | null;
   draft: NutritionIngredientSheetDraft | null;
-  manualSectionOpen: boolean;
+  activeAdjustmentMode: NutritionIngredientAdjustmentMode;
 };
 
 type IngredientRecalculationState = {
@@ -56,7 +57,7 @@ const INITIAL_SHEET_STATE: IngredientSheetState = {
   mode: null,
   itemId: null,
   draft: null,
-  manualSectionOpen: false,
+  activeAdjustmentMode: 'recalculate',
 };
 
 const INITIAL_RECALCULATION_STATE: IngredientRecalculationState = {
@@ -143,7 +144,7 @@ export function NutritionReviewEditor({
       mode: 'edit',
       itemId: item.id,
       draft: buildIngredientSheetDraft(item),
-      manualSectionOpen: false,
+      activeAdjustmentMode: 'recalculate',
     });
   }
 
@@ -153,7 +154,7 @@ export function NutritionReviewEditor({
       mode: 'add',
       itemId: null,
       draft: buildEmptyIngredientSheetDraft(),
-      manualSectionOpen: false,
+      activeAdjustmentMode: 'recalculate',
     });
   }
 
@@ -513,15 +514,16 @@ export function NutritionReviewEditor({
         mode={ingredientSheet.mode ?? 'edit'}
         currentItem={activeItem}
         draft={ingredientSheet.draft}
-        manualSectionOpen={ingredientSheet.manualSectionOpen}
+        activeAdjustmentMode={ingredientSheet.activeAdjustmentMode}
         onClose={closeIngredientSheet}
         onChangeDraft={updateIngredientSheetDraft}
-        onToggleManualSection={() =>
+        onChangeAdjustmentMode={(activeAdjustmentMode) => {
+          resetIngredientRecalculation();
           setIngredientSheet((current) => ({
             ...current,
-            manualSectionOpen: !current.manualSectionOpen,
-          }))
-        }
+            activeAdjustmentMode,
+          }));
+        }}
         recalculationPreview={ingredientRecalculation.preview}
         recalculationLookupLabel={ingredientRecalculation.lookupLabel}
         recalculationLoading={ingredientRecalculation.loading}

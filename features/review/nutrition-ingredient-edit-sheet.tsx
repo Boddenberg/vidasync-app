@@ -15,6 +15,7 @@ import type {
 const UNITS: NutritionReviewQuantityUnit[] = ['g', 'ml', 'un'];
 
 export type NutritionIngredientSheetMode = 'edit' | 'add';
+export type NutritionIngredientAdjustmentMode = 'recalculate' | 'manual';
 
 export type NutritionIngredientSheetDraft = Pick<
   NutritionReviewDraftItem,
@@ -26,14 +27,14 @@ type Props = {
   mode: NutritionIngredientSheetMode;
   currentItem: NutritionReviewDraftItem | null;
   draft: NutritionIngredientSheetDraft | null;
-  manualSectionOpen: boolean;
+  activeAdjustmentMode: NutritionIngredientAdjustmentMode;
   recalculationPreview: NutritionData | null;
   recalculationLookupLabel: string | null;
   recalculationLoading: boolean;
   recalculationError: string | null;
   onClose: () => void;
   onChangeDraft: (patch: Partial<NutritionIngredientSheetDraft>) => void;
-  onToggleManualSection: () => void;
+  onChangeAdjustmentMode: (mode: NutritionIngredientAdjustmentMode) => void;
   onRecalculate: () => void;
   onApplyRecalculation: () => void;
   onApplyManual: () => void;
@@ -45,14 +46,14 @@ export function NutritionIngredientEditSheet({
   mode,
   currentItem,
   draft,
-  manualSectionOpen,
+  activeAdjustmentMode,
   recalculationPreview,
   recalculationLookupLabel,
   recalculationLoading,
   recalculationError,
   onClose,
   onChangeDraft,
-  onToggleManualSection,
+  onChangeAdjustmentMode,
   onRecalculate,
   onApplyRecalculation,
   onApplyManual,
@@ -88,127 +89,137 @@ export function NutritionIngredientEditSheet({
             </View>
           ) : null}
 
-          <View style={s.formCard}>
-            <Text style={s.label}>Nome do alimento</Text>
-            <AppInput
-              placeholder="Ex.: arroz branco"
-              value={draft.name}
-              onChangeText={(value) => onChangeDraft({ name: value })}
-              maxLength={60}
+          <View style={s.modeSwitchRow}>
+            <ModeSwitchButton
+              label="Recalcular"
+              active={activeAdjustmentMode === 'recalculate'}
+              onPress={() => onChangeAdjustmentMode('recalculate')}
             />
+            <ModeSwitchButton
+              label="Manual"
+              active={activeAdjustmentMode === 'manual'}
+              onPress={() => onChangeAdjustmentMode('manual')}
+            />
+          </View>
 
-            <Text style={s.label}>Quantidade</Text>
-            <View style={s.quantityRow}>
-              <View style={s.quantityInputWrap}>
+          {activeAdjustmentMode === 'recalculate' ? (
+            <>
+              <View style={s.formCard}>
+                <Text style={s.label}>Nome do alimento</Text>
                 <AppInput
-                  placeholder="Qtd."
-                  value={draft.quantityValue}
-                  onChangeText={(value) =>
-                    onChangeDraft({ quantityValue: value.replace(/[^0-9.,]/g, '') })
-                  }
-                  keyboardType="numeric"
-                  maxLength={7}
+                  placeholder="Ex.: arroz branco"
+                  value={draft.name}
+                  onChangeText={(value) => onChangeDraft({ name: value })}
+                  maxLength={60}
                 />
+
+                <Text style={s.label}>Quantidade</Text>
+                <View style={s.quantityRow}>
+                  <View style={s.quantityInputWrap}>
+                    <AppInput
+                      placeholder="Qtd."
+                      value={draft.quantityValue}
+                      onChangeText={(value) =>
+                        onChangeDraft({ quantityValue: value.replace(/[^0-9.,]/g, '') })
+                      }
+                      keyboardType="numeric"
+                      maxLength={7}
+                    />
+                  </View>
+
+                  <View style={s.unitRow}>
+                    {UNITS.map((unit) => (
+                      <Pressable
+                        key={unit}
+                        style={[s.unitBtn, draft.quantityUnit === unit && s.unitBtnActive]}
+                        onPress={() => onChangeDraft({ quantityUnit: unit })}>
+                        <Text style={[s.unitText, draft.quantityUnit === unit && s.unitTextActive]}>
+                          {unit}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
               </View>
 
-              <View style={s.unitRow}>
-                {UNITS.map((unit) => (
-                  <Pressable
-                    key={unit}
-                    style={[s.unitBtn, draft.quantityUnit === unit && s.unitBtnActive]}
-                    onPress={() => onChangeDraft({ quantityUnit: unit })}>
-                    <Text style={[s.unitText, draft.quantityUnit === unit && s.unitTextActive]}>
-                      {unit}
+              <View style={s.primaryActionCard}>
+                <AppButton
+                  title={copy.recalculateActionTitle}
+                  onPress={onRecalculate}
+                  loading={recalculationLoading}
+                  disabled={!canRecalculate}
+                  variant={recalculationPreview ? 'secondary' : 'primary'}
+                />
+                <Text style={s.primaryActionHint}>{copy.recalculateHint}</Text>
+              </View>
+
+              <View style={s.previewCard}>
+                <View style={s.previewHeader}>
+                  <Text style={s.previewTitle}>Previa do novo resultado</Text>
+                  {recalculationLookupLabel ? (
+                    <Text style={s.previewLookupText}>{recalculationLookupLabel}</Text>
+                  ) : (
+                    <Text style={s.previewLookupText}>
+                      Revise o nome, a quantidade e a unidade para gerar a previa.
                     </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          </View>
-
-          <View style={s.primaryActionCard}>
-            <AppButton
-              title={copy.recalculateActionTitle}
-              onPress={onRecalculate}
-              loading={recalculationLoading}
-              disabled={!canRecalculate}
-              variant={recalculationPreview ? 'secondary' : 'primary'}
-            />
-            <Text style={s.primaryActionHint}>{copy.recalculateHint}</Text>
-          </View>
-
-          <View style={s.previewCard}>
-            <View style={s.previewHeader}>
-              <Text style={s.previewTitle}>Previa do novo resultado</Text>
-              {recalculationLookupLabel ? (
-                <Text style={s.previewLookupText}>{recalculationLookupLabel}</Text>
-              ) : (
-                <Text style={s.previewLookupText}>
-                  Revise o nome, a quantidade e a unidade para gerar a previa.
-                </Text>
-              )}
-            </View>
-
-            {recalculationLoading ? (
-              <View style={s.previewState}>
-                <Text style={s.previewStateText}>Recalculando macros do ingrediente...</Text>
-              </View>
-            ) : recalculationError ? (
-              <View style={s.previewFeedbackCard}>
-                <Text style={s.previewErrorText}>{recalculationError}</Text>
-              </View>
-            ) : recalculationPreview ? (
-              <View style={s.previewBody}>
-                <View style={s.previewGrid}>
-                  <PreviewMetric
-                    label="Calorias"
-                    value={recalculationPreview.calories}
-                    backgroundColor={Brand.positiveBg}
-                    textColor={Brand.greenDark}
-                  />
-                  <PreviewMetric
-                    label="Proteina"
-                    value={recalculationPreview.protein}
-                    backgroundColor={Brand.hydrationBg}
-                    textColor={Brand.hydration}
-                  />
-                  <PreviewMetric
-                    label="Carboidratos"
-                    value={recalculationPreview.carbs}
-                    backgroundColor={Brand.warningBg}
-                    textColor={Brand.warning}
-                  />
-                  <PreviewMetric
-                    label="Gorduras"
-                    value={recalculationPreview.fat}
-                    backgroundColor={Brand.fatBg}
-                    textColor={Brand.fat}
-                  />
+                  )}
                 </View>
 
-                <AppButton title={copy.applyPreviewTitle} onPress={onApplyRecalculation} />
-              </View>
-            ) : (
-              <View style={s.previewState}>
-                <Text style={s.previewStateText}>{copy.emptyPreviewHint}</Text>
-              </View>
-            )}
-          </View>
+                {recalculationLoading ? (
+                  <View style={s.previewState}>
+                    <Text style={s.previewStateText}>Recalculando macros do ingrediente...</Text>
+                  </View>
+                ) : recalculationError ? (
+                  <View style={s.previewFeedbackCard}>
+                    <Text style={s.previewErrorText}>{recalculationError}</Text>
+                  </View>
+                ) : recalculationPreview ? (
+                  <View style={s.previewBody}>
+                    <View style={s.previewGrid}>
+                      <PreviewMetric
+                        label="Calorias"
+                        value={recalculationPreview.calories}
+                        backgroundColor={Brand.positiveBg}
+                        textColor={Brand.greenDark}
+                      />
+                      <PreviewMetric
+                        label="Proteina"
+                        value={recalculationPreview.protein}
+                        backgroundColor={Brand.hydrationBg}
+                        textColor={Brand.hydration}
+                      />
+                      <PreviewMetric
+                        label="Carboidratos"
+                        value={recalculationPreview.carbs}
+                        backgroundColor={Brand.warningBg}
+                        textColor={Brand.warning}
+                      />
+                      <PreviewMetric
+                        label="Gorduras"
+                        value={recalculationPreview.fat}
+                        backgroundColor={Brand.fatBg}
+                        textColor={Brand.fat}
+                      />
+                    </View>
 
-          <View style={s.formCard}>
-            <Pressable style={s.manualToggleRow} onPress={onToggleManualSection}>
+                    <AppButton title={copy.applyPreviewTitle} onPress={onApplyRecalculation} />
+                  </View>
+                ) : (
+                  <View style={s.previewState}>
+                    <Text style={s.previewStateText}>{copy.emptyPreviewHint}</Text>
+                  </View>
+                )}
+              </View>
+            </>
+          ) : null}
+
+          {activeAdjustmentMode === 'manual' ? (
+            <View style={s.formCard}>
               <View style={s.manualToggleCopy}>
                 <Text style={s.manualToggleTitle}>Ajuste manual</Text>
                 <Text style={s.manualToggleSubtitle}>{copy.manualHint}</Text>
               </View>
-              <Ionicons
-                name={manualSectionOpen ? 'chevron-up-outline' : 'chevron-down-outline'}
-                size={18}
-                color={Brand.textSecondary}
-              />
-            </Pressable>
 
-            {manualSectionOpen ? (
               <View style={s.manualBody}>
                 <View style={s.gridRow}>
                   <View style={s.gridCell}>
@@ -263,8 +274,8 @@ export function NutritionIngredientEditSheet({
                   disabled={!canApplyManual}
                 />
               </View>
-            ) : null}
-          </View>
+            </View>
+          ) : null}
 
           {onRemove ? (
             <Pressable style={s.removeButton} onPress={onRemove}>
@@ -311,6 +322,22 @@ function ModeBadge({ label }: { label: string }) {
     <View style={s.modeBadge}>
       <Text style={s.modeBadgeText}>{label}</Text>
     </View>
+  );
+}
+
+function ModeSwitchButton({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={[s.modeSwitchButton, active && s.modeSwitchButtonActive]} onPress={onPress}>
+      <Text style={[s.modeSwitchText, active && s.modeSwitchTextActive]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -381,6 +408,33 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.xs,
+  },
+  modeSwitchRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  modeSwitchButton: {
+    flex: 1,
+    borderRadius: Radii.pill,
+    backgroundColor: Brand.bg,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeSwitchButtonActive: {
+    backgroundColor: Brand.surfaceSoft,
+    borderColor: '#B7DCC2',
+  },
+  modeSwitchText: {
+    ...Typography.body,
+    color: Brand.textSecondary,
+    fontWeight: '700',
+  },
+  modeSwitchTextActive: {
+    color: Brand.greenDark,
   },
   currentCard: {
     borderRadius: Radii.xl,
@@ -546,12 +600,6 @@ const s = StyleSheet.create({
   previewErrorText: {
     ...Typography.helper,
     color: Brand.danger,
-  },
-  manualToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
   },
   manualToggleCopy: {
     flex: 1,
