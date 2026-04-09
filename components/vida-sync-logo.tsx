@@ -1,16 +1,9 @@
-/**
- * Logo VidaSync
- *
- * "Vida" em verde (#7BC47F) + "Sync" em laranja (#F4A261)
- * Pode ser usado na splash, login, headers etc.
- */
+import { StyleSheet, Text, View } from 'react-native';
 
 import { Brand } from '@/constants/theme';
-import { StyleSheet, Text, View } from 'react-native';
 
 type Props = {
   size?: number;
-  /** Mostrar tagline abaixo */
   tagline?: boolean;
 };
 
@@ -18,14 +11,14 @@ export function VidaSyncLogo({ size = 36, tagline = false }: Props) {
   return (
     <View style={s.root}>
       <View style={s.row}>
-        <Text style={[s.vida, { fontSize: size }]}>Vida</Text>
-        <Text style={[s.sync, { fontSize: size }]}>Sync</Text>
+        <Text style={[s.vida, { fontSize: size, color: Brand.green }]}>Vida</Text>
+        <Text style={[s.sync, { fontSize: size, color: Brand.orange }]}>Sync</Text>
       </View>
-      {tagline && (
-        <Text style={[s.tagline, { fontSize: size * 0.33 }]}>
-          Seu diário nutricional inteligente
+      {tagline ? (
+        <Text style={[s.tagline, { fontSize: size * 0.33, color: Brand.textSecondary }]}>
+          Seu diario nutricional inteligente
         </Text>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -41,16 +34,13 @@ const s = StyleSheet.create({
   },
   vida: {
     fontWeight: '800',
-    color: Brand.green,
     letterSpacing: -0.5,
   },
   sync: {
     fontWeight: '800',
-    color: Brand.orange,
     letterSpacing: -0.5,
   },
   tagline: {
-    color: Brand.textSecondary,
     fontWeight: '500',
     letterSpacing: 0.3,
   },
