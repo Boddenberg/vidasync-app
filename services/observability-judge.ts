@@ -19,6 +19,11 @@ import type {
   ObservabilityTone,
 } from '@/types/observability';
 
+export type DeveloperJudgeSnapshotQuery = {
+  days?: number;
+  feature?: string | null;
+};
+
 type JudgeRow = {
   evaluation_id?: string | null;
   created_at?: string | null;
@@ -159,6 +164,12 @@ function parseNumber(value: unknown): number | null {
   if (typeof value !== 'string') return null;
   const match = value.replace(',', '.').match(/-?\d+(\.\d+)?/);
   return match ? Number(match[0]) : null;
+}
+
+function normalizeDays(value: number | null | undefined): number {
+  const normalized = parseNumber(value) ?? DEFAULT_JUDGE_DAYS;
+  if (!Number.isFinite(normalized) || normalized <= 0) return DEFAULT_JUDGE_DAYS;
+  return Math.min(Math.round(normalized), 90);
 }
 
 function normalizeScore(value: unknown): number | null {
@@ -741,14 +752,19 @@ function buildJudgeMetricsFromApi(
   };
 }
 
-function buildJudgeMetricsPath(): string {
+function buildJudgeMetricsPath(query: DeveloperJudgeSnapshotQuery = {}): string {
   const params = new URLSearchParams();
-  params.set('days', `${DEFAULT_JUDGE_DAYS}`);
+  params.set('days', `${normalizeDays(query.days)}`);
+
+  const feature = asTrimmedString(query.feature) || SUPABASE_JUDGE_FEATURE;
+  if (feature) {
+    params.set('feature', feature);
+  }
 
   return `${JUDGE_METRICS_PATH}?${params.toString()}`;
 }
 
-async function fetchJudgeApiMetrics(): Promise<JudgeApiMetricsPayload | null> {
+async function fetchJudgeApiMetrics(query: DeveloperJudgeSnapshotQuery = {}): Promise<JudgeApiMetricsPayload | null> {
   const headers: Record<string, string> = {};
 
   if (INTERNAL_ADMIN_API_KEY) {
@@ -760,7 +776,7 @@ async function fetchJudgeApiMetrics(): Promise<JudgeApiMetricsPayload | null> {
   }
 
   const data = await apiGetJson<JudgeApiMetricsResponse>(
-    buildJudgeMetricsPath(),
+    buildJudgeMetricsPath(query),
     Object.keys(headers).length > 0 ? headers : undefined,
   );
   if (!data?.metrics) {
@@ -770,13 +786,14 @@ async function fetchJudgeApiMetrics(): Promise<JudgeApiMetricsPayload | null> {
   return data.metrics;
 }
 
-async function fetchJudgeRows(): Promise<JudgeRow[] | null> {
+async function fetchJudgeRows(query: DeveloperJudgeSnapshotQuery = {}): Promise<JudgeRow[] | null> {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
 
   const url = new URL(`${SUPABASE_URL}/rest/v1/${SUPABASE_JUDGE_TABLE}`);
   url.searchParams.set('select', SUPABASE_JUDGE_SELECT);
-  if (SUPABASE_JUDGE_FEATURE) {
-    url.searchParams.set('feature', `eq.${SUPABASE_JUDGE_FEATURE}`);
+  const feature = asTrimmedString(query.feature) || SUPABASE_JUDGE_FEATURE;
+  if (feature) {
+    url.searchParams.set('feature', `eq.${feature}`);
   }
   url.searchParams.set('order', 'created_at.desc');
   url.searchParams.set('limit', `${SUPABASE_JUDGE_LIMIT}`);
@@ -799,10 +816,12 @@ async function fetchJudgeRows(): Promise<JudgeRow[] | null> {
   return Array.isArray(payload) ? (payload as JudgeRow[]) : [];
 }
 
-export async function getDeveloperJudgeSnapshotOverrides(): Promise<DeveloperObservabilitySnapshotOverrides | null> {
+export async function getDeveloperJudgeSnapshotOverrides(
+  query: DeveloperJudgeSnapshotQuery = {},
+): Promise<DeveloperObservabilitySnapshotOverrides | null> {
   const [apiResult, rowsResult] = await Promise.allSettled([
-    fetchJudgeApiMetrics(),
-    fetchJudgeRows(),
+    fetchJudgeApiMetrics(query),
+    fetchJudgeRows(query),
   ]);
 
   const apiPayload = apiResult.status === 'fulfilled' ? apiResult.value : null;

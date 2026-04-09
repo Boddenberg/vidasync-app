@@ -20,6 +20,8 @@ type Props = {
   expandedIds: Record<string, boolean>;
   title: string;
   subtitle: string;
+  emptyTitle?: string;
+  emptyHint?: string;
   onToggleEnabled: () => void;
   onClear: () => void;
   onToggleExpand: (id: string) => void;
@@ -33,6 +35,8 @@ export function NetworkDiagnosticsSection({
   expandedIds,
   title,
   subtitle,
+  emptyTitle,
+  emptyHint,
   onToggleEnabled,
   onClear,
   onToggleExpand,
@@ -123,8 +127,10 @@ export function NetworkDiagnosticsSection({
 
       {logs.length === 0 ? (
         <View style={s.emptyWrap}>
-          <Text style={s.emptyText}>Sem logs ainda.</Text>
-          <Text style={s.emptyHint}>Faca chamadas de API para acompanhar trafego e performance aqui.</Text>
+          <Text style={s.emptyText}>{emptyTitle ?? 'Sem logs ainda.'}</Text>
+          <Text style={s.emptyHint}>
+            {emptyHint ?? 'Faca chamadas de API para acompanhar trafego e performance aqui.'}
+          </Text>
         </View>
       ) : (
         <View style={s.logsWrap}>

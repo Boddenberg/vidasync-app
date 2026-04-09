@@ -4,7 +4,10 @@ import {
   getAdminTelemetryRunsSnapshotOverrides,
   type AdminTelemetryMetricsQuery,
 } from '@/services/admin-telemetry';
-import { getDeveloperJudgeSnapshotOverrides } from '@/services/observability-judge';
+import {
+  getDeveloperJudgeSnapshotOverrides,
+  type DeveloperJudgeSnapshotQuery,
+} from '@/services/observability-judge';
 import type { NetworkInspectorLog } from '@/services/network-inspector';
 import type {
   DeveloperObservabilitySnapshot,
@@ -29,6 +32,8 @@ type QualityAccumulator = {
   sum: number;
   count: number;
 };
+
+export type DeveloperObservabilityQuery = AdminTelemetryMetricsQuery & DeveloperJudgeSnapshotQuery;
 
 const OBSERVABILITY_INTERNAL_PATHS = [
   '/internal/admin/telemetry/metrics',
@@ -582,12 +587,12 @@ export function mergeDeveloperObservabilitySnapshot(
 }
 
 export async function getDeveloperObservabilitySnapshotOverrides(
-  query: AdminTelemetryMetricsQuery = {},
+  query: DeveloperObservabilityQuery = {},
 ): Promise<DeveloperObservabilitySnapshotOverrides | null> {
   const [telemetryResult, runsResult, judgeResult] = await Promise.allSettled([
     getAdminTelemetryMetricsSnapshotOverrides(query),
     getAdminTelemetryRunsSnapshotOverrides({ ...query, limit: 5 }),
-    getDeveloperJudgeSnapshotOverrides(),
+    getDeveloperJudgeSnapshotOverrides(query),
   ]);
 
   const telemetry =

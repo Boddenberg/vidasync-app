@@ -1,17 +1,24 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
+import { ExecutiveSummaryPanel } from '@/features/devtools/executive-summary-panel';
 import { NetworkDiagnosticsSection } from '@/features/devtools/network-diagnostics-section';
+import { ObservabilityTabs } from '@/features/devtools/observability-tabs';
 import type { AdminTelemetryMetricsQuery } from '@/services/admin-telemetry';
 import {
   buildDeveloperObservabilitySnapshot,
+  type DeveloperObservabilityQuery,
   getDeveloperObservabilitySnapshotOverrides,
   mergeDeveloperObservabilitySnapshot,
 } from '@/services/observability';
+import {
+  buildObservabilityExecutiveSummary,
+  type ObservabilityDashboardTab,
+  type ObservabilityExecutiveTarget,
+} from '@/services/observability-summary';
 import type { NetworkInspectorLog } from '@/services/network-inspector';
 import type {
   ObservabilityClassification,
@@ -23,18 +30,6 @@ import type {
   ObservabilityTone,
 } from '@/types/observability';
 
-type DashboardBlockId =
-  | 'services'
-  | 'performance'
-  | 'volume'
-  | 'runs'
-  | 'llm'
-  | 'judge'
-  | 'quality'
-  | 'insights'
-  | 'timeline'
-  | 'logs';
-
 type Props = {
   logs: NetworkInspectorLog[];
   enabled: boolean;
@@ -43,24 +38,119 @@ type Props = {
   onClearLogs: () => void;
 };
 
-const STORAGE_KEY_HIDDEN_BLOCKS = '@vidasync:developerDashboard:hiddenBlocks';
-const BLOCKS: Array<{ id: DashboardBlockId; label: string }> = [
-  { id: 'services', label: 'Saude' },
-  { id: 'performance', label: 'Performance' },
-  { id: 'volume', label: 'Volume' },
-  { id: 'runs', label: 'Runs' },
-  { id: 'llm', label: 'IA / LLM' },
-  { id: 'judge', label: 'Judge' },
-  { id: 'quality', label: 'Qualidade' },
-  { id: 'insights', label: 'Insights' },
-  { id: 'timeline', label: 'Timeline' },
-  { id: 'logs', label: 'Logs' },
+type QualityFilterState = {
+  feature: string | null;
+  status: ObservabilityJudgeEvaluation['status'] | null;
+  decision: ObservabilityClassification | null;
+};
+
+type SummaryHighlight = {
+  id: string;
+  title: string;
+  value: string;
+  description: string;
+  tone: ObservabilityTone;
+};
+
+type QuickSearchChip = {
+  id: string;
+  label: string;
+  value: string;
+};
+
+const DASHBOARD_TABS: Array<{
+  id: ObservabilityDashboardTab;
+  label: string;
+  description: string;
+}> = [
+  { id: 'overview', label: 'Resumo', description: 'Diagnostico executivo e sinais principais.' },
+  { id: 'failures', label: 'Falhas', description: 'Latencia, erros e agrupamentos.' },
+  { id: 'quality', label: 'Qualidade', description: 'Judge, score e criterios.' },
+  { id: 'investigation', label: 'Investigacao', description: 'Runs, timeline e logs brutos.' },
 ];
 const TELEMETRY_DAY_OPTIONS = [7, 14, 30] as const;
-const TELEMETRY_AGENT_OPTIONS: Array<{ label: string; value: string | null }> = [
-  { label: 'Chat', value: 'chat' },
+const TELEMETRY_STATUS_OPTIONS: Array<{ label: string; value: string | null }> = [
   { label: 'Todos', value: null },
+  { label: 'Sucesso', value: 'success' },
+  { label: 'Erro', value: 'error' },
+  { label: 'Timeout', value: 'timeout' },
 ];
+const QUALITY_STATUS_OPTIONS: Array<{
+  label: string;
+  value: ObservabilityJudgeEvaluation['status'] | null;
+}> = [
+  { label: 'Todos', value: null },
+  { label: 'Concluido', value: 'completed' },
+  { label: 'Falhou', value: 'failed' },
+  { label: 'Pendente', value: 'pending' },
+];
+const QUALITY_DECISION_OPTIONS: Array<{
+  label: string;
+  value: ObservabilityClassification | null;
+}> = [
+  { label: 'Todos', value: null },
+  { label: 'Aprovado', value: 'approved' },
+  { label: 'Alerta', value: 'alert' },
+  { label: 'Reprovado', value: 'rejected' },
+];
+
+function normalizeToken(value: string | null | undefined): string {
+  return `${value ?? ''}`.trim().toLowerCase();
+}
+
+function isPlaceholder(value: string | null | undefined): boolean {
+  const normalized = normalizeToken(value);
+  return (
+    !normalized ||
+    normalized === '--' ||
+    normalized.startsWith('sem ') ||
+    normalized.includes('desconhecido') ||
+    normalized === 'nao informado'
+  );
+}
+
+function humanizeToken(value: string): string {
+  if (/[0-9./]/.test(value)) return value;
+  return value
+    .split(/[-_/\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function buildStringOptions(values: Array<string | null | undefined>, fallbackLabel: string) {
+  const unique = Array.from(
+    new Set(
+      values
+        .map((value) => `${value ?? ''}`.trim())
+        .filter((value) => !isPlaceholder(value)),
+    ),
+  );
+
+  return [{ label: fallbackLabel, value: null }, ...unique.map((value) => ({ label: humanizeToken(value), value }))];
+}
+
+function parseModelLabel(label: string | null | undefined): string | null {
+  const normalized = `${label ?? ''}`.trim();
+  if (isPlaceholder(normalized)) return null;
+  return normalized.replace(/\s+\([^)]*\)\s*$/, '').trim() || null;
+}
+
+function parsePercentValue(value: string | null | undefined): number | null {
+  const normalized = `${value ?? ''}`.trim();
+  if (!normalized || normalized === '--') return null;
+  const match = normalized.match(/-?\d+([.,]\d+)?/);
+  if (!match) return null;
+  const parsed = Number(match[0].replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function matchesSearch(values: Array<string | null | undefined>, query: string): boolean {
+  const normalizedQuery = normalizeToken(query);
+  if (!normalizedQuery) return true;
+
+  return values.some((value) => normalizeToken(value).includes(normalizedQuery));
+}
 
 function toneColors(tone: ObservabilityTone) {
   if (tone === 'positive') return { bg: '#EAF8EE', border: '#C8E7D2', text: Brand.greenDark };
@@ -113,12 +203,6 @@ function syncErrorMessage(error: unknown): string {
   return error.message || fallback;
 }
 
-function orderedBlocks(initialMode?: 'logs' | null) {
-  if (initialMode !== 'logs') return BLOCKS;
-  const logsBlock = BLOCKS.find((item) => item.id === 'logs');
-  return logsBlock ? [logsBlock, ...BLOCKS.filter((item) => item.id !== 'logs')] : BLOCKS;
-}
-
 export function DeveloperObservabilityDashboard({
   logs,
   enabled,
@@ -127,22 +211,79 @@ export function DeveloperObservabilityDashboard({
   onClearLogs,
 }: Props) {
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
-  const [hiddenBlocks, setHiddenBlocks] = useState<DashboardBlockId[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ObservabilityDashboardTab>(
+    initialMode === 'logs' ? 'investigation' : 'overview',
+  );
   const [telemetryFilters, setTelemetryFilters] = useState<AdminTelemetryMetricsQuery>({
     days: 7,
     agent: 'chat',
+    model: null,
+    status: null,
   });
+  const [qualityFilters, setQualityFilters] = useState<QualityFilterState>({
+    feature: 'chat',
+    status: null,
+    decision: null,
+  });
+  const [investigationSearch, setInvestigationSearch] = useState('');
   const [remoteSnapshot, setRemoteSnapshot] = useState<Awaited<
     ReturnType<typeof getDeveloperObservabilitySnapshotOverrides>
   > | null>(null);
   const refreshRequestId = useRef(0);
 
   const fallbackSnapshot = useMemo(() => buildDeveloperObservabilitySnapshot(logs), [logs]);
+  const remoteQuery = useMemo<DeveloperObservabilityQuery>(
+    () => ({
+      ...telemetryFilters,
+      feature: qualityFilters.feature ?? telemetryFilters.agent ?? null,
+    }),
+    [qualityFilters.feature, telemetryFilters],
+  );
   const snapshot = useMemo(
     () => mergeDeveloperObservabilitySnapshot(fallbackSnapshot, remoteSnapshot),
     [fallbackSnapshot, remoteSnapshot],
+  );
+  const executiveSummary = useMemo(
+    () => buildObservabilityExecutiveSummary(snapshot),
+    [snapshot],
+  );
+  const telemetryAgentOptions = useMemo(
+    () =>
+      buildStringOptions(
+        ['chat', telemetryFilters.agent, ...snapshot.recentRuns.map((item) => item.agent)],
+        'Todos',
+      ),
+    [snapshot.recentRuns, telemetryFilters.agent],
+  );
+  const telemetryModelOptions = useMemo(
+    () =>
+      buildStringOptions(
+        [
+          telemetryFilters.model,
+          ...snapshot.errorEndpoints.map((item) => parseModelLabel(item.label)),
+          ...snapshot.judgeEvaluations.map((item) => item.sourceModel),
+        ],
+        'Todos',
+      ),
+    [snapshot.errorEndpoints, snapshot.judgeEvaluations, telemetryFilters.model],
+  );
+  const qualityFeatureOptions = useMemo(
+    () =>
+      buildStringOptions(
+        [qualityFilters.feature, telemetryFilters.agent, ...snapshot.judgeEvaluations.map((item) => item.feature)],
+        'Todas',
+      ),
+    [qualityFilters.feature, snapshot.judgeEvaluations, telemetryFilters.agent],
+  );
+  const overviewMetrics = useMemo(
+    () => [
+      ...snapshot.volumeMetrics.slice(0, 2),
+      ...snapshot.performanceMetrics.slice(0, 2),
+      ...snapshot.qualityMetrics.slice(0, 2),
+    ],
+    [snapshot.performanceMetrics, snapshot.qualityMetrics, snapshot.volumeMetrics],
   );
   const heroMetaItems = useMemo(
     () =>
@@ -154,26 +295,221 @@ export function DeveloperObservabilityDashboard({
       ].filter(Boolean) as Array<{ label: string; value: string }>,
     [snapshot.generatedAtLabel, snapshot.periodLabel, snapshot.scopeLabel, snapshot.source],
   );
+  const filteredJudgeEvaluations = useMemo(
+    () =>
+      snapshot.judgeEvaluations.filter((evaluation) => {
+        if (qualityFilters.feature && evaluation.feature !== qualityFilters.feature) return false;
+        if (qualityFilters.status && evaluation.status !== qualityFilters.status) return false;
+        if (qualityFilters.decision && evaluation.decision !== qualityFilters.decision) return false;
+        return true;
+      }),
+    [qualityFilters.decision, qualityFilters.feature, qualityFilters.status, snapshot.judgeEvaluations],
+  );
+  const investigationSearchSuggestions = useMemo<QuickSearchChip[]>(() => {
+    const items: QuickSearchChip[] = [];
+    const recentRun = snapshot.recentRuns.find((item) => item.status !== 'success') ?? snapshot.recentRuns[0];
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY_HIDDEN_BLOCKS);
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) return;
-        setHiddenBlocks(parsed.filter((item) => BLOCKS.some((block) => block.id === item)));
-      } catch {
-        // Ignore invalid local preferences.
+    if (recentRun?.requestPath && recentRun.requestPath !== '--') {
+      items.push({ id: 'path', label: 'Path', value: recentRun.requestPath });
+    }
+    if (recentRun?.traceId && recentRun.traceId !== '--') {
+      items.push({ id: 'trace', label: 'Trace', value: recentRun.traceId });
+    }
+    if (recentRun?.requestId && recentRun.requestId !== '--') {
+      items.push({ id: 'request', label: 'Request', value: recentRun.requestId });
+    }
+    const recentJudge = snapshot.judgeEvaluations.find((item) => item.requestId !== '--');
+    if (recentJudge?.requestId && recentJudge.requestId !== '--') {
+      items.push({ id: 'judge-request', label: 'Judge', value: recentJudge.requestId });
+    }
+
+    return items.slice(0, 4);
+  }, [snapshot.judgeEvaluations, snapshot.recentRuns]);
+  const filteredRuns = useMemo(
+    () =>
+      snapshot.recentRuns.filter((run) =>
+        matchesSearch(
+          [run.runId, run.requestId, run.traceId, run.requestPath, run.endpoint, run.errorMessage, run.agent],
+          investigationSearch,
+        ),
+      ),
+    [investigationSearch, snapshot.recentRuns],
+  );
+  const filteredTimeline = useMemo(
+    () =>
+      snapshot.timeline.filter((event) =>
+        matchesSearch([event.title, event.description, event.timestampLabel], investigationSearch),
+      ),
+    [investigationSearch, snapshot.timeline],
+  );
+  const filteredLogs = useMemo(
+    () =>
+      logs.filter((log) =>
+        matchesSearch(
+          [log.id, log.url, log.method, `${log.statusCode ?? ''}`, log.error, log.requestBody, log.responseBody],
+          investigationSearch,
+        ),
+      ),
+    [investigationSearch, logs],
+  );
+  const failureHighlights = useMemo<SummaryHighlight[]>(() => {
+    const failingRuns = snapshot.recentRuns.filter((item) => item.status !== 'success');
+    const leadFinding =
+      executiveSummary.primaryFinding?.tab === 'failures' || executiveSummary.primaryFinding?.tab === 'investigation'
+        ? executiveSummary.primaryFinding
+        : null;
+    const slowest = snapshot.topEndpoints[0];
+    const failureRun = failingRuns[0];
+
+    return [
+      {
+        id: 'dominant-issue',
+        title: 'Sintoma dominante',
+        value: leadFinding?.title ?? 'Sem alerta forte',
+        description: executiveSummary.impactSummary,
+        tone: leadFinding?.tone ?? 'neutral',
+      },
+      {
+        id: 'slowest',
+        title: 'Recorte mais lento',
+        value: slowest?.label ?? 'Sem ranking',
+        description:
+          slowest && !isPlaceholder(slowest.label)
+            ? `Avg ${slowest.avgLatency} e P95 ${slowest.p95Latency} no agrupamento lider.`
+            : 'Ainda nao ha agrupamento suficiente para apontar um lider de latencia.',
+        tone: executiveSummary.primaryFinding?.id === 'latency' ? 'critical' : 'warning',
+      },
+      {
+        id: 'recent-failures',
+        title: 'Runs com falha',
+        value: `${failingRuns.length}`,
+        description:
+          failureRun && failureRun.requestPath !== '--'
+            ? `${failureRun.statusLabel} recente em ${failureRun.requestPath}.`
+            : 'Sem runs recentes com erro ou timeout no recorte atual.',
+        tone: failingRuns.length > 0 ? (failureRun?.status === 'error' ? 'critical' : 'warning') : 'positive',
+      },
+    ];
+  }, [executiveSummary.impactSummary, executiveSummary.primaryFinding, snapshot.recentRuns, snapshot.topEndpoints]);
+  const qualityHighlights = useMemo<SummaryHighlight[]>(() => {
+    const weakestCriterion = [...snapshot.qualityCriteria]
+      .map((criterion) => ({ criterion, score: parsePercentValue(criterion.value) }))
+      .filter((item) => item.score != null)
+      .sort((left, right) => (left.score ?? 0) - (right.score ?? 0))[0]?.criterion;
+    const rejectionCounts = new Map<string, number>();
+    const featureCounts = new Map<string, number>();
+
+    for (const evaluation of filteredJudgeEvaluations) {
+      if (evaluation.decision === 'rejected' || evaluation.status === 'failed') {
+        featureCounts.set(evaluation.feature, (featureCounts.get(evaluation.feature) ?? 0) + 1);
       }
-    })();
-  }, []);
+      for (const reason of evaluation.rejectionReasons) {
+        rejectionCounts.set(reason, (rejectionCounts.get(reason) ?? 0) + 1);
+      }
+    }
+
+    const topRejectionReason =
+      [...rejectionCounts.entries()].sort((left, right) => right[1] - left[1])[0] ?? null;
+    const topRejectedFeature =
+      [...featureCounts.entries()].sort((left, right) => right[1] - left[1])[0] ?? null;
+    const failedCount = filteredJudgeEvaluations.filter((item) => item.status === 'failed').length;
+
+    return [
+      {
+        id: 'quality-criterion',
+        title: 'Criterio mais fraco',
+        value: weakestCriterion?.label ?? 'Sem score',
+        description:
+          weakestCriterion != null
+            ? `${weakestCriterion.value} no recorte atual.`
+            : 'Os criterios ainda nao trouxeram score suficiente neste recorte.',
+        tone:
+          weakestCriterion?.classification === 'rejected'
+            ? 'critical'
+            : weakestCriterion?.classification === 'alert'
+              ? 'warning'
+              : 'neutral',
+      },
+      {
+        id: 'quality-rejection',
+        title: 'Motivo dominante',
+        value: topRejectionReason?.[0] ?? 'Sem motivo recorrente',
+        description:
+          topRejectionReason != null
+            ? `${topRejectionReason[1]} ocorrencia(s) no recorte filtrado.`
+            : 'As reprovacoes ainda nao concentraram um motivo dominante.',
+        tone: topRejectionReason != null ? 'critical' : 'neutral',
+      },
+      {
+        id: 'quality-failures',
+        title: 'Feature mais critica',
+        value: topRejectedFeature?.[0] ?? 'Sem feature dominante',
+        description:
+          topRejectedFeature != null
+            ? `${topRejectedFeature[1]} avaliacao(oes) reprovadas ou falhas, com ${failedCount} falha(s) de pipeline.`
+            : `Filtro atual com ${filteredJudgeEvaluations.length} avaliacao(oes) visiveis.`,
+        tone: topRejectedFeature != null || failedCount > 0 ? 'warning' : 'positive',
+      },
+    ];
+  }, [filteredJudgeEvaluations, snapshot.qualityCriteria]);
+  const investigationHighlights = useMemo<SummaryHighlight[]>(() => {
+    const traceableRuns = filteredRuns.filter((item) => item.traceId !== '--').length;
+    const requestCounts = new Map<string, number>();
+
+    for (const run of filteredRuns) {
+      requestCounts.set(run.requestPath, (requestCounts.get(run.requestPath) ?? 0) + 1);
+    }
+
+    const dominantPath = [...requestCounts.entries()].sort((left, right) => right[1] - left[1])[0] ?? null;
+
+    return [
+      {
+        id: 'investigation-runs',
+        title: 'Runs no filtro',
+        value: `${filteredRuns.length}`,
+        description: `${traceableRuns} run(s) com traceId pronto para drill-down rapido.`,
+        tone: filteredRuns.some((item) => item.status === 'error')
+          ? 'critical'
+          : filteredRuns.some((item) => item.status === 'timeout')
+            ? 'warning'
+            : filteredRuns.length > 0
+              ? 'positive'
+              : 'neutral',
+      },
+      {
+        id: 'investigation-path',
+        title: 'Path dominante',
+        value: dominantPath?.[0] ?? 'Sem path recorrente',
+        description:
+          dominantPath != null
+            ? `${dominantPath[1]} ocorrencia(s) no conjunto filtrado.`
+            : 'A busca atual nao concentrou um path dominante.',
+        tone: dominantPath != null ? 'warning' : 'neutral',
+      },
+      {
+        id: 'investigation-logs',
+        title: 'Logs encontrados',
+        value: `${filteredLogs.length}`,
+        description:
+          investigationSearch.trim().length > 0
+            ? `Busca atual: "${investigationSearch.trim()}".`
+            : 'Use a busca para cruzar requestId, traceId, path ou erro.',
+        tone: filteredLogs.length > 0 ? 'positive' : 'neutral',
+      },
+    ];
+  }, [filteredLogs.length, filteredRuns, investigationSearch]);
 
   useEffect(() => {
-    void refreshDashboard(telemetryFilters);
-  }, [telemetryFilters.agent, telemetryFilters.days]);
+    if (initialMode === 'logs') {
+      setActiveTab('investigation');
+    }
+  }, [initialMode]);
 
-  async function refreshDashboard(nextFilters: AdminTelemetryMetricsQuery = telemetryFilters) {
+  useEffect(() => {
+    void refreshDashboard(remoteQuery);
+  }, [remoteQuery]);
+
+  async function refreshDashboard(nextFilters: DeveloperObservabilityQuery = remoteQuery) {
     const requestId = refreshRequestId.current + 1;
     refreshRequestId.current = requestId;
     setLoading(true);
@@ -199,26 +535,33 @@ export function DeveloperObservabilityDashboard({
     }
   }
 
-  async function toggleBlock(id: DashboardBlockId) {
-    const next = hiddenBlocks.includes(id)
-      ? hiddenBlocks.filter((item) => item !== id)
-      : [...hiddenBlocks, id];
-
-    setHiddenBlocks(next);
-
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_HIDDEN_BLOCKS, JSON.stringify(next));
-    } catch {
-      // Ignore storage write failures for preferences.
-    }
-  }
-
-  function isVisible(id: DashboardBlockId) {
-    return !hiddenBlocks.includes(id);
-  }
-
   function toggleExpand(id: string) {
     setExpandedIds((current) => ({ ...current, [id]: !current[id] }));
+  }
+
+  function applyExecutiveTarget(target: ObservabilityExecutiveTarget) {
+    setActiveTab(target.tab);
+
+    if (target.telemetry) {
+      setTelemetryFilters((current) => ({ ...current, ...target.telemetry }));
+      if (Object.prototype.hasOwnProperty.call(target.telemetry, 'agent')) {
+        setQualityFilters((current) => ({
+          ...current,
+          feature: target.telemetry?.agent ?? null,
+        }));
+      }
+    }
+
+    if (target.quality) {
+      setQualityFilters((current) => ({
+        ...current,
+        ...target.quality,
+      }));
+    }
+
+    if (target.investigation?.search != null) {
+      setInvestigationSearch(target.investigation.search);
+    }
   }
 
   return (
@@ -238,7 +581,7 @@ export function DeveloperObservabilityDashboard({
 
         <Text style={s.heroTitle}>Observabilidade</Text>
         <Text style={s.heroSubtitle}>
-          Central tecnica com saude dos servicos, performance, custo de IA e sinais de qualidade.
+          Comece pelo resumo executivo e aprofunde so no eixo que explicar melhor o problema.
         </Text>
 
         <View style={s.heroMetaRow}>
@@ -248,181 +591,262 @@ export function DeveloperObservabilityDashboard({
         </View>
 
         <View style={s.filterPanel}>
-          <View style={s.filterGroup}>
-            <Text style={s.filterLabel}>Janela</Text>
-            <View style={s.filterChipWrap}>
-              {TELEMETRY_DAY_OPTIONS.map((days) => {
-                const active = telemetryFilters.days === days;
-                return (
-                  <Pressable
-                    key={`days-${days}`}
-                    style={({ pressed }) => [s.filterChip, active && s.filterChipActive, pressed && s.pressed]}
-                    onPress={() => setTelemetryFilters((current) => ({ ...current, days }))}>
-                    <Text style={[s.filterChipText, active && s.filterChipTextActive]}>{days}d</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
+          <FilterChipGroup
+            label="Janela"
+            options={TELEMETRY_DAY_OPTIONS.map((days) => ({ label: `${days}d`, value: days }))}
+            value={telemetryFilters.days ?? 7}
+            onChange={(days) => setTelemetryFilters((current) => ({ ...current, days }))}
+          />
 
-          <View style={s.filterGroup}>
-            <Text style={s.filterLabel}>Agente</Text>
-            <View style={s.filterChipWrap}>
-              {TELEMETRY_AGENT_OPTIONS.map((option) => {
-                const active = telemetryFilters.agent === option.value;
-                return (
-                  <Pressable
-                    key={`agent-${option.value ?? 'all'}`}
-                    style={({ pressed }) => [s.filterChip, active && s.filterChipActive, pressed && s.pressed]}
-                    onPress={() =>
-                      setTelemetryFilters((current) => ({
-                        ...current,
-                        agent: option.value,
-                      }))
-                    }>
-                    <Text style={[s.filterChipText, active && s.filterChipTextActive]}>{option.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
+          <FilterChipGroup
+            label="Agente"
+            options={telemetryAgentOptions}
+            value={telemetryFilters.agent ?? null}
+            onChange={(agent) => {
+              setTelemetryFilters((current) => ({
+                ...current,
+                agent,
+              }));
+              setQualityFilters((current) => ({
+                ...current,
+                feature: agent ?? null,
+              }));
+            }}
+          />
+
+          <FilterChipGroup
+            label="Status"
+            options={TELEMETRY_STATUS_OPTIONS}
+            value={telemetryFilters.status ?? null}
+            onChange={(status) => setTelemetryFilters((current) => ({ ...current, status }))}
+          />
+
+          <FilterChipGroup
+            label="Modelo"
+            options={telemetryModelOptions}
+            value={telemetryFilters.model ?? null}
+            onChange={(model) => setTelemetryFilters((current) => ({ ...current, model }))}
+          />
         </View>
 
         {syncMessage ? <Text style={s.syncMessage}>{syncMessage}</Text> : null}
       </View>
 
-      <View style={s.card}>
-        <Text style={s.sectionTitle}>Dashboard modular</Text>
-        <Text style={s.sectionSubtitle}>Ligue ou esconda blocos conforme o foco tecnico da sessao.</Text>
+      <ExecutiveSummaryPanel summary={executiveSummary} onSelectTarget={applyExecutiveTarget} />
 
-        <View style={s.blockWrap}>
-          {orderedBlocks(initialMode).map((block) => {
-            const active = isVisible(block.id);
-            return (
-              <Pressable
-                key={block.id}
-                style={({ pressed }) => [s.blockChip, active && s.blockChipActive, pressed && s.pressed]}
-                onPress={() => void toggleBlock(block.id)}>
-                <Ionicons
-                  name={active ? 'eye-outline' : 'eye-off-outline'}
-                  size={14}
-                  color={active ? Brand.greenDark : Brand.textMuted}
-                />
-                <Text style={[s.blockChipText, active && s.blockChipTextActive]}>{block.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
+      <SectionCard
+        title="Modo de leitura"
+        subtitle="Troque de aba conforme a pergunta que voce quer responder agora.">
+        <ObservabilityTabs activeTab={activeTab} tabs={DASHBOARD_TABS} onChange={setActiveTab} />
+      </SectionCard>
 
-      {isVisible('services') ? (
-        <SectionCard title="Saude dos servicos" subtitle="Visao rapida do app, BFF e IA atual.">
-          {snapshot.services.map((service) => (
-            <ServiceRow key={service.id} service={service} />
-          ))}
-        </SectionCard>
-      ) : null}
+      {activeTab === 'overview' ? (
+        <>
+          <SectionCard
+            title="Painel rapido"
+            subtitle="Resumo condensado de volume, latencia e qualidade para este recorte.">
+            <MetricGrid metrics={overviewMetrics} />
+          </SectionCard>
 
-      {isVisible('performance') ? (
-        <SectionCard title="Performance" subtitle="Latencia consolidada e distribuicao do recorte atual.">
-          <MetricGrid metrics={snapshot.performanceMetrics} />
-          <RankingList title={snapshot.topEndpointsTitle ?? 'Latencia por endpoint'} rows={snapshot.topEndpoints} />
-        </SectionCard>
-      ) : null}
-
-      {isVisible('volume') ? (
-        <SectionCard title="Volume e erros" subtitle="Volume total, falhas e agrupamentos do escopo selecionado.">
-          <MetricGrid metrics={snapshot.volumeMetrics} />
-          <RankingList title={snapshot.errorEndpointsTitle ?? 'Erros por endpoint'} rows={snapshot.errorEndpoints} />
-        </SectionCard>
-      ) : null}
-
-      {isVisible('runs') ? (
-        <SectionCard title="Runs recentes" subtitle="Execucoes recentes do backend para tracing rapido por request.">
-          {snapshot.recentRuns.length > 0 ? (
-            <View style={s.judgeList}>
-              {snapshot.recentRuns.map((run) => (
-                <RecentRunCard key={run.id} run={run} />
-              ))}
-            </View>
-          ) : (
-            <Text style={s.emptyText}>
-              Os runs recentes aparecem aqui assim que o endpoint `/internal/admin/telemetry/runs` estiver acessivel.
-            </Text>
-          )}
-        </SectionCard>
-      ) : null}
-
-      {isVisible('llm') ? (
-        <SectionCard title="IA / LLM metrics" subtitle="Tokens, custo estimado e sinais de cache.">
-          <MetricGrid metrics={snapshot.llmMetrics} />
-        </SectionCard>
-      ) : null}
-
-      {isVisible('judge') ? (
-        <SectionCard
-          title="LLM as Judge"
-          subtitle="Metricas do judge com fila async, score e diagnostico por avaliacao.">
-          <MetricGrid metrics={snapshot.judgeMetrics} />
-          {snapshot.judgeEvaluations.length > 0 ? (
-            <View style={s.judgeList}>
-              {snapshot.judgeEvaluations.map((evaluation) => (
-                <JudgeEvaluationCard key={evaluation.id} evaluation={evaluation} />
-              ))}
-            </View>
-          ) : (
-            <Text style={s.emptyText}>
-              As avaliacoes recentes do judge aparecem aqui assim que o endpoint remoto estiver acessivel.
-            </Text>
-          )}
-        </SectionCard>
-      ) : null}
-
-      {isVisible('quality') ? (
-        <SectionCard title="Qualidade" subtitle="Score geral, aprovacao e criterios do judge.">
-          <MetricGrid metrics={snapshot.qualityMetrics} />
-          <View style={s.criteriaWrap}>
-            {snapshot.qualityCriteria.map((criterion) => (
-              <CriterionChip
-                key={criterion.id}
-                label={criterion.label}
-                value={criterion.value}
-                classification={criterion.classification}
-              />
+          <SectionCard title="Saude atual" subtitle="Visao rapida do app, BFF e IA atual.">
+            {snapshot.services.map((service) => (
+              <ServiceRow key={service.id} service={service} />
             ))}
-          </View>
-        </SectionCard>
+          </SectionCard>
+
+          <SectionCard title="IA / LLM" subtitle="Tokens, custo estimado e sinais tecnicos disponiveis.">
+            <MetricGrid metrics={snapshot.llmMetrics} />
+          </SectionCard>
+
+          <SectionCard
+            title="Sinais adicionais"
+            subtitle="Observacoes complementares para validar ou refinar o diagnostico principal.">
+            {snapshot.insights.length > 0 ? (
+              snapshot.insights.map((insight) => (
+                <InsightRow
+                  key={insight.id}
+                  title={insight.title}
+                  description={insight.description}
+                  tone={insight.tone}
+                />
+              ))
+            ) : (
+              <Text style={s.emptyText}>Sem sinais adicionais relevantes no recorte atual.</Text>
+            )}
+          </SectionCard>
+        </>
       ) : null}
 
-      {isVisible('insights') ? (
-        <SectionCard title="Insights automaticos" subtitle="Sugestoes e possiveis problemas detectados pelo painel.">
-          {snapshot.insights.map((insight) => (
-            <InsightRow key={insight.id} title={insight.title} description={insight.description} tone={insight.tone} />
-          ))}
-        </SectionCard>
+      {activeTab === 'failures' ? (
+        <>
+          <SectionCard
+            title="Sintese de falhas"
+            subtitle="Leitura orientada a causa para sair desta aba com uma suspeita dominante.">
+            <HighlightGrid items={failureHighlights} />
+          </SectionCard>
+
+          <SectionCard title="Latencia e timeouts" subtitle="Picos, distribuicao e agrupamentos mais lentos do recorte.">
+            <MetricGrid metrics={snapshot.performanceMetrics} />
+            <RankingList title={snapshot.topEndpointsTitle ?? 'Latencia por endpoint'} rows={snapshot.topEndpoints} />
+          </SectionCard>
+
+          <SectionCard
+            title="Concentradores do recorte"
+            subtitle="Volume, falhas e agrupamentos que mais merecem comparacao agora.">
+            <MetricGrid metrics={snapshot.volumeMetrics} />
+            <RankingList title={snapshot.errorEndpointsTitle ?? 'Erros por endpoint'} rows={snapshot.errorEndpoints} />
+          </SectionCard>
+        </>
       ) : null}
 
-      {isVisible('timeline') ? (
-        <SectionCard title="Timeline de eventos" subtitle="Eventos recentes da sessao para facilitar o tracing basico.">
-          {snapshot.timeline.length > 0 ? (
-            snapshot.timeline.map((event) => <TimelineRow key={event.id} event={event} />)
-          ) : (
-            <Text style={s.emptyText}>Sem eventos suficientes para montar a timeline ainda.</Text>
-          )}
-        </SectionCard>
+      {activeTab === 'quality' ? (
+        <>
+          <SectionCard
+            title="Recorte do judge"
+            subtitle="Refine por feature, status e decisao antes de abrir as avaliacoes detalhadas.">
+            <FilterChipGroup
+              label="Feature"
+              options={qualityFeatureOptions}
+              value={qualityFilters.feature ?? null}
+              onChange={(feature) => setQualityFilters((current) => ({ ...current, feature }))}
+            />
+
+            <FilterChipGroup
+              label="Status do judge"
+              options={QUALITY_STATUS_OPTIONS}
+              value={qualityFilters.status ?? null}
+              onChange={(status) => setQualityFilters((current) => ({ ...current, status }))}
+            />
+
+            <FilterChipGroup
+              label="Decisao"
+              options={QUALITY_DECISION_OPTIONS}
+              value={qualityFilters.decision ?? null}
+              onChange={(decision) => setQualityFilters((current) => ({ ...current, decision }))}
+            />
+          </SectionCard>
+
+          <SectionCard
+            title="Leitura da qualidade"
+            subtitle="Os tres sinais que mais ajudam a explicar a queda ou estabilidade do judge.">
+            <HighlightGrid items={qualityHighlights} />
+          </SectionCard>
+
+          <SectionCard
+            title="LLM as Judge"
+            subtitle="Metricas do judge com fila async, score e diagnostico por avaliacao.">
+            <MetricGrid metrics={snapshot.judgeMetrics} />
+            {qualityFilters.status || qualityFilters.decision || qualityFilters.feature ? (
+              <Text style={s.inlineHint}>
+                {filteredJudgeEvaluations.length} avaliacao(oes) no filtro atual.
+              </Text>
+            ) : null}
+            {filteredJudgeEvaluations.length > 0 ? (
+              <View style={s.judgeList}>
+                {filteredJudgeEvaluations.map((evaluation) => (
+                  <JudgeEvaluationCard key={evaluation.id} evaluation={evaluation} />
+                ))}
+              </View>
+            ) : (
+              <Text style={s.emptyText}>
+                Nenhuma avaliacao do judge bateu com o filtro atual.
+              </Text>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Qualidade" subtitle="Score geral, aprovacao e criterios do judge.">
+            <MetricGrid metrics={snapshot.qualityMetrics} />
+            <View style={s.criteriaWrap}>
+              {snapshot.qualityCriteria.map((criterion) => (
+                <CriterionChip
+                  key={criterion.id}
+                  label={criterion.label}
+                  value={criterion.value}
+                  classification={criterion.classification}
+                />
+              ))}
+            </View>
+          </SectionCard>
+        </>
       ) : null}
 
-      {isVisible('logs') ? (
-        <NetworkDiagnosticsSection
-          logs={logs}
-          enabled={enabled}
-          expandedIds={expandedIds}
-          title="Logs de rede"
-          subtitle="Base em tempo real para drill-down, debugging e comparacao com as metricas agregadas."
-          onToggleEnabled={onToggleEnabled}
-          onClear={onClearLogs}
-          onToggleExpand={toggleExpand}
-        />
+      {activeTab === 'investigation' ? (
+        <>
+          <SectionCard
+            title="Busca de investigacao"
+            subtitle="Cruze requestId, traceId, path ou texto de erro para reduzir o ruido antes de abrir logs.">
+            <TextInput
+              value={investigationSearch}
+              onChangeText={setInvestigationSearch}
+              placeholder="Ex.: trace-1, req-7, /chat, timeout"
+              placeholderTextColor={Brand.textMuted}
+              style={s.searchInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            {investigationSearchSuggestions.length > 0 ? (
+              <View style={s.quickSearchWrap}>
+                {investigationSearchSuggestions.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    style={({ pressed }) => [s.quickSearchChip, pressed && s.pressed]}
+                    onPress={() => setInvestigationSearch(item.value)}>
+                    <Text style={s.quickSearchLabel}>{item.label}</Text>
+                    <Text style={s.quickSearchValue}>{item.value}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </SectionCard>
+
+          <SectionCard
+            title="Leitura de investigacao"
+            subtitle="Um atalho para saber se o recorte atual ja tem evidencia suficiente para debugging.">
+            <HighlightGrid items={investigationHighlights} />
+          </SectionCard>
+
+          <SectionCard title="Runs recentes" subtitle="Execucoes recentes do backend para tracing rapido por request.">
+            {filteredRuns.length > 0 ? (
+              <View style={s.judgeList}>
+                {filteredRuns.map((run) => (
+                  <RecentRunCard key={run.id} run={run} />
+                ))}
+              </View>
+            ) : (
+              <Text style={s.emptyText}>
+                Nenhum run bateu com a busca atual.
+              </Text>
+            )}
+          </SectionCard>
+
+          <SectionCard
+            title="Timeline de eventos"
+            subtitle="Sequencia recente para facilitar tracing basico antes de abrir logs brutos.">
+            {filteredTimeline.length > 0 ? (
+              filteredTimeline.map((event) => <TimelineRow key={event.id} event={event} />)
+            ) : (
+              <Text style={s.emptyText}>Nenhum evento da timeline bateu com a busca atual.</Text>
+            )}
+          </SectionCard>
+
+          <NetworkDiagnosticsSection
+            logs={filteredLogs}
+            enabled={enabled}
+            expandedIds={expandedIds}
+            title="Logs de rede"
+            subtitle="Base em tempo real para drill-down, debugging e comparacao com as metricas agregadas."
+            emptyTitle={investigationSearch.trim() ? 'Nenhum log bateu com a busca atual.' : 'Sem logs ainda.'}
+            emptyHint={
+              investigationSearch.trim()
+                ? 'Limpe a busca ou use outro requestId, traceId, path ou erro para ampliar o recorte.'
+                : 'Faca chamadas de API para acompanhar trafego e performance aqui.'
+            }
+            onToggleEnabled={onToggleEnabled}
+            onClear={onClearLogs}
+            onToggleExpand={toggleExpand}
+          />
+        </>
       ) : null}
     </>
   );
@@ -451,6 +875,56 @@ function HeroMeta({ label, value }: { label: string; value: string }) {
     <View style={s.heroMetaCard}>
       <Text style={s.heroMetaLabel}>{label}</Text>
       <Text style={s.heroMetaValue}>{value}</Text>
+    </View>
+  );
+}
+
+function FilterChipGroup<T extends string | number | null>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: Array<{ label: string; value: T }>;
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <View style={s.filterGroup}>
+      <Text style={s.filterLabel}>{label}</Text>
+      <View style={s.filterChipWrap}>
+        {options.map((option) => {
+          const active = option.value === value;
+          return (
+            <Pressable
+              key={`${label}-${option.label}-${option.value ?? 'all'}`}
+              style={({ pressed }) => [s.filterChip, active && s.filterChipActive, pressed && s.pressed]}
+              onPress={() => onChange(option.value)}>
+              <Text style={[s.filterChipText, active && s.filterChipTextActive]}>{option.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function HighlightGrid({ items }: { items: SummaryHighlight[] }) {
+  return (
+    <View style={s.highlightGrid}>
+      {items.map((item) => {
+        const colors = toneColors(item.tone);
+        return (
+          <View
+            key={item.id}
+            style={[s.highlightCard, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+            <Text style={s.highlightTitle}>{item.title}</Text>
+            <Text style={[s.highlightValue, { color: colors.text }]}>{item.value}</Text>
+            <Text style={s.highlightDescription}>{item.description}</Text>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -895,6 +1369,50 @@ const s = StyleSheet.create({
   filterChipTextActive: {
     color: Brand.greenDark,
   },
+  inlineHint: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '700',
+  },
+  searchInput: {
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    backgroundColor: Brand.bg,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    ...Typography.body,
+    color: Brand.text,
+  },
+  quickSearchWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  quickSearchChip: {
+    minWidth: 120,
+    flexGrow: 1,
+    flexBasis: 120,
+    borderRadius: Radii.lg,
+    backgroundColor: Brand.bg,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  quickSearchLabel: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  quickSearchValue: {
+    ...Typography.caption,
+    color: Brand.text,
+    fontWeight: '700',
+  },
   card: {
     borderRadius: Radii.xl,
     backgroundColor: Brand.card,
@@ -922,6 +1440,32 @@ const s = StyleSheet.create({
   blockChipActive: { backgroundColor: '#EAF8EE', borderColor: '#C8E7D2' },
   blockChipText: { ...Typography.caption, color: Brand.textMuted, fontWeight: '700' },
   blockChipTextActive: { color: Brand.greenDark },
+  highlightGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  highlightCard: {
+    minWidth: 150,
+    flexGrow: 1,
+    flexBasis: 150,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 6,
+  },
+  highlightTitle: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  highlightValue: {
+    ...Typography.body,
+    fontWeight: '800',
+  },
+  highlightDescription: {
+    ...Typography.caption,
+    color: Brand.textSecondary,
+  },
   metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   metricCard: { minWidth: 150, flexGrow: 1, flexBasis: 148, borderRadius: 20, borderWidth: 1, padding: 14, gap: 8 },
   metricLabel: { ...Typography.caption, color: Brand.textSecondary, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },

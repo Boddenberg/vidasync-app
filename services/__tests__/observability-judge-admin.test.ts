@@ -85,7 +85,7 @@ describe('getDeveloperJudgeSnapshotOverrides with internal admin metrics', () =>
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('/internal/admin/llm-judge/metrics?days=7');
-    expect(url).not.toContain('feature=');
+    expect(url).toContain('feature=chat');
     expect(options.headers).toMatchObject({
       'X-Internal-Api-Key': 'secret-key',
       'X-User-Id': 'admin-1',
