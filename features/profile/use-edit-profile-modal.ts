@@ -2,6 +2,9 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
+import { type ThemePaletteKey } from '@/constants/theme';
+import { getUsernameStatusPalette, type ProfileStep, type UsernameCheckState } from '@/features/profile/profile-flow';
+import { useAppTheme } from '@/hooks/use-app-theme';
 import { useAuth } from '@/hooks/use-auth';
 import { pickDishImage } from '@/services/dish-images';
 import {
@@ -11,11 +14,6 @@ import {
   validatePasswordLength,
   validateUsername,
 } from '@/utils/auth-validation';
-import {
-  getUsernameStatusPalette,
-  type ProfileStep,
-  type UsernameCheckState,
-} from '@/features/profile/profile-flow';
 
 type Props = {
   onClose: () => void;
@@ -27,14 +25,8 @@ function wait(ms: number) {
 
 export function useEditProfileModal({ onClose }: Props) {
   const router = useRouter();
-  const {
-    user,
-    updateProfile,
-    checkUsernameAvailability,
-    updateUsername,
-    updatePassword,
-    logout,
-  } = useAuth();
+  const { themeKey, themeOption, options: themeOptions, applyThemeSelection } = useAppTheme();
+  const { user, updateProfile, checkUsernameAvailability, updateUsername, updatePassword, logout } = useAuth();
 
   const usernameCheckId = useRef(0);
 
@@ -48,6 +40,7 @@ export function useEditProfileModal({ onClose }: Props) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [selectedThemeKey, setSelectedThemeKey] = useState<ThemePaletteKey>(themeKey);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -62,20 +55,25 @@ export function useEditProfileModal({ onClose }: Props) {
     if (!currentPassword.trim() && !newPassword.trim() && !confirmNewPassword.trim()) {
       return null;
     }
+
     const currentPasswordError = validatePasswordLength(currentPassword, { label: 'Senha atual' });
     if (currentPasswordError) {
       return currentPasswordError;
     }
+
     const newPasswordError = validatePasswordLength(newPassword, { label: 'A nova senha' });
     if (newPasswordError) {
       return newPasswordError;
     }
+
     if (newPassword.trim() === currentPassword.trim()) {
       return 'Escolha uma senha diferente da atual.';
     }
+
     if (newPassword.trim() !== confirmNewPassword.trim()) {
-      return 'As senhas não coincidem.';
+      return 'As senhas nao coincidem.';
     }
+
     return null;
   })();
 
@@ -90,6 +88,10 @@ export function useEditProfileModal({ onClose }: Props) {
     !!newPassword.trim() &&
     !!confirmNewPassword.trim() &&
     !passwordValidationMessage;
+
+  useEffect(() => {
+    setSelectedThemeKey(themeKey);
+  }, [themeKey]);
 
   useEffect(() => {
     if (step !== 'username') {
@@ -113,7 +115,7 @@ export function useEditProfileModal({ onClose }: Props) {
 
     if (normalizedUsername.toLowerCase() === normalizedCurrentUsername) {
       setUsernameStatus('same');
-      setUsernameStatusMessage('Esse já é o seu usuário atual.');
+      setUsernameStatusMessage('Esse ja e o seu usuario atual.');
       return;
     }
 
@@ -132,10 +134,7 @@ export function useEditProfileModal({ onClose }: Props) {
 
           setUsernameStatus(result.available ? 'available' : 'unavailable');
           setUsernameStatusMessage(
-            result.message ??
-              (result.available
-                ? 'Nome de usuário disponível.'
-                : 'Esse nome de usuário já está em uso.'),
+            result.message ?? (result.available ? 'Nome de usuario disponivel.' : 'Esse nome de usuario ja esta em uso.'),
           );
         } catch (err: any) {
           if (requestId !== usernameCheckId.current) {
@@ -143,7 +142,7 @@ export function useEditProfileModal({ onClose }: Props) {
           }
 
           setUsernameStatus('error');
-          setUsernameStatusMessage(err?.message ?? 'Não foi possível verificar agora.');
+          setUsernameStatusMessage(err?.message ?? 'Nao foi possivel verificar agora.');
         }
       })();
     }, 450);
@@ -168,6 +167,10 @@ export function useEditProfileModal({ onClose }: Props) {
     setConfirmNewPassword('');
   }
 
+  function resetThemeFlow() {
+    setSelectedThemeKey(themeKey);
+  }
+
   function resetForm() {
     setStep('overview');
     setPhotoUri(null);
@@ -175,6 +178,7 @@ export function useEditProfileModal({ onClose }: Props) {
     setPhotoPickerVisible(false);
     resetUsernameFlow();
     resetPasswordFlow();
+    resetThemeFlow();
     clearMessages();
     setLoading(false);
   }
@@ -195,11 +199,15 @@ export function useEditProfileModal({ onClose }: Props) {
     }
 
     clearMessages();
+
     if (step === 'username') {
       resetUsernameFlow();
     } else if (step === 'password') {
       resetPasswordFlow();
+    } else if (step === 'theme') {
+      resetThemeFlow();
     }
+
     setStep('overview');
   }
 
@@ -213,6 +221,12 @@ export function useEditProfileModal({ onClose }: Props) {
     clearMessages();
     resetPasswordFlow();
     setStep('password');
+  }
+
+  function openThemeFlow() {
+    clearMessages();
+    resetThemeFlow();
+    setStep('theme');
   }
 
   function openBmiFlow() {
@@ -229,7 +243,6 @@ export function useEditProfileModal({ onClose }: Props) {
     clearMessages();
     setPhotoPickerVisible(false);
 
-    // Wait for the action sheet/modal stack to close before launching native pickers.
     await wait(180);
 
     try {
@@ -285,6 +298,7 @@ export function useEditProfileModal({ onClose }: Props) {
         handleClose();
         return;
       }
+
       setError(err?.message ?? 'Erro ao atualizar a foto.');
     } finally {
       setLoading(false);
@@ -301,7 +315,7 @@ export function useEditProfileModal({ onClose }: Props) {
     }
 
     if (normalizedUsername.toLowerCase() === normalizedCurrentUsername) {
-      setError('Escolha um nome de usuário diferente do atual.');
+      setError('Escolha um nome de usuario diferente do atual.');
       return;
     }
 
@@ -309,18 +323,17 @@ export function useEditProfileModal({ onClose }: Props) {
     setLoading(true);
 
     try {
-      await updateUsername({
-        username: normalizedUsername,
-      });
+      await updateUsername({ username: normalizedUsername });
       resetUsernameFlow();
       setStep('overview');
-      setSuccess('Nome de usuário atualizado com sucesso.');
+      setSuccess('Nome de usuario atualizado com sucesso.');
     } catch (err: any) {
       if (err?.name === 'SessionExpiredError') {
         handleClose();
         return;
       }
-      setError(err?.message ?? 'Erro ao atualizar o nome de usuário.');
+
+      setError(err?.message ?? 'Erro ao atualizar o nome de usuario.');
     } finally {
       setLoading(false);
     }
@@ -348,8 +361,26 @@ export function useEditProfileModal({ onClose }: Props) {
         handleClose();
         return;
       }
+
       setError(err?.message ?? 'Erro ao atualizar a senha.');
     } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSaveTheme() {
+    if (selectedThemeKey === themeKey) {
+      setStep('overview');
+      return;
+    }
+
+    clearMessages();
+    setLoading(true);
+
+    try {
+      await applyThemeSelection(selectedThemeKey);
+    } catch (err: any) {
+      setError(err?.message ?? 'Erro ao aplicar a nova paleta.');
       setLoading(false);
     }
   }
@@ -386,10 +417,12 @@ export function useEditProfileModal({ onClose }: Props) {
     step === 'overview'
       ? 'Editar perfil'
       : step === 'username'
-        ? 'Alterar usuário'
+        ? 'Alterar usuario'
         : step === 'password'
           ? 'Alterar senha'
-          : 'Calculadora de IMC';
+          : step === 'theme'
+            ? 'Paleta do app'
+            : 'Calculadora de IMC';
 
   return {
     step,
@@ -401,6 +434,10 @@ export function useEditProfileModal({ onClose }: Props) {
     displayPhoto,
     photoChanged,
     showDeveloperTools,
+    themeKey,
+    themeOption,
+    themeOptions,
+    selectedThemeKey,
     photoPickerVisible,
     usernameDraft,
     usernameStatusMessage,
@@ -416,6 +453,7 @@ export function useEditProfileModal({ onClose }: Props) {
     handleBack,
     openUsernameFlow,
     openPasswordFlow,
+    openThemeFlow,
     handlePickPhoto,
     pickFromCamera,
     pickFromGallery,
@@ -423,12 +461,14 @@ export function useEditProfileModal({ onClose }: Props) {
     handleSavePhoto,
     handleSaveUsername,
     handleSavePassword,
+    handleSaveTheme,
     handleLogout,
     handleOpenFeedback,
     handleOpenBmi,
     handleOpenDeveloperTools,
     setPhotoPickerVisible,
     setUsernameDraft: (value: string) => setUsernameDraft(sanitizeUsernameInput(value)),
+    setSelectedThemeKey,
     setCurrentPassword,
     setNewPassword,
     setConfirmNewPassword,

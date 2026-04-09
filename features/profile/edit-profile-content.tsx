@@ -5,13 +5,20 @@ import { Image, Pressable, Text, View } from 'react-native';
 import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { BmiCalculatorCard } from '@/components/health/bmi-calculator-card';
-import { Brand } from '@/constants/theme';
+import { Brand, type ThemePaletteKey } from '@/constants/theme';
 import { s } from '@/features/profile/edit-profile-modal.styles';
 
 type StatusPalette = {
   backgroundColor: string;
   borderColor: string;
   textColor: string;
+};
+
+type ThemeOption = {
+  key: ThemePaletteKey;
+  label: string;
+  description: string;
+  preview: readonly [string, string, string];
 };
 
 type AvatarProps = {
@@ -25,8 +32,10 @@ type OverviewProps = {
   photoChanged: boolean;
   showDeveloperTools: boolean;
   loading: boolean;
+  activeTheme: ThemeOption;
   onOpenUsername: () => void;
   onOpenPassword: () => void;
+  onOpenTheme: () => void;
   onSavePhoto: () => void;
   onOpenFeedback: () => void;
   onOpenBmi: () => void;
@@ -60,6 +69,16 @@ type PasswordStepProps = {
   onSubmit: () => void;
   onCancel: () => void;
   passwordMaxLength: number;
+};
+
+type ThemeStepProps = {
+  activeThemeKey: ThemePaletteKey;
+  selectedThemeKey: ThemePaletteKey;
+  themeOptions: readonly ThemeOption[];
+  loading: boolean;
+  onSelectTheme: (value: ThemePaletteKey) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
 };
 
 type BannerProps = {
@@ -109,6 +128,16 @@ function PasswordField({ label, placeholder, value, onChangeText, maxLength }: P
   );
 }
 
+function ThemePalettePreview({ preview }: { preview: ThemeOption['preview'] }) {
+  return (
+    <View style={s.themeSwatches}>
+      {preview.map((color, index) => (
+        <View key={`${color}-${index}`} style={[s.themeSwatch, { backgroundColor: color }]} />
+      ))}
+    </View>
+  );
+}
+
 export function ProfileAvatarHeader({ currentUsername, displayPhoto, onPress }: AvatarProps) {
   return (
     <>
@@ -145,8 +174,10 @@ export function EditProfileOverviewStep({
   photoChanged,
   showDeveloperTools,
   loading,
+  activeTheme,
   onOpenUsername,
   onOpenPassword,
+  onOpenTheme,
   onSavePhoto,
   onOpenFeedback,
   onOpenBmi,
@@ -157,10 +188,22 @@ export function EditProfileOverviewStep({
     <>
       <Pressable style={({ pressed }) => [s.infoCard, pressed && s.cardPressed]} onPress={onOpenUsername}>
         <View style={s.infoCopy}>
-          <Text style={s.currentLabel}>Usuário atual</Text>
+          <Text style={s.currentLabel}>Usuario atual</Text>
           <Text style={s.currentValue}>{currentUsername}</Text>
-          <Text style={s.infoHint}>Toque para alterar o nome de usuário</Text>
+          <Text style={s.infoHint}>Toque para alterar o nome de usuario</Text>
         </View>
+        <Ionicons name="chevron-forward" size={18} color={Brand.textSecondary} />
+      </Pressable>
+
+      <Pressable style={({ pressed }) => [s.actionCard, pressed && s.cardPressed]} onPress={onOpenTheme}>
+        <View style={[s.actionIcon, { backgroundColor: activeTheme.preview[2] }]}>
+          <Ionicons name="color-palette-outline" size={20} color={activeTheme.preview[0]} />
+        </View>
+        <View style={s.actionCopy}>
+          <Text style={s.actionTitle}>Paleta do app</Text>
+          <Text style={s.actionDescription}>{activeTheme.label}</Text>
+        </View>
+        <ThemePalettePreview preview={activeTheme.preview} />
         <Ionicons name="chevron-forward" size={18} color={Brand.textSecondary} />
       </Pressable>
 
@@ -175,7 +218,7 @@ export function EditProfileOverviewStep({
         <Ionicons name="chevron-forward" size={18} color={Brand.textSecondary} />
       </Pressable>
 
-      {photoChanged ? <AppButton title="Salvar alteração da foto" onPress={onSavePhoto} loading={loading} /> : null}
+      {photoChanged ? <AppButton title="Salvar alteracao da foto" onPress={onSavePhoto} loading={loading} /> : null}
 
       <View style={s.utilityGroup}>
         <AppButton title="Enviar feedback" onPress={onOpenFeedback} variant="secondary" disabled={loading} />
@@ -211,18 +254,18 @@ export function EditProfileUsernameStep({
 }: UsernameStepProps) {
   return (
     <View style={s.formCard}>
-      <Text style={s.sectionTitle}>Alterar nome de usuário</Text>
+      <Text style={s.sectionTitle}>Alterar nome de usuario</Text>
       <Text style={s.sectionSubtitle}>Escolha um nome novo e salve quando ele estiver disponivel.</Text>
 
       <View style={s.currentInfo}>
-        <Text style={s.currentLabel}>Usuário atual</Text>
+        <Text style={s.currentLabel}>Usuario atual</Text>
         <Text style={s.currentValue}>{currentUsername}</Text>
       </View>
 
       <View style={s.fieldGroup}>
-        <Text style={s.fieldLabel}>Novo nome de usuário</Text>
+        <Text style={s.fieldLabel}>Novo nome de usuario</Text>
         <AppInput
-          placeholder="Digite o novo usuário"
+          placeholder="Digite o novo usuario"
           value={usernameDraft}
           onChangeText={onChangeUsername}
           autoCapitalize="none"
@@ -244,7 +287,7 @@ export function EditProfileUsernameStep({
         </View>
       ) : null}
 
-      <AppButton title="Salvar nome de usuário" onPress={onSubmit} loading={loading} disabled={!canSubmitUsername} />
+      <AppButton title="Salvar nome de usuario" onPress={onSubmit} loading={loading} disabled={!canSubmitUsername} />
       <AppButton title="Cancelar" onPress={onCancel} variant="secondary" disabled={loading} />
     </View>
   );
@@ -302,6 +345,74 @@ export function EditProfilePasswordStep({
       ) : null}
 
       <AppButton title="Confirmar nova senha" onPress={onSubmit} loading={loading} disabled={!canSubmitPassword} />
+      <AppButton title="Cancelar" onPress={onCancel} variant="secondary" disabled={loading} />
+    </View>
+  );
+}
+
+export function EditProfileThemeStep({
+  activeThemeKey,
+  selectedThemeKey,
+  themeOptions,
+  loading,
+  onSelectTheme,
+  onSubmit,
+  onCancel,
+}: ThemeStepProps) {
+  const hasPendingChange = selectedThemeKey !== activeThemeKey;
+
+  return (
+    <View style={s.formCard}>
+      <Text style={s.sectionTitle}>Escolha a paleta do app</Text>
+      <Text style={s.sectionSubtitle}>
+        A nova paleta sera aplicada ao app inteiro. Para atualizar todas as telas, o app recarrega logo depois.
+      </Text>
+
+      <View style={s.themeOptionList}>
+        {themeOptions.map((option) => {
+          const selected = option.key === selectedThemeKey;
+          const active = option.key === activeThemeKey;
+
+          return (
+            <Pressable
+              key={option.key}
+              onPress={() => onSelectTheme(option.key)}
+              style={({ pressed }) => [
+                s.themeOptionCard,
+                selected && s.themeOptionCardSelected,
+                pressed && s.cardPressed,
+              ]}>
+              <View style={s.themeOptionHeader}>
+                <View style={s.themeOptionCopy}>
+                  <View style={s.themeOptionTitleRow}>
+                    <Text style={s.themeOptionTitle}>{option.label}</Text>
+                    {active ? (
+                      <View style={s.themeActiveBadge}>
+                        <Text style={s.themeActiveBadgeText}>Ativa</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={s.themeOptionDescription}>{option.description}</Text>
+                </View>
+                <Ionicons
+                  name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={22}
+                  color={selected ? option.preview[0] : Brand.textMuted}
+                />
+              </View>
+
+              <ThemePalettePreview preview={option.preview} />
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <AppButton
+        title={hasPendingChange ? 'Aplicar paleta e recarregar' : 'Paleta atual selecionada'}
+        onPress={onSubmit}
+        loading={loading}
+        disabled={!hasPendingChange}
+      />
       <AppButton title="Cancelar" onPress={onCancel} variant="secondary" disabled={loading} />
     </View>
   );

@@ -155,6 +155,19 @@ export const s = StyleSheet.create({
     fontSize: 13,
     color: Brand.textSecondary,
   },
+  themeSwatches: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginRight: 2,
+  },
+  themeSwatch: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.65)',
+  },
   utilityGroup: {
     gap: 12,
   },
@@ -237,6 +250,61 @@ export const s = StyleSheet.create({
     fontSize: 13,
     color: Brand.textSecondary,
     lineHeight: 18,
+  },
+  themeOptionList: {
+    gap: 12,
+  },
+  themeOptionCard: {
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    backgroundColor: Brand.bg,
+    gap: 12,
+  },
+  themeOptionCardSelected: {
+    borderColor: Brand.greenDark,
+    backgroundColor: Brand.surfaceSoft,
+  },
+  themeOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  themeOptionCopy: {
+    flex: 1,
+    gap: 6,
+  },
+  themeOptionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  themeOptionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Brand.text,
+  },
+  themeOptionDescription: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: Brand.textSecondary,
+  },
+  themeActiveBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+  },
+  themeActiveBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Brand.greenDark,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   logoutBtn: {
     alignItems: 'center',

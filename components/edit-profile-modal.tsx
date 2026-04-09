@@ -8,6 +8,7 @@ import {
   EditProfileBmiStep,
   EditProfileOverviewStep,
   EditProfilePasswordStep,
+  EditProfileThemeStep,
   EditProfileUsernameStep,
   ProfileAvatarHeader,
   ProfileMessageBanner,
@@ -61,8 +62,10 @@ export function EditProfileModal({ visible, onClose }: Props) {
               photoChanged={profile.photoChanged}
               showDeveloperTools={profile.showDeveloperTools}
               loading={profile.loading}
+              activeTheme={profile.themeOption}
               onOpenUsername={profile.openUsernameFlow}
               onOpenPassword={profile.openPasswordFlow}
+              onOpenTheme={profile.openThemeFlow}
               onSavePhoto={profile.handleSavePhoto}
               onOpenFeedback={profile.handleOpenFeedback}
               onOpenBmi={profile.handleOpenBmi}
@@ -100,6 +103,18 @@ export function EditProfileModal({ visible, onClose }: Props) {
               onSubmit={profile.handleSavePassword}
               onCancel={profile.handleBack}
               passwordMaxLength={profile.passwordMaxLength}
+            />
+          ) : null}
+
+          {profile.step === 'theme' ? (
+            <EditProfileThemeStep
+              activeThemeKey={profile.themeKey}
+              selectedThemeKey={profile.selectedThemeKey}
+              themeOptions={profile.themeOptions}
+              loading={profile.loading}
+              onSelectTheme={profile.setSelectedThemeKey}
+              onSubmit={profile.handleSaveTheme}
+              onCancel={profile.handleBack}
             />
           ) : null}
 
