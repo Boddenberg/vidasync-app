@@ -624,6 +624,19 @@ judge_error
 - campos extras de custo/tokens no judge podem existir no backend, mas a UI atual está focada em status, qualidade e diagnóstico
 - IDs de `request`, `message`, `conversation` e `user` aparecem quando a persistência do backend os inclui
 
+### Leitura nova do dashboard
+
+- topo executivo com headline, impacto, suspeita principal e aÃ§Ãµes sugeridas
+- abas de leitura: `Resumo`, `Falhas`, `Qualidade` e `InvestigaÃ§Ã£o`
+- filtros de recorte por `janela`, `agente`, `status` e `modelo`
+- busca de investigaÃ§Ã£o para cruzar `traceId`, `requestId`, `path` e erros
+- logs de rede brutos como apoio de drill-down, nÃ£o como leitura principal
+
+### ObservaÃ§Ãµes atuais
+
+- o banner de estado explicita quando o painel estÃ¡ em `sessÃ£o local`, `hÃ­brido` ou `backend`
+- filtros locais de `status/decisÃ£o` no judge refinam a leitura da aba, mas nÃ£o substituem drill-down analÃ­tico completo no backend
+
 ---
 
 ## Testes e qualidade
