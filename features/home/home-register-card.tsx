@@ -21,24 +21,29 @@ export function HomeRegisterCard({
   return (
     <View style={s.actionCard}>
       <View pointerEvents="none" style={s.actionGlow} />
+      <View pointerEvents="none" style={s.actionGlowSecondary} />
 
       <View style={s.actionTop}>
-        <Text style={s.actionEyebrow}>Registro rápido</Text>
+        <View style={s.actionEyebrowWrap}>
+          <Ionicons name="leaf" size={12} color={Brand.greenDeeper} />
+          <Text style={s.actionEyebrow}>Registro rápido</Text>
+        </View>
         <View style={s.actionDateChip}>
+          <Ionicons name="calendar-outline" size={13} color={Brand.greenDark} />
           <Text style={s.actionDateText}>{formatDateChip(selectedDate)}</Text>
         </View>
       </View>
 
       <View style={s.actionBody}>
-        <Text style={s.actionTitle}>Registrar refeição</Text>
-        <Text style={s.actionSupport}>Adicione sua próxima refeição.</Text>
+        <Text style={s.actionTitle}>O que você comeu?</Text>
+        <Text style={s.actionSupport}>Registre com foto, busca ou manualmente — leva segundos.</Text>
       </View>
 
       <Pressable
         style={({ pressed }) => [s.actionPrimaryButton, pressed && s.actionPrimaryButtonPressed]}
         onPress={onOpenRegisterOptions}>
         <View style={s.actionPrimaryButtonContent}>
-          <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+          <Ionicons name="restaurant" size={18} color="#FFFFFF" />
           <Text style={s.actionPrimaryButtonText}>Registrar refeição</Text>
         </View>
       </Pressable>
@@ -47,14 +52,18 @@ export function HomeRegisterCard({
         <Pressable
           style={({ pressed }) => [s.actionSecondaryButton, pressed && s.actionSecondaryButtonPressed]}
           onPress={onOpenPhoto}>
-          <Ionicons name="camera-outline" size={16} color={Brand.coral} />
+          <View style={[s.actionSecondaryIconWrap, { backgroundColor: Brand.coralSoft }]}>
+            <Ionicons name="camera" size={14} color={Brand.coral} />
+          </View>
           <Text style={s.actionSecondaryButtonText}>Foto</Text>
         </Pressable>
 
         <Pressable
           style={({ pressed }) => [s.actionSecondaryButton, pressed && s.actionSecondaryButtonPressed]}
           onPress={onOpenSearch}>
-          <Ionicons name="search-outline" size={16} color={Brand.greenDark} />
+          <View style={[s.actionSecondaryIconWrap, { backgroundColor: Brand.mintSoft }]}>
+            <Ionicons name="search" size={14} color={Brand.greenDark} />
+          </View>
           <Text style={s.actionSecondaryButtonText}>Buscar</Text>
         </Pressable>
       </View>
