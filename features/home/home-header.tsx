@@ -24,9 +24,11 @@ export function HomeHeader({
   onOpenNotifications,
   onOpenCalendar,
 }: Props) {
+  const firstName = (user?.username ?? 'Usuário').split(' ')[0];
+
   return (
     <View style={s.header}>
-      <View style={s.identityRow}>
+      <View style={s.topRow}>
         <Pressable style={({ pressed }) => [s.avatarButton, pressed && s.pressed]} onPress={onOpenProfile}>
           {user?.profileImageUrl ? (
             <Image source={{ uri: user.profileImageUrl }} style={s.avatar} />
@@ -36,25 +38,13 @@ export function HomeHeader({
             </View>
           )}
           <View style={s.avatarBadge}>
-            <Ionicons name="leaf" size={10} color="#FFFFFF" />
+            <Ionicons name="leaf" size={9} color="#FFFFFF" />
           </View>
         </Pressable>
 
-        <View style={s.profileCopy}>
-          <Text style={s.greetingLabel}>{greeting()}</Text>
-          <Text
-            style={s.username}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}>
-            {user?.username ?? 'Usuário'}
-          </Text>
-        </View>
-
         <View style={s.actionsShell}>
           <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} onPress={onOpenHistory}>
-            <Ionicons name="stats-chart-outline" size={19} color={Brand.greenDark} />
+            <Ionicons name="stats-chart-outline" size={19} color={Brand.greenDeeper} />
           </Pressable>
 
           <Pressable
@@ -63,7 +53,7 @@ export function HomeHeader({
             <Ionicons
               name={unreadNotificationsCount > 0 ? 'notifications' : 'notifications-outline'}
               size={19}
-              color={unreadNotificationsCount > 0 ? Brand.coral : Brand.text}
+              color={unreadNotificationsCount > 0 ? Brand.coral : Brand.greenDeeper}
             />
             {unreadNotificationsCount > 0 ? (
               <View style={s.notificationBadge}>
@@ -76,6 +66,18 @@ export function HomeHeader({
         </View>
       </View>
 
+      <View style={s.greetingBlock}>
+        <Text style={s.greetingLabel}>{greeting()},</Text>
+        <Text
+          style={s.username}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}>
+          {firstName} 👋
+        </Text>
+      </View>
+
       <Pressable style={({ pressed }) => [s.dateChip, pressed && s.pressed]} onPress={onOpenCalendar}>
         <View style={s.dateChipIcon}>
           <Ionicons name="calendar" size={14} color={Brand.greenDeeper} />
@@ -83,7 +85,7 @@ export function HomeHeader({
         <Text numberOfLines={1} style={s.dateChipText}>
           {dashboardDateText}
         </Text>
-        <Ionicons name="chevron-down" size={14} color={Brand.greenDark} />
+        <Ionicons name="chevron-down" size={14} color={Brand.greenDeeper} />
       </Pressable>
     </View>
   );
@@ -91,27 +93,19 @@ export function HomeHeader({
 
 const s = StyleSheet.create({
   header: {
-    paddingBottom: 4,
+    paddingBottom: 2,
     gap: 14,
   },
-  identityRow: {
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-  },
-  profileCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
+    justifyContent: 'space-between',
   },
   avatarButton: {
     position: 'relative',
-    borderRadius: 26,
+    borderRadius: 28,
     backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    padding: 0,
-    overflow: 'visible',
+    padding: 2,
     ...Shadows.card,
   },
   avatar: {
@@ -146,30 +140,31 @@ const s = StyleSheet.create({
     borderWidth: 2,
     borderColor: Brand.bg,
   },
+  greetingBlock: {
+    gap: 2,
+  },
   greetingLabel: {
-    ...Typography.caption,
-    color: Brand.greenDeeper,
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 0.3,
+    ...Typography.helper,
+    color: Brand.textSecondary,
+    fontWeight: '600',
+    fontSize: 14,
   },
   username: {
-    fontSize: 22,
-    lineHeight: 26,
+    fontSize: 30,
+    lineHeight: 34,
     color: Brand.text,
     fontWeight: '800',
-    flexShrink: 1,
-    letterSpacing: -0.3,
+    letterSpacing: -0.6,
   },
   actionsShell: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 16,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
