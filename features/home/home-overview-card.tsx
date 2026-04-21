@@ -43,9 +43,8 @@ type MacroKey = 'protein' | 'carbs' | 'fat';
 
 type MacroItem = {
   key: MacroKey;
-  label: string;
+  letter: 'P' | 'C' | 'G';
   value: number;
-  icon: 'flash' | 'nutrition' | 'water';
   tone: { color: string; bg: string };
 };
 
@@ -92,23 +91,20 @@ export function HomeOverviewCard({
   const macroItems: MacroItem[] = [
     {
       key: 'protein',
-      label: 'Proteína',
+      letter: 'P',
       value: protein,
-      icon: 'flash',
       tone: HOME_MACRO_TONES.protein,
     },
     {
       key: 'carbs',
-      label: 'Carboidrato',
+      letter: 'C',
       value: carbs,
-      icon: 'nutrition',
       tone: HOME_MACRO_TONES.carbs,
     },
     {
       key: 'fat',
-      label: 'Gordura',
+      letter: 'G',
       value: fat,
-      icon: 'water',
       tone: HOME_MACRO_TONES.fat,
     },
   ];
@@ -198,12 +194,9 @@ export function HomeOverviewCard({
                   },
                 ]}>
                 <View style={s.macroHeader}>
-                  <View style={[s.macroIconWrap, { backgroundColor: `${item.tone.color}22` }]}>
-                    <Ionicons name={item.icon} size={14} color={item.tone.color} />
+                  <View style={[s.macroLetterBadge, { backgroundColor: item.tone.color }]}>
+                    <Text style={s.macroLetterText}>{item.letter}</Text>
                   </View>
-                  <Text numberOfLines={1} style={s.macroLabel}>
-                    {item.label}
-                  </Text>
                 </View>
 
                 <View style={s.macroValueRow}>
@@ -289,7 +282,7 @@ export function HomeOverviewCard({
 
             return (
               <Pressable
-                key={action.label}
+                key={action.deltaMl}
                 disabled={hydrationSaving || hydrationLoading}
                 style={({ pressed }) => [
                   s.hydrationQuickAction,

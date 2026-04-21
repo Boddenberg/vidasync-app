@@ -164,19 +164,18 @@ export const s = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  macroIconWrap: {
+  macroLetterBadge: {
     width: 28,
     height: 28,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  macroLabel: {
-    ...Typography.caption,
-    color: Brand.text,
-    fontWeight: '800',
-    fontSize: 12,
-    flex: 1,
+  macroLetterText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 14,
+    letterSpacing: -0.2,
   },
   macroValueRow: {
     flexDirection: 'row',

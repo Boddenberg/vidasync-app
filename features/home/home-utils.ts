@@ -7,10 +7,10 @@ import type { Meal, MealType } from '@/types/nutrition';
 import { extractNum, toDateStr, todayStr } from '@/utils/helpers';
 
 export const HYDRATION_QUICK_ACTIONS = [
-  { label: '+200 ml', deltaMl: 200, tone: 'positive' as const },
-  { label: '+500 ml', deltaMl: 500, tone: 'positive' as const },
-  { label: '-200 ml', deltaMl: -200, tone: 'negative' as const },
-  { label: '-500 ml', deltaMl: -500, tone: 'negative' as const },
+  { label: '200 ml', deltaMl: 200, tone: 'positive' as const },
+  { label: '500 ml', deltaMl: 500, tone: 'positive' as const },
+  { label: '200 ml', deltaMl: -200, tone: 'negative' as const },
+  { label: '500 ml', deltaMl: -500, tone: 'negative' as const },
 ];
 
 export const HOME_MACRO_TONES = {
