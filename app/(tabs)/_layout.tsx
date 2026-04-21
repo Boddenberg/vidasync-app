@@ -1,16 +1,16 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { StyleSheet } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
+import { TabBarIcon } from '@/components/tab-bar-icon';
+import { Brand, Shadows, Typography } from '@/constants/theme';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Brand.greenDark,
+        tabBarActiveTintColor: Brand.greenDeeper,
         tabBarInactiveTintColor: Brand.textMuted,
         headerShown: false,
         tabBarButton: HapticTab,
@@ -18,14 +18,16 @@ export default function TabLayout() {
         tabBarStyle: s.tabBar,
         tabBarItemStyle: s.tabBarItem,
         tabBarLabelStyle: s.tabBarLabel,
-        tabBarActiveBackgroundColor: Brand.surfaceSoft,
+        // Remove qualquer fundo no estado ativo — o indicador é o próprio ícone + dot.
+        tabBarActiveBackgroundColor: 'transparent',
+        tabBarInactiveBackgroundColor: 'transparent',
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Início',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons size={21} name={focused ? 'home' : 'home-outline'} color={color} />
+            <TabBarIcon name="home-outline" focusedName="home" color={color} focused={focused} />
           ),
         }}
       />
@@ -34,7 +36,12 @@ export default function TabLayout() {
         options={{
           title: 'Pratos',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons size={21} name={focused ? 'restaurant' : 'restaurant-outline'} color={color} />
+            <TabBarIcon
+              name="restaurant-outline"
+              focusedName="restaurant"
+              color={color}
+              focused={focused}
+            />
           ),
         }}
       />
@@ -43,7 +50,12 @@ export default function TabLayout() {
         options={{
           title: 'Progresso',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons size={20} name={focused ? 'stats-chart' : 'stats-chart-outline'} color={color} />
+            <TabBarIcon
+              name="stats-chart-outline"
+              focusedName="stats-chart"
+              color={color}
+              focused={focused}
+            />
           ),
         }}
       />
@@ -52,10 +64,11 @@ export default function TabLayout() {
         options={{
           title: 'Fitty',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              size={20}
-              name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'}
+            <TabBarIcon
+              name="chatbubble-ellipses-outline"
+              focusedName="chatbubble-ellipses"
               color={color}
+              focused={focused}
             />
           ),
         }}
@@ -72,24 +85,24 @@ export default function TabLayout() {
 
 const s = StyleSheet.create({
   tabBar: {
-    borderTopWidth: 1,
-    borderTopColor: Brand.border,
-    backgroundColor: Brand.card,
+    borderTopWidth: 0,
+    backgroundColor: '#FFFFFF',
     minHeight: 78,
-    paddingTop: 10,
+    paddingTop: 8,
     paddingBottom: 12,
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
     ...Shadows.floating,
   },
   tabBarItem: {
-    borderRadius: Radii.lg,
-    marginHorizontal: 6,
-    marginVertical: 4,
+    marginHorizontal: 2,
+    paddingVertical: 2,
+    // Sem borderRadius nem background para evitar a "caixinha branca" no estado ativo.
   },
   tabBarLabel: {
     ...Typography.caption,
     marginTop: 2,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   },
 });
