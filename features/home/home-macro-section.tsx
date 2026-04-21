@@ -12,6 +12,14 @@ type Props = {
 
 type MacroKey = 'protein' | 'carbs' | 'fat';
 
+type MacroCard = {
+  key: MacroKey;
+  letter: string;
+  label: string;
+  consumed: number;
+  tone: (typeof HOME_MACRO_TONES)[MacroKey];
+};
+
 export function HomeMacroSection({ protein, carbs, fat, macroGoalItems }: Props) {
   const goals = new Map<MacroKey, GoalProgress>();
 
@@ -21,22 +29,25 @@ export function HomeMacroSection({ protein, carbs, fat, macroGoalItems }: Props)
     }
   });
 
-  const cards = [
+  const cards: MacroCard[] = [
     {
-      key: 'protein' as const,
+      key: 'protein',
+      letter: 'P',
       label: 'Proteína',
       consumed: protein,
       tone: HOME_MACRO_TONES.protein,
     },
     {
-      key: 'carbs' as const,
-      label: 'Carboidrato',
+      key: 'carbs',
+      letter: 'C',
+      label: 'Carbo',
       consumed: carbs,
       tone: HOME_MACRO_TONES.carbs,
     },
     {
-      key: 'fat' as const,
-      label: 'Gordura',
+      key: 'fat',
+      letter: 'G',
+      label: 'Gord.',
       consumed: fat,
       tone: HOME_MACRO_TONES.fat,
     },
@@ -47,26 +58,34 @@ export function HomeMacroSection({ protein, carbs, fat, macroGoalItems }: Props)
       <View style={s.grid}>
         {cards.map((card) => {
           const goal = goals.get(card.key);
-          const progress = goal ? (`${Math.round(goal.progress * 100)}%` as const) : ('0%' as const);
-          const goalValue = goal ? formatMetricValue(Math.round(goal.goal), 'g') : '--';
+          const progressPct = goal ? Math.round(goal.progress * 100) : 0;
+          const progressWidth = (`${Math.min(100, progressPct)}%` as const);
+          const goalValue = goal ? formatMetricValue(Math.round(goal.goal), 'g') : null;
 
           return (
             <View key={card.key} style={s.card}>
-              <View style={s.labelRow}>
-                <View style={[s.dot, { backgroundColor: card.tone.color }]} />
-                <Text style={s.label}>{card.label}</Text>
+              <View style={s.topRow}>
+                <View style={[s.badge, { backgroundColor: card.tone.bg }]}>
+                  <Text style={[s.badgeLetter, { color: card.tone.color }]}>{card.letter}</Text>
+                </View>
+                <Text style={s.label} numberOfLines={1}>
+                  {card.label}
+                </Text>
               </View>
 
-              <Text style={s.value}>
-                <Text style={s.valuePrimary}>{formatMetricValue(card.consumed, 'g')}</Text>
-                <Text style={s.valueDivider}> / </Text>
-                <Text style={s.valueGoal}>{goalValue}</Text>
+              <Text style={s.value} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                {formatMetricValue(card.consumed, 'g')}
               </Text>
 
               <View style={s.track}>
                 <View style={[s.trackBase, { backgroundColor: card.tone.bg }]} />
-                <View style={[s.fill, { width: progress, backgroundColor: card.tone.color }]} />
+                <View style={[s.fill, { width: progressWidth, backgroundColor: card.tone.color }]} />
               </View>
+
+              <Text style={s.goalRow} numberOfLines={1}>
+                <Text style={s.goalValue}>{goalValue ?? '—'}</Text>
+                {goal ? <Text style={s.goalPct}>  ·  {progressPct}%</Text> : null}
+              </Text>
             </View>
           );
         })}

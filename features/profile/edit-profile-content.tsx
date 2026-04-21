@@ -75,6 +75,16 @@ type PasswordFieldProps = {
   maxLength: number;
 };
 
+type ActionRowProps = {
+  title: string;
+  description?: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  iconBg: string;
+  disabled?: boolean;
+  onPress: () => void;
+};
+
 function PasswordField({ label, placeholder, value, onChangeText, maxLength }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
 
@@ -109,6 +119,24 @@ function PasswordField({ label, placeholder, value, onChangeText, maxLength }: P
   );
 }
 
+function ActionRow({ title, description, icon, iconColor, iconBg, disabled, onPress }: ActionRowProps) {
+  return (
+    <Pressable
+      disabled={disabled}
+      style={({ pressed }) => [s.actionCard, pressed && s.cardPressed, disabled && { opacity: 0.5 }]}
+      onPress={onPress}>
+      <View style={[s.actionIcon, { backgroundColor: iconBg }]}>
+        <Ionicons name={icon} size={19} color={iconColor} />
+      </View>
+      <View style={s.actionCopy}>
+        <Text style={s.actionTitle}>{title}</Text>
+        {description ? <Text style={s.actionDescription}>{description}</Text> : null}
+      </View>
+      <Ionicons name="chevron-forward" size={17} color={Brand.textMuted} />
+    </Pressable>
+  );
+}
+
 export function ProfileAvatarHeader({ currentUsername, displayPhoto, onPress }: AvatarProps) {
   return (
     <>
@@ -124,7 +152,7 @@ export function ProfileAvatarHeader({ currentUsername, displayPhoto, onPress }: 
           <Ionicons name="camera" size={14} color="#FFFFFF" />
         </View>
       </Pressable>
-      <Text style={s.avatarHint}>Toque para alterar a foto do perfil</Text>
+      <Text style={s.avatarHint}>Toque para alterar foto</Text>
     </>
   );
 }
@@ -132,9 +160,12 @@ export function ProfileAvatarHeader({ currentUsername, displayPhoto, onPress }: 
 export function ProfileMessageBanner({ tone, message }: BannerProps) {
   const toneBox = tone === 'error' ? s.errorBox : s.successBox;
   const toneText = tone === 'error' ? s.errorText : s.successText;
+  const iconName = tone === 'error' ? 'alert-circle' : 'checkmark-circle';
+  const iconColor = tone === 'error' ? Brand.danger : Brand.greenDark;
 
   return (
     <View style={[s.messageBox, toneBox]}>
+      <Ionicons name={iconName} size={16} color={iconColor} />
       <Text style={[s.messageText, toneText]}>{message}</Text>
     </View>
   );
@@ -155,42 +186,71 @@ export function EditProfileOverviewStep({
 }: OverviewProps) {
   return (
     <>
+      <Text style={s.sectionLabel}>CONTA</Text>
+
       <Pressable style={({ pressed }) => [s.infoCard, pressed && s.cardPressed]} onPress={onOpenUsername}>
+        <View style={[s.actionIcon, { backgroundColor: Brand.surfaceSoft }]}>
+          <Ionicons name="person" size={19} color={Brand.greenDeeper} />
+        </View>
         <View style={s.infoCopy}>
-          <Text style={s.currentLabel}>Usuário atual</Text>
-          <Text style={s.currentValue}>{currentUsername}</Text>
-          <Text style={s.infoHint}>Toque para alterar o nome de usuário</Text>
+          <Text style={s.actionTitle}>{currentUsername}</Text>
+          <Text style={s.infoHint}>Alterar nome de usuário</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={Brand.textSecondary} />
+        <Ionicons name="chevron-forward" size={17} color={Brand.textMuted} />
       </Pressable>
 
-      <Pressable style={({ pressed }) => [s.actionCard, pressed && s.cardPressed]} onPress={onOpenPassword}>
-        <View style={[s.actionIcon, { backgroundColor: '#EEF4FF' }]}>
-          <Ionicons name="lock-closed-outline" size={20} color="#2563EB" />
-        </View>
-        <View style={s.actionCopy}>
-          <Text style={s.actionTitle}>Alterar senha</Text>
-          <Text style={s.actionDescription}>Confirme a senha atual e defina uma nova.</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={Brand.textSecondary} />
-      </Pressable>
+      <ActionRow
+        title="Alterar senha"
+        description="Defina uma nova senha segura"
+        icon="lock-closed"
+        iconColor="#2563EB"
+        iconBg="#EEF4FF"
+        disabled={loading}
+        onPress={onOpenPassword}
+      />
 
-      {photoChanged ? <AppButton title="Salvar alteração da foto" onPress={onSavePhoto} loading={loading} /> : null}
+      {photoChanged ? (
+        <AppButton title="Salvar alteração da foto" onPress={onSavePhoto} loading={loading} />
+      ) : null}
+
+      <Text style={s.sectionLabel}>FERRAMENTAS</Text>
 
       <View style={s.utilityGroup}>
-        <AppButton title="Enviar feedback" onPress={onOpenFeedback} variant="secondary" disabled={loading} />
-        <AppButton title="Calculadora de IMC" onPress={onOpenBmi} variant="secondary" disabled={loading} />
+        <ActionRow
+          title="Calculadora de IMC"
+          description="Acompanhe peso e altura"
+          icon="fitness"
+          iconColor={Brand.coral}
+          iconBg="#FFE8E1"
+          disabled={loading}
+          onPress={onOpenBmi}
+        />
+
+        <ActionRow
+          title="Enviar feedback"
+          description="Compartilhe sugestões"
+          icon="chatbubble-ellipses"
+          iconColor={Brand.mango}
+          iconBg="#FFF4DD"
+          disabled={loading}
+          onPress={onOpenFeedback}
+        />
+
         {showDeveloperTools ? (
-          <AppButton
+          <ActionRow
             title="Observabilidade"
-            onPress={onOpenDeveloperTools}
-            variant="secondary"
+            description="Dashboards internos"
+            icon="terminal"
+            iconColor={Brand.indigo}
+            iconBg="#EEF0FF"
             disabled={loading}
+            onPress={onOpenDeveloperTools}
           />
         ) : null}
       </View>
 
-      <Pressable style={s.logoutBtn} onPress={onLogout}>
+      <Pressable style={({ pressed }) => [s.logoutBtn, pressed && s.cardPressed]} onPress={onLogout}>
+        <Ionicons name="log-out-outline" size={16} color={Brand.danger} />
         <Text style={s.logoutText}>Sair da conta</Text>
       </Pressable>
     </>
@@ -212,7 +272,7 @@ export function EditProfileUsernameStep({
   return (
     <View style={s.formCard}>
       <Text style={s.sectionTitle}>Alterar nome de usuário</Text>
-      <Text style={s.sectionSubtitle}>Escolha um nome novo e salve quando ele estiver disponivel.</Text>
+      <Text style={s.sectionSubtitle}>Escolha um nome novo e salve quando estiver disponível.</Text>
 
       <View style={s.currentInfo}>
         <Text style={s.currentLabel}>Usuário atual</Text>
@@ -220,7 +280,7 @@ export function EditProfileUsernameStep({
       </View>
 
       <View style={s.fieldGroup}>
-        <Text style={s.fieldLabel}>Novo nome de usuário</Text>
+        <Text style={s.fieldLabel}>Novo usuário</Text>
         <AppInput
           placeholder="Digite o novo usuário"
           value={usernameDraft}
@@ -312,7 +372,7 @@ export function EditProfileBmiStep() {
     <View style={s.formCard}>
       <BmiCalculatorCard
         title="Calculadora de IMC"
-        subtitle="Use peso e altura para uma leitura rapida sem sair dos ajustes do perfil."
+        subtitle="Use peso e altura para uma leitura rápida sem sair dos ajustes do perfil."
       />
     </View>
   );

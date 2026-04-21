@@ -1,10 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
-import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { DraggableSheetModal } from '@/components/ui/draggable-sheet-modal';
-import { Brand, Radii, Spacing, Typography } from '@/constants/theme';
+import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import { ExploreMacroChip } from '@/features/explore/explore-macro-chip';
 import type { NutritionData } from '@/types/nutrition';
 import type {
@@ -75,173 +75,113 @@ export function NutritionIngredientEditSheet({
           contentContainerStyle={s.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
-          <View style={s.header}>
-            <Text style={s.title}>{copy.title}</Text>
-            <Text style={s.subtitle}>{copy.subtitle}</Text>
+          <View style={s.headerRow}>
+            <View style={s.headerIconWrap}>
+              <Ionicons name={mode === 'add' ? 'add-circle' : 'create'} size={18} color={Brand.greenDeeper} />
+            </View>
+            <View style={s.headerCopy}>
+              <Text style={s.title}>{copy.title}</Text>
+              <Text style={s.subtitle}>{copy.subtitle}</Text>
+            </View>
+            <Pressable
+              style={({ pressed }) => [s.closeBtn, pressed && s.closeBtnPressed]}
+              onPress={onClose}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Fechar">
+              <Ionicons name="close" size={18} color={Brand.textSecondary} />
+            </Pressable>
           </View>
 
           {currentItem ? <CurrentIngredientOverview item={currentItem} /> : null}
 
-          <View style={s.modeSwitchRow}>
-            <ModeSwitchButton
-              label="Recalcular"
-              active={activeAdjustmentMode === 'recalculate'}
-              onPress={() => onChangeAdjustmentMode('recalculate')}
-            />
-            <ModeSwitchButton
-              label="Manual"
-              active={activeAdjustmentMode === 'manual'}
-              onPress={() => onChangeAdjustmentMode('manual')}
-            />
-          </View>
+          <ModeSwitcher activeMode={activeAdjustmentMode} onChange={onChangeAdjustmentMode} />
+
+          <IngredientBasicsForm draft={draft} onChangeDraft={onChangeDraft} />
 
           {activeAdjustmentMode === 'recalculate' ? (
             <>
-              <ModeContentHeader
-                title={copy.recalculateSectionTitle}
-                subtitle={copy.recalculateSectionSubtitle}
+              <GradientPrimaryButton
+                label={copy.recalculateActionTitle}
+                icon="sparkles"
+                onPress={onRecalculate}
+                disabled={!canRecalculate}
+                loading={recalculationLoading}
               />
 
-              <IngredientBasicsForm draft={draft} onChangeDraft={onChangeDraft} />
-
-              <View style={s.primaryActionCard}>
-                <AppButton
-                  title={copy.recalculateActionTitle}
-                  onPress={onRecalculate}
-                  loading={recalculationLoading}
-                  disabled={!canRecalculate}
-                  variant={recalculationPreview ? 'secondary' : 'primary'}
-                />
-                <Text style={s.primaryActionHint}>{copy.recalculateHint}</Text>
-              </View>
-
-              <View style={s.previewCard}>
-                <View style={s.previewHeader}>
-                  <Text style={s.previewTitle}>Previa do novo resultado</Text>
-                  {recalculationLookupLabel ? (
-                    <Text style={s.previewLookupText}>{recalculationLookupLabel}</Text>
-                  ) : (
-                    <Text style={s.previewLookupText}>
-                      Revise o nome, a quantidade e a unidade para gerar a previa.
-                    </Text>
-                  )}
-                </View>
-
-                {recalculationLoading ? (
-                  <View style={s.previewState}>
-                    <Text style={s.previewStateText}>Buscando uma nova estimativa para esse ingrediente...</Text>
-                  </View>
-                ) : recalculationError ? (
-                  <View style={s.previewFeedbackCard}>
-                    <Text style={s.previewErrorText}>{recalculationError}</Text>
-                  </View>
-                ) : recalculationPreview ? (
-                  <View style={s.previewBody}>
-                    <View style={s.previewGrid}>
-                      <PreviewMetric
-                        label="Calorias"
-                        value={recalculationPreview.calories}
-                        backgroundColor={Brand.positiveBg}
-                        textColor={Brand.greenDark}
-                      />
-                      <PreviewMetric
-                        label="Proteina"
-                        value={recalculationPreview.protein}
-                        backgroundColor={Brand.hydrationBg}
-                        textColor={Brand.hydration}
-                      />
-                      <PreviewMetric
-                        label="Carboidratos"
-                        value={recalculationPreview.carbs}
-                        backgroundColor={Brand.warningBg}
-                        textColor={Brand.warning}
-                      />
-                      <PreviewMetric
-                        label="Gorduras"
-                        value={recalculationPreview.fat}
-                        backgroundColor={Brand.fatBg}
-                        textColor={Brand.fat}
-                      />
-                    </View>
-
-                    <AppButton title={copy.applyPreviewTitle} onPress={onApplyRecalculation} />
-                  </View>
-                ) : (
-                  <View style={s.previewState}>
-                    <Text style={s.previewStateText}>{copy.emptyPreviewHint}</Text>
-                  </View>
-                )}
-              </View>
+              <PreviewPanel
+                loading={recalculationLoading}
+                error={recalculationError}
+                preview={recalculationPreview}
+                lookupLabel={recalculationLookupLabel}
+                emptyHint={copy.emptyPreviewHint}
+                applyLabel={copy.applyPreviewTitle}
+                onApply={onApplyRecalculation}
+              />
             </>
           ) : null}
 
           {activeAdjustmentMode === 'manual' ? (
             <>
-              <ModeContentHeader title={copy.manualSectionTitle} subtitle={copy.manualSectionSubtitle} />
-
-              <IngredientBasicsForm draft={draft} onChangeDraft={onChangeDraft} />
-
-              <View style={s.formCard}>
-                <View style={s.manualBody}>
-                  <View style={s.gridRow}>
-                    <View style={s.gridCell}>
-                      <Text style={s.label}>Calorias</Text>
-                      <AppInput
-                        placeholder="0 kcal"
-                        value={draft.calories}
-                        onChangeText={(value) =>
-                          onChangeDraft({ calories: value.replace(/[^0-9a-zA-Z.,\s]/g, '') })
-                        }
-                      />
-                    </View>
-                    <View style={s.gridCell}>
-                      <Text style={s.label}>Proteina</Text>
-                      <AppInput
-                        placeholder="0 g"
-                        value={draft.protein}
-                        onChangeText={(value) =>
-                          onChangeDraft({ protein: value.replace(/[^0-9a-zA-Z.,\s]/g, '') })
-                        }
-                      />
-                    </View>
-                  </View>
-
-                  <View style={s.gridRow}>
-                    <View style={s.gridCell}>
-                      <Text style={s.label}>Carboidratos</Text>
-                      <AppInput
-                        placeholder="0 g"
-                        value={draft.carbs}
-                        onChangeText={(value) =>
-                          onChangeDraft({ carbs: value.replace(/[^0-9a-zA-Z.,\s]/g, '') })
-                        }
-                      />
-                    </View>
-                    <View style={s.gridCell}>
-                      <Text style={s.label}>Gorduras</Text>
-                      <AppInput
-                        placeholder="0 g"
-                        value={draft.fat}
-                        onChangeText={(value) =>
-                          onChangeDraft({ fat: value.replace(/[^0-9a-zA-Z.,\s]/g, '') })
-                        }
-                      />
-                    </View>
-                  </View>
-
-                  <AppButton
-                    title={copy.manualActionTitle}
-                    onPress={onApplyManual}
-                    disabled={!canApplyManual}
+              <View style={s.manualCard}>
+                <View style={s.macroGrid}>
+                  <ManualMacroField
+                    label="Calorias"
+                    unit="kcal"
+                    letter="K"
+                    color={Brand.greenDeeper}
+                    bg={Brand.surfaceSoft}
+                    value={draft.calories}
+                    onChange={(value) => onChangeDraft({ calories: value })}
+                    placeholder="0"
+                  />
+                  <ManualMacroField
+                    label="Proteína"
+                    unit="g"
+                    letter="P"
+                    color={Brand.macroProtein}
+                    bg={Brand.macroProteinBg}
+                    value={draft.protein}
+                    onChange={(value) => onChangeDraft({ protein: value })}
+                    placeholder="0"
+                  />
+                  <ManualMacroField
+                    label="Carboidratos"
+                    unit="g"
+                    letter="C"
+                    color={Brand.macroCarb}
+                    bg={Brand.macroCarbBg}
+                    value={draft.carbs}
+                    onChange={(value) => onChangeDraft({ carbs: value })}
+                    placeholder="0"
+                  />
+                  <ManualMacroField
+                    label="Gorduras"
+                    unit="g"
+                    letter="G"
+                    color={Brand.macroFat}
+                    bg={Brand.macroFatBg}
+                    value={draft.fat}
+                    onChange={(value) => onChangeDraft({ fat: value })}
+                    placeholder="0"
                   />
                 </View>
               </View>
+
+              <GradientPrimaryButton
+                label={copy.manualActionTitle}
+                icon="checkmark-circle"
+                onPress={onApplyManual}
+                disabled={!canApplyManual}
+              />
             </>
           ) : null}
 
           {onRemove ? (
-            <Pressable style={s.removeButton} onPress={onRemove}>
-              <Ionicons name="trash-outline" size={16} color={Brand.danger} />
+            <Pressable
+              style={({ pressed }) => [s.removeButton, pressed && s.removeButtonPressed]}
+              onPress={onRemove}>
+              <Ionicons name="trash-outline" size={14} color={Brand.danger} />
               <Text style={s.removeButtonText}>Remover ingrediente</Text>
             </Pressable>
           ) : null}
@@ -254,68 +194,233 @@ export function NutritionIngredientEditSheet({
 function resolveSheetCopy(mode: NutritionIngredientSheetMode) {
   if (mode === 'add') {
     return {
-      title: 'Adicionar alimento faltando',
-      subtitle: 'Inclua um item que nao apareceu na analise e revise os macros antes de adicionar.',
-      recalculateSectionTitle: 'Buscar macros para o novo alimento',
-      recalculateSectionSubtitle:
-        'Preencha o nome, a quantidade e a unidade para gerar uma estimativa antes de adicionar.',
-      recalculateActionTitle: 'Calcular macros do alimento',
-      recalculateHint: 'Use a busca nutricional do app para preencher os macros deste novo item.',
+      title: 'Adicionar alimento',
+      subtitle: 'Inclua um item que não apareceu na análise.',
+      recalculateActionTitle: 'Calcular macros',
       applyPreviewTitle: 'Adicionar alimento',
-      emptyPreviewHint:
-        'Toque em "Calcular macros do alimento" para visualizar a estimativa antes de adicionar.',
-      manualSectionTitle: 'Preencher manualmente',
-      manualSectionSubtitle:
-        'Informe calorias, proteina, carboidratos e gorduras para adicionar esse alimento manualmente.',
+      emptyPreviewHint: 'Toque em "Calcular macros" para ver a estimativa.',
       manualActionTitle: 'Adicionar manualmente',
     };
   }
 
   return {
     title: 'Editar ingrediente',
-    subtitle: 'Revise nome, quantidade e unidade antes de seguir.',
-    recalculateSectionTitle: 'Buscar um novo resultado',
-    recalculateSectionSubtitle:
-      'Ajuste nome, quantidade e unidade para comparar uma nova estimativa antes de salvar.',
+    subtitle: 'Revise nome, quantidade e macros.',
     recalculateActionTitle: 'Recalcular ingrediente',
-    recalculateHint: 'Geramos uma nova estimativa para voce revisar antes de aplicar na refeicao.',
     applyPreviewTitle: 'Aplicar ajuste',
-    emptyPreviewHint:
-      'Toque em "Recalcular ingrediente" para comparar uma nova estimativa deste item.',
-    manualSectionTitle: 'Substituir com ajuste manual',
-    manualSectionSubtitle:
-      'Preencha os macros abaixo para salvar esse ingrediente com os valores informados por voce.',
+    emptyPreviewHint: 'Toque em "Recalcular" para comparar uma nova estimativa.',
     manualActionTitle: 'Aplicar ajuste manual',
   };
 }
 
-function ModeSwitchButton({
-  label,
-  active,
-  onPress,
-}: {
+type ModeSwitcherProps = {
+  activeMode: NutritionIngredientAdjustmentMode;
+  onChange: (mode: NutritionIngredientAdjustmentMode) => void;
+};
+
+function ModeSwitcher({ activeMode, onChange }: ModeSwitcherProps) {
+  return (
+    <View style={s.modeRow}>
+      <ModeButton
+        icon="sparkles"
+        label="Recalcular"
+        active={activeMode === 'recalculate'}
+        onPress={() => onChange('recalculate')}
+      />
+      <ModeButton
+        icon="pencil"
+        label="Manual"
+        active={activeMode === 'manual'}
+        onPress={() => onChange('manual')}
+      />
+    </View>
+  );
+}
+
+type ModeButtonProps = {
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
   active: boolean;
   onPress: () => void;
-}) {
+};
+
+function ModeButton({ icon, label, active, onPress }: ModeButtonProps) {
   return (
-    <Pressable style={[s.modeSwitchButton, active && s.modeSwitchButtonActive]} onPress={onPress}>
-      <Text style={[s.modeSwitchText, active && s.modeSwitchTextActive]}>{label}</Text>
+    <Pressable
+      style={({ pressed }) => [s.modeBtn, active && s.modeBtnActive, pressed && s.modeBtnPressed]}
+      onPress={onPress}>
+      <Ionicons name={icon} size={14} color={active ? Brand.greenDeeper : Brand.textSecondary} />
+      <Text style={[s.modeBtnText, active && s.modeBtnTextActive]}>{label}</Text>
     </Pressable>
   );
 }
 
-function ModeContentHeader({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle: string;
-}) {
+type GradientPrimaryButtonProps = {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+};
+
+function GradientPrimaryButton({ label, icon, onPress, disabled, loading }: GradientPrimaryButtonProps) {
+  const isInactive = disabled && !loading;
   return (
-    <View style={s.modeContentHeader}>
-      <Text style={s.modeContentTitle}>{title}</Text>
-      <Text style={s.modeContentSubtitle}>{subtitle}</Text>
+    <Pressable
+      style={({ pressed }) => [
+        s.primaryBtn,
+        pressed && !disabled && s.primaryBtnPressed,
+        isInactive && s.primaryBtnDisabled,
+      ]}
+      onPress={onPress}
+      disabled={disabled}>
+      {!isInactive ? (
+        <View style={StyleSheet.absoluteFill}>
+          <Svg width="100%" height="100%">
+            <Defs>
+              <LinearGradient id={`ingGrad-${label}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor={Brand.fresh} stopOpacity="1" />
+                <Stop offset="100%" stopColor={Brand.forest} stopOpacity="1" />
+              </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" rx="22" ry="22" fill={`url(#ingGrad-${label})`} />
+          </Svg>
+        </View>
+      ) : null}
+
+      <View style={s.primaryBtnInner}>
+        {loading ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <View style={[s.primaryBtnIcon, isInactive && s.primaryBtnIconDisabled]}>
+            <Ionicons name={icon} size={14} color={isInactive ? Brand.textMuted : '#FFFFFF'} />
+          </View>
+        )}
+        <Text style={[s.primaryBtnText, isInactive && s.primaryBtnTextDisabled]}>{label}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+type PreviewPanelProps = {
+  loading: boolean;
+  error: string | null;
+  preview: NutritionData | null;
+  lookupLabel: string | null;
+  emptyHint: string;
+  applyLabel: string;
+  onApply: () => void;
+};
+
+function PreviewPanel({
+  loading,
+  error,
+  preview,
+  lookupLabel,
+  emptyHint,
+  applyLabel,
+  onApply,
+}: PreviewPanelProps) {
+  return (
+    <View style={s.previewCard}>
+      <View style={s.previewHeaderRow}>
+        <View style={s.previewBadge}>
+          <Ionicons name="analytics" size={11} color={Brand.indigo} />
+          <Text style={s.previewBadgeText}>PRÉVIA</Text>
+        </View>
+        {lookupLabel ? (
+          <Text style={s.previewLookupText} numberOfLines={1}>
+            {lookupLabel}
+          </Text>
+        ) : null}
+      </View>
+
+      {loading ? (
+        <View style={s.previewPlaceholder}>
+          <ActivityIndicator size="small" color={Brand.greenDeeper} />
+          <Text style={s.previewPlaceholderText}>Buscando estimativa...</Text>
+        </View>
+      ) : error ? (
+        <View style={s.previewErrorRow}>
+          <Ionicons name="alert-circle" size={14} color={Brand.danger} />
+          <Text style={s.previewErrorText}>{error}</Text>
+        </View>
+      ) : preview ? (
+        <>
+          <View style={s.previewCalRow}>
+            <Text style={s.previewCalValue}>{preview.calories}</Text>
+            <Text style={s.previewCalLabel}>calorias</Text>
+          </View>
+          <View style={s.previewMacros}>
+            <ExploreMacroChip
+              label="prot"
+              value={preview.protein}
+              color={Brand.macroProtein}
+              bg={Brand.macroProteinBg}
+              compact
+            />
+            <ExploreMacroChip
+              label="carb"
+              value={preview.carbs}
+              color={Brand.macroCarb}
+              bg={Brand.macroCarbBg}
+              compact
+            />
+            <ExploreMacroChip
+              label="gord"
+              value={preview.fat}
+              color={Brand.macroFat}
+              bg={Brand.macroFatBg}
+              compact
+            />
+          </View>
+          <Pressable
+            style={({ pressed }) => [s.applyBtn, pressed && s.applyBtnPressed]}
+            onPress={onApply}>
+            <Ionicons name="checkmark-circle" size={14} color={Brand.greenDeeper} />
+            <Text style={s.applyBtnText}>{applyLabel}</Text>
+          </Pressable>
+        </>
+      ) : (
+        <View style={s.previewPlaceholder}>
+          <Ionicons name="information-circle-outline" size={14} color={Brand.textMuted} />
+          <Text style={s.previewPlaceholderText}>{emptyHint}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+type ManualMacroFieldProps = {
+  label: string;
+  unit: 'kcal' | 'g';
+  letter: string;
+  color: string;
+  bg: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+};
+
+function ManualMacroField({ label, unit, letter, color, bg, value, onChange, placeholder }: ManualMacroFieldProps) {
+  return (
+    <View style={s.manualFieldWrap}>
+      <View style={s.manualFieldHeader}>
+        <View style={[s.manualLetter, { backgroundColor: color }]}>
+          <Text style={s.manualLetterText}>{letter}</Text>
+        </View>
+        <Text style={[s.manualFieldLabel, { color }]}>{label}</Text>
+      </View>
+      <View style={[s.manualInputWrap, { backgroundColor: bg, borderColor: color }]}>
+        <AppInput
+          placeholder={placeholder}
+          value={value}
+          onChangeText={(raw) => onChange(raw.replace(/[^0-9a-zA-Z.,\s]/g, ''))}
+          keyboardType="decimal-pad"
+          style={s.manualInput}
+        />
+        <Text style={[s.manualUnit, { color }]}>{unit}</Text>
+      </View>
     </View>
   );
 }
@@ -329,35 +434,43 @@ function IngredientBasicsForm({
 }) {
   return (
     <View style={s.formCard}>
-      <Text style={s.label}>Nome do alimento</Text>
-      <AppInput
-        placeholder="Ex.: arroz branco"
-        value={draft.name}
-        onChangeText={(value) => onChangeDraft({ name: value })}
-        maxLength={60}
-      />
+      <View style={s.fieldGroup}>
+        <Text style={s.fieldLabel}>Nome do alimento</Text>
+        <AppInput
+          placeholder="Ex.: arroz branco"
+          value={draft.name}
+          onChangeText={(value) => onChangeDraft({ name: value })}
+          maxLength={60}
+        />
+      </View>
 
-      <Text style={s.label}>Quantidade</Text>
-      <View style={s.quantityRow}>
-        <View style={s.quantityInputWrap}>
-          <AppInput
-            placeholder="Qtd."
-            value={draft.quantityValue}
-            onChangeText={(value) => onChangeDraft({ quantityValue: value.replace(/[^0-9.,]/g, '') })}
-            keyboardType="numeric"
-            maxLength={7}
-          />
-        </View>
+      <View style={s.fieldGroup}>
+        <Text style={s.fieldLabel}>Quantidade</Text>
+        <View style={s.quantityRow}>
+          <View style={s.quantityInputWrap}>
+            <AppInput
+              placeholder="0"
+              value={draft.quantityValue}
+              onChangeText={(value) => onChangeDraft({ quantityValue: value.replace(/[^0-9.,]/g, '') })}
+              keyboardType="decimal-pad"
+              maxLength={7}
+            />
+          </View>
 
-        <View style={s.unitRow}>
-          {UNITS.map((unit) => (
-            <Pressable
-              key={unit}
-              style={[s.unitBtn, draft.quantityUnit === unit && s.unitBtnActive]}
-              onPress={() => onChangeDraft({ quantityUnit: unit })}>
-              <Text style={[s.unitText, draft.quantityUnit === unit && s.unitTextActive]}>{unit}</Text>
-            </Pressable>
-          ))}
+          <View style={s.unitRow}>
+            {UNITS.map((unit) => (
+              <Pressable
+                key={unit}
+                style={({ pressed }) => [
+                  s.unitBtn,
+                  draft.quantityUnit === unit && s.unitBtnActive,
+                  pressed && s.unitBtnPressed,
+                ]}
+                onPress={() => onChangeDraft({ quantityUnit: unit })}>
+                <Text style={[s.unitText, draft.quantityUnit === unit && s.unitTextActive]}>{unit}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       </View>
     </View>
@@ -367,281 +480,495 @@ function IngredientBasicsForm({
 function CurrentIngredientOverview({ item }: { item: NutritionReviewDraftItem }) {
   return (
     <View style={s.currentCard}>
+      <View style={s.currentHeaderRow}>
+        <View style={s.currentEyebrowPill}>
+          <Ionicons name="time-outline" size={10} color={Brand.greenDeeper} />
+          <Text style={s.currentEyebrow}>COMO ESTÁ AGORA</Text>
+        </View>
+      </View>
+
       <View style={s.currentCopy}>
-        <Text style={s.currentEyebrow}>Como esta agora</Text>
-        <Text style={s.currentName}>{item.name || 'Ingrediente sem nome'}</Text>
+        <Text style={s.currentName} numberOfLines={2}>
+          {item.name || 'Ingrediente sem nome'}
+        </Text>
         {item.quantityLabel ? (
           <Text style={s.currentMeta}>{item.quantityLabel}</Text>
         ) : (
-          <Text style={s.currentMeta}>Quantidade nao informada</Text>
+          <Text style={s.currentMeta}>Quantidade não informada</Text>
         )}
       </View>
 
-      <View style={s.currentMacroRow}>
-        <ExploreMacroChip label="kcal" value={item.calories} color={Brand.greenDark} bg={Brand.positiveBg} />
-        <ExploreMacroChip label="prot" value={item.protein} color={Brand.hydration} bg={Brand.hydrationBg} />
-        <ExploreMacroChip label="carb" value={item.carbs} color={Brand.warning} bg={Brand.warningBg} />
-        <ExploreMacroChip label="gord" value={item.fat} color={Brand.fat} bg={Brand.fatBg} />
+      <View style={s.currentCalRow}>
+        <Text style={s.currentCalValue}>{item.calories}</Text>
       </View>
-    </View>
-  );
-}
 
-function PreviewMetric({
-  label,
-  value,
-  backgroundColor,
-  textColor,
-}: {
-  label: string;
-  value: string;
-  backgroundColor: string;
-  textColor: string;
-}) {
-  return (
-    <View style={[s.previewMetricCard, { backgroundColor }]}>
-      <Text style={[s.previewMetricLabel, { color: textColor }]}>{label}</Text>
-      <Text style={s.previewMetricValue}>{value}</Text>
+      <View style={s.currentMacroRow}>
+        <ExploreMacroChip label="prot" value={item.protein} color={Brand.macroProtein} bg={Brand.macroProteinBg} compact />
+        <ExploreMacroChip label="carb" value={item.carbs} color={Brand.macroCarb} bg={Brand.macroCarbBg} compact />
+        <ExploreMacroChip label="gord" value={item.fat} color={Brand.macroFat} bg={Brand.macroFatBg} compact />
+      </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   sheet: {
-    maxHeight: '88%',
+    maxHeight: '90%',
   },
   content: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xxl,
-    gap: Spacing.md,
+    paddingHorizontal: 18,
+    paddingBottom: 32,
+    gap: 14,
   },
-  header: {
-    gap: Spacing.xs,
-  },
-  title: {
-    ...Typography.subtitle,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  subtitle: {
-    ...Typography.body,
-    color: Brand.textSecondary,
-  },
-  modeSwitchRow: {
+  headerRow: {
     flexDirection: 'row',
-    gap: Spacing.xs,
+    alignItems: 'center',
+    gap: 12,
   },
-  modeSwitchButton: {
-    flex: 1,
-    borderRadius: Radii.pill,
-    backgroundColor: Brand.bg,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+  headerIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: Brand.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modeSwitchButtonActive: {
-    backgroundColor: Brand.surfaceSoft,
-    borderColor: '#B7DCC2',
+  headerCopy: {
+    flex: 1,
+    gap: 2,
   },
-  modeSwitchText: {
-    ...Typography.body,
-    color: Brand.textSecondary,
-    fontWeight: '700',
-  },
-  modeSwitchTextActive: {
-    color: Brand.greenDark,
-  },
-  modeContentHeader: {
-    gap: 4,
-  },
-  modeContentTitle: {
-    ...Typography.body,
+  title: {
+    ...Typography.subtitle,
+    fontSize: 18,
     color: Brand.text,
-    fontWeight: '800',
+    fontWeight: '900',
+    letterSpacing: -0.3,
   },
-  modeContentSubtitle: {
+  subtitle: {
     ...Typography.caption,
+    fontSize: 12,
     color: Brand.textSecondary,
+    fontWeight: '500',
+    lineHeight: 16,
+  },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Brand.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeBtnPressed: {
+    backgroundColor: Brand.border,
   },
   currentCard: {
     borderRadius: Radii.xl,
-    backgroundColor: Brand.surfaceSoft,
-    padding: Spacing.md,
-    gap: Spacing.sm,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(20,108,56,0.08)',
+    padding: 14,
+    gap: 10,
+    ...Shadows.card,
   },
-  currentCopy: {
+  currentHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  currentEyebrowPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
+    borderRadius: Radii.pill,
+    backgroundColor: Brand.surfaceSoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   currentEyebrow: {
     ...Typography.caption,
-    color: Brand.greenDark,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontSize: 9,
+    color: Brand.greenDeeper,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  currentCopy: {
+    gap: 3,
   },
   currentName: {
     ...Typography.body,
+    fontSize: 16,
     color: Brand.text,
-    fontWeight: '800',
+    fontWeight: '900',
+    letterSpacing: -0.2,
   },
   currentMeta: {
     ...Typography.caption,
+    fontSize: 12,
     color: Brand.textSecondary,
+    fontWeight: '600',
+  },
+  currentCalRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  currentCalValue: {
+    ...Typography.subtitle,
+    fontSize: 20,
+    color: Brand.greenDeeper,
+    fontWeight: '900',
+    letterSpacing: -0.3,
   },
   currentMacroRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.xs,
+    gap: 6,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    backgroundColor: Brand.surfaceAlt,
+    borderRadius: Radii.pill,
+    padding: 4,
+    gap: 4,
+  },
+  modeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: Radii.pill,
+  },
+  modeBtnActive: {
+    backgroundColor: '#FFFFFF',
+    ...Shadows.card,
+  },
+  modeBtnPressed: {
+    opacity: 0.85,
+  },
+  modeBtnText: {
+    ...Typography.caption,
+    fontSize: 12,
+    color: Brand.textSecondary,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  modeBtnTextActive: {
+    color: Brand.greenDeeper,
   },
   formCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: Radii.xl,
-    backgroundColor: Brand.card,
     borderWidth: 1,
-    borderColor: Brand.border,
-    padding: Spacing.md,
-    gap: Spacing.sm,
+    borderColor: 'rgba(20,108,56,0.08)',
+    padding: 14,
+    gap: 12,
+    ...Shadows.card,
   },
-  label: {
+  fieldGroup: {
+    gap: 6,
+  },
+  fieldLabel: {
     ...Typography.caption,
+    fontSize: 11,
+    fontWeight: '800',
     color: Brand.textSecondary,
-    fontWeight: '700',
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginLeft: 4,
   },
   quantityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: 8,
   },
   quantityInputWrap: {
     flex: 1,
   },
   unitRow: {
     flexDirection: 'row',
-    gap: Spacing.xs,
+    gap: 4,
   },
   unitBtn: {
-    minWidth: 46,
+    minWidth: 44,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 12,
+    paddingVertical: 11,
     borderRadius: 14,
-    backgroundColor: Brand.bg,
+    backgroundColor: Brand.surfaceAlt,
     borderWidth: 1,
     borderColor: Brand.border,
   },
   unitBtnActive: {
-    backgroundColor: '#E7F6EC',
-    borderColor: '#B7DCC2',
+    backgroundColor: Brand.surfaceSoft,
+    borderColor: Brand.greenDeeper,
+  },
+  unitBtnPressed: {
+    opacity: 0.85,
   },
   unitText: {
     ...Typography.body,
+    fontSize: 13,
     color: Brand.textSecondary,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   unitTextActive: {
-    color: Brand.greenDark,
+    color: Brand.greenDeeper,
   },
-  primaryActionCard: {
-    gap: Spacing.sm,
+  primaryBtn: {
+    borderRadius: 22,
+    minHeight: 50,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    ...Shadows.card,
   },
-  primaryActionHint: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-    lineHeight: 18,
+  primaryBtnPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
+  },
+  primaryBtnDisabled: {
+    backgroundColor: Brand.surfaceAlt,
+    borderWidth: 1,
+    borderColor: Brand.border,
+  },
+  primaryBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  primaryBtnIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryBtnIconDisabled: {
+    backgroundColor: 'transparent',
+  },
+  primaryBtnText: {
+    ...Typography.body,
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  primaryBtnTextDisabled: {
+    color: Brand.textMuted,
   },
   previewCard: {
     borderRadius: Radii.xl,
-    backgroundColor: Brand.surfaceSoft,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-  },
-  previewHeader: {
-    gap: 4,
-  },
-  previewTitle: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  previewLookupText: {
-    ...Typography.caption,
-    color: Brand.textSecondary,
-  },
-  previewBody: {
-    gap: Spacing.sm,
-  },
-  previewGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  previewMetricCard: {
-    flexGrow: 1,
-    flexBasis: '47%',
-    minWidth: 128,
-    borderRadius: Radii.lg,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
-    gap: 4,
-  },
-  previewMetricLabel: {
-    ...Typography.caption,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  previewMetricValue: {
-    ...Typography.body,
-    color: Brand.text,
-    fontWeight: '800',
-  },
-  previewState: {
-    borderRadius: Radii.lg,
-    backgroundColor: Brand.card,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: Brand.border,
-    padding: Spacing.sm,
+    borderColor: 'rgba(20,108,56,0.08)',
+    padding: 14,
+    gap: 10,
+    ...Shadows.card,
   },
-  previewStateText: {
-    ...Typography.helper,
-    color: Brand.textSecondary,
-  },
-  previewFeedbackCard: {
-    borderRadius: Radii.lg,
-    backgroundColor: '#FFF0F0',
-    padding: Spacing.sm,
-  },
-  previewErrorText: {
-    ...Typography.helper,
-    color: Brand.danger,
-  },
-  manualBody: {
-    gap: Spacing.sm,
-  },
-  gridRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  gridCell: {
-    flex: 1,
-    gap: Spacing.xs,
-  },
-  removeButton: {
-    alignSelf: 'flex-start',
+  previewHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 4,
-    paddingVertical: 6,
+  },
+  previewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: Radii.pill,
+    backgroundColor: '#EEF0FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  previewBadgeText: {
+    ...Typography.caption,
+    fontSize: 9,
+    color: Brand.indigo,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  previewLookupText: {
+    ...Typography.caption,
+    fontSize: 11,
+    color: Brand.textSecondary,
+    fontWeight: '600',
+    flex: 1,
+  },
+  previewCalRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+  },
+  previewCalValue: {
+    ...Typography.title,
+    fontSize: 26,
+    lineHeight: 30,
+    color: Brand.greenDeeper,
+    fontWeight: '900',
+    letterSpacing: -0.6,
+  },
+  previewCalLabel: {
+    ...Typography.caption,
+    fontSize: 11,
+    color: Brand.greenDark,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  previewMacros: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  applyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: Radii.pill,
+    backgroundColor: Brand.surfaceSoft,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    marginTop: 2,
+  },
+  applyBtnPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.99 }],
+  },
+  applyBtnText: {
+    ...Typography.body,
+    fontSize: 13,
+    color: Brand.greenDeeper,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  previewPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: Radii.lg,
+    backgroundColor: Brand.surfaceAlt,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+  },
+  previewPlaceholderText: {
+    ...Typography.caption,
+    fontSize: 12,
+    color: Brand.textSecondary,
+    fontWeight: '500',
+    flex: 1,
+  },
+  previewErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: Radii.lg,
+    backgroundColor: '#FFF0F0',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  previewErrorText: {
+    ...Typography.caption,
+    fontSize: 12,
+    color: Brand.danger,
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 17,
+  },
+  manualCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radii.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(20,108,56,0.08)',
+    padding: 14,
+    ...Shadows.card,
+  },
+  macroGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  manualFieldWrap: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    gap: 6,
+  },
+  manualFieldHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  manualLetter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  manualLetterText: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  manualFieldLabel: {
+    ...Typography.caption,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  manualInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingRight: 12,
+  },
+  manualInput: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    minHeight: 46,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  manualUnit: {
+    ...Typography.caption,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+    marginLeft: 4,
+  },
+  removeButton: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: Radii.pill,
+    backgroundColor: '#FFF4F5',
+    borderWidth: 1,
+    borderColor: '#FCD5DB',
+    marginTop: 4,
+  },
+  removeButtonPressed: {
+    opacity: 0.9,
   },
   removeButtonText: {
-    ...Typography.body,
+    ...Typography.caption,
+    fontSize: 12,
     color: Brand.danger,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
 });

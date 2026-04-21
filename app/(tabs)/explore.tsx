@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { ReturnHomeButton } from '@/components/return-home-button';
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
@@ -239,9 +240,6 @@ export default function MyDishesScreen() {
     const query = searchText.trim().toLowerCase();
     return favorites.filter((favorite) => query.length === 0 || favorite.foods.toLowerCase().includes(query));
   }, [favorites, searchText]);
-  const subtitle = isFromHome
-    ? 'Escolha um prato salvo para usar na refeição ou monte um novo quando precisar.'
-    : 'Busque, cadastre e reutilize suas refeições favoritas.';
 
   return (
     <KeyboardAvoidingView
@@ -250,6 +248,10 @@ export default function MyDishesScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
       <View style={[s.root, { paddingTop: insets.top }]}>
         <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
+
+        {/* Ambient orbs */}
+        <View pointerEvents="none" style={s.orbTopLeft} />
+        <View pointerEvents="none" style={s.orbMidRight} />
 
         <ScrollView
           bounces={false}
@@ -260,29 +262,74 @@ export default function MyDishesScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           {isFromHome ? <ReturnHomeButton onPress={() => router.replace('/(tabs)' as any)} /> : null}
-          <Text style={s.title}>Pratos</Text>
-          <Text style={s.subtitle}>{subtitle}</Text>
 
+          {/* Hero */}
+          <View style={s.hero}>
+            <View style={s.heroRow}>
+              <View style={s.heroTitleBlock}>
+                <Text style={s.heroEyebrow}>MINHA COLEÇÃO</Text>
+                <Text style={s.heroTitle}>Pratos</Text>
+              </View>
+              {favorites.length > 0 ? (
+                <View style={s.heroStat}>
+                  <Text style={s.heroStatValue}>{favorites.length}</Text>
+                  <Text style={s.heroStatLabel}>{favorites.length === 1 ? 'salvo' : 'salvos'}</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={s.heroSubtitle}>
+              {isFromHome
+                ? 'Escolha um prato salvo para adicionar à refeição.'
+                : 'Cadastre, busque e reutilize suas receitas favoritas.'}
+            </Text>
+          </View>
+
+          {/* Search bar */}
           <View style={s.searchWrap}>
-            <Ionicons name="search-outline" size={18} color={Brand.textSecondary} />
+            <View style={s.searchIconWrap}>
+              <Ionicons name="search" size={16} color={Brand.greenDeeper} />
+            </View>
             <TextInput
               value={searchText}
               onChangeText={handleSearchTextChange}
               placeholder="Buscar nos salvos"
-              placeholderTextColor={Brand.textSecondary}
+              placeholderTextColor={Brand.textMuted}
               maxLength={SEARCH_MAX_LENGTH}
               style={s.searchInput}
+              returnKeyType="search"
             />
+            {searchText.length > 0 ? (
+              <Pressable hitSlop={10} onPress={() => setSearchText('')} style={s.searchClear}>
+                <Ionicons name="close-circle" size={18} color={Brand.textMuted} />
+              </Pressable>
+            ) : null}
           </View>
 
+          {/* New dish CTA or form */}
           {!showForm ? (
-            <Pressable style={({ pressed }) => [s.newDishCard, pressed && s.newDishCardPressed]} onPress={() => setShowForm(true)}>
+            <Pressable
+              style={({ pressed }) => [s.newDishCard, pressed && s.newDishCardPressed]}
+              onPress={() => setShowForm(true)}>
+              <View style={StyleSheet.absoluteFill}>
+                <Svg width="100%" height="100%">
+                  <Defs>
+                    <LinearGradient id="newDishGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <Stop offset="0%" stopColor={Brand.fresh} stopOpacity="1" />
+                      <Stop offset="100%" stopColor={Brand.forest} stopOpacity="1" />
+                    </LinearGradient>
+                  </Defs>
+                  <Rect x="0" y="0" width="100%" height="100%" rx="24" ry="24" fill="url(#newDishGrad)" />
+                </Svg>
+              </View>
               <View style={s.newDishIcon}>
-                <Text style={s.newDishIconText}>+</Text>
+                <Ionicons name="add" size={22} color="#FFFFFF" />
               </View>
               <View style={s.newDishCopy}>
                 <Text style={s.newDishTitle}>Novo prato</Text>
-                <Text style={s.newDishSubtitle}>Monte ingredientes, calcule macros e salve.</Text>
+                <Text style={s.newDishSubtitle}>Monte ingredientes e calcule macros</Text>
+              </View>
+              <View style={s.newDishArrow}>
+                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
               </View>
             </Pressable>
           ) : (
@@ -365,78 +412,171 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: Brand.bg,
   },
+  orbTopLeft: {
+    position: 'absolute',
+    top: -140,
+    left: -110,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(31,167,80,0.12)',
+  },
+  orbMidRight: {
+    position: 'absolute',
+    top: 200,
+    right: -120,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(244,166,42,0.08)',
+  },
   scroll: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 140,
     gap: 14,
   },
-  title: {
-    ...Typography.title,
-    color: Brand.text,
-    fontWeight: '800',
+  hero: {
+    gap: 6,
+    paddingTop: 6,
   },
-  subtitle: {
-    ...Typography.body,
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  heroTitleBlock: {
+    flex: 1,
+    gap: 2,
+  },
+  heroEyebrow: {
+    ...Typography.caption,
+    fontSize: 10,
+    color: Brand.greenDark,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+  },
+  heroTitle: {
+    ...Typography.title,
+    fontSize: 30,
+    lineHeight: 34,
+    color: Brand.text,
+    fontWeight: '900',
+    letterSpacing: -0.8,
+  },
+  heroStat: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: Brand.surfaceSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(20,108,56,0.12)',
+  },
+  heroStatValue: {
+    ...Typography.subtitle,
+    fontSize: 17,
+    color: Brand.greenDeeper,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+  },
+  heroStatLabel: {
+    ...Typography.caption,
+    fontSize: 10,
+    color: Brand.greenDark,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  heroSubtitle: {
+    ...Typography.helper,
+    fontSize: 13,
     color: Brand.textSecondary,
-    marginTop: -8,
+    lineHeight: 18,
   },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    borderRadius: Radii.xl,
-    backgroundColor: Brand.card,
+    borderRadius: Radii.pill,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: Brand.border,
-    paddingHorizontal: 14,
+    borderColor: 'rgba(20,108,56,0.10)',
+    paddingHorizontal: 8,
     paddingVertical: 6,
     ...Shadows.card,
   },
+  searchIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Brand.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   searchInput: {
     flex: 1,
-    minHeight: 42,
+    minHeight: 36,
     color: Brand.text,
     ...Typography.body,
+    fontSize: 14,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+  },
+  searchClear: {
+    padding: 4,
   },
   newDishCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    borderRadius: Radii.xl,
-    backgroundColor: Brand.card,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    padding: 18,
-    ...Shadows.card,
+    borderRadius: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    overflow: 'hidden',
+    ...Shadows.floating,
   },
   newDishCardPressed: {
-    opacity: 0.92,
+    opacity: 0.94,
+    transform: [{ scale: 0.99 }],
   },
   newDishIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 18,
-    backgroundColor: '#E7F6EC',
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  newDishIconText: {
-    fontSize: 28,
-    lineHeight: 30,
-    fontWeight: '700',
-    color: Brand.greenDark,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   newDishCopy: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   newDishTitle: {
     ...Typography.subtitle,
-    color: Brand.text,
-    fontWeight: '800',
+    fontSize: 17,
+    color: '#FFFFFF',
+    fontWeight: '900',
+    letterSpacing: -0.3,
   },
   newDishSubtitle: {
-    ...Typography.body,
-    color: Brand.textSecondary,
+    ...Typography.caption,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.86)',
+    fontWeight: '600',
+    letterSpacing: 0.1,
+  },
+  newDishArrow: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

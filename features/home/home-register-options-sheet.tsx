@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 
@@ -14,9 +15,13 @@ type Props = {
 
 type OptionCardProps = {
   label: string;
-  description: string;
+  caption: string;
   icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  iconBg: string;
   featured?: boolean;
+  gradientFrom?: string;
+  gradientTo?: string;
   onPress: () => void;
 };
 
@@ -33,34 +38,46 @@ export function HomeRegisterOptionsSheet({
       <Pressable style={s.overlay} onPress={onClose}>
         <Pressable style={s.sheet} onPress={(event) => event.stopPropagation()}>
           <View style={s.handle} />
-          <Text style={s.title}>Registrar refeição</Text>
-          <Text style={s.subtitle}>Escolha o caminho mais rápido para lançar sua refeição sem perder o contexto do dia.</Text>
 
-          <View style={s.options}>
+          <View style={s.header}>
+            <Text style={s.eyebrow}>NOVA REFEIÇÃO</Text>
+            <Text style={s.title}>Como você quer registrar?</Text>
+          </View>
+
+          <View style={s.grid}>
             <OptionCard
-              label="Buscar alimento"
-              description="Digite o nome e calcule os macros automaticamente."
-              icon="search-outline"
+              label="Buscar"
+              caption="Por nome"
+              icon="search"
+              iconColor="#FFFFFF"
+              iconBg="rgba(255,255,255,0.24)"
               featured
+              gradientFrom={Brand.fresh}
+              gradientTo={Brand.forest}
               onPress={onOpenSearch}
             />
             <OptionCard
-              label="Usar pratos salvos"
-              description="Reaproveite uma refeição que você já montou."
-              icon="restaurant-outline"
-              featured
+              label="Salvos"
+              caption="Meus pratos"
+              icon="bookmark"
+              iconColor={Brand.greenDeeper}
+              iconBg={Brand.surfaceSoft}
               onPress={onOpenSavedDishes}
             />
             <OptionCard
-              label="Usar foto"
-              description="Envie uma imagem para analisar a refeição."
-              icon="camera-outline"
+              label="Foto"
+              caption="Analisar imagem"
+              icon="camera"
+              iconColor={Brand.mango}
+              iconBg="#FFF4DD"
               onPress={onOpenPhoto}
             />
             <OptionCard
-              label="Registrar manualmente"
-              description="Monte ingredientes, horário e tipo da refeição."
-              icon="create-outline"
+              label="Manual"
+              caption="Compor do zero"
+              icon="create"
+              iconColor={Brand.sky}
+              iconBg={Brand.hydrationBg}
               onPress={onOpenManual}
             />
           </View>
@@ -74,23 +91,41 @@ export function HomeRegisterOptionsSheet({
   );
 }
 
-function OptionCard({ label, description, icon, featured, onPress }: OptionCardProps) {
+function OptionCard({
+  label,
+  caption,
+  icon,
+  iconColor,
+  iconBg,
+  featured,
+  gradientFrom,
+  gradientTo,
+  onPress,
+}: OptionCardProps) {
   return (
     <Pressable
-      style={({ pressed }) => [
-        s.optionCard,
-        featured && s.optionCardFeatured,
-        pressed && s.pressed,
-      ]}
+      style={({ pressed }) => [s.optionCard, featured && s.optionCardFeatured, pressed && s.pressed]}
       onPress={onPress}>
-      <View style={[s.optionIcon, featured && s.optionIconFeatured]}>
-        <Ionicons name={icon} size={18} color={featured ? '#FFFFFF' : Brand.greenDark} />
+      {featured && gradientFrom && gradientTo ? (
+        <View style={StyleSheet.absoluteFill}>
+          <Svg width="100%" height="100%">
+            <Defs>
+              <LinearGradient id={`grad-${label}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor={gradientFrom} stopOpacity="1" />
+                <Stop offset="100%" stopColor={gradientTo} stopOpacity="1" />
+              </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" rx="22" ry="22" fill={`url(#grad-${label})`} />
+          </Svg>
+        </View>
+      ) : null}
+
+      <View style={[s.optionIcon, { backgroundColor: iconBg }]}>
+        <Ionicons name={icon} size={20} color={iconColor} />
       </View>
-      <View style={s.optionCopy}>
-        <Text style={s.optionLabel}>{label}</Text>
-        <Text style={s.optionDescription}>{description}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={Brand.textMuted} />
+
+      <Text style={[s.optionLabel, featured && s.optionLabelFeatured]}>{label}</Text>
+      <Text style={[s.optionCaption, featured && s.optionCaptionFeatured]}>{caption}</Text>
     </Pressable>
   );
 }
@@ -98,17 +133,17 @@ function OptionCard({ label, description, icon, featured, onPress }: OptionCardP
 const s = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(20, 32, 24, 0.24)',
+    backgroundColor: 'rgba(16, 32, 22, 0.36)',
     justifyContent: 'flex-end',
     paddingHorizontal: 12,
     paddingBottom: 12,
   },
   sheet: {
     backgroundColor: Brand.bg,
-    borderRadius: Radii.xxl,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 26,
+    borderRadius: 30,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 22,
     gap: 14,
     ...Shadows.floating,
   },
@@ -118,74 +153,95 @@ const s = StyleSheet.create({
     borderRadius: Radii.pill,
     backgroundColor: Brand.border,
     alignSelf: 'center',
+    marginBottom: 4,
+  },
+  header: {
+    gap: 4,
+    paddingHorizontal: 4,
+  },
+  eyebrow: {
+    ...Typography.caption,
+    fontSize: 10,
+    color: Brand.greenDark,
+    fontWeight: '900',
+    letterSpacing: 1.2,
   },
   title: {
     ...Typography.subtitle,
+    fontSize: 19,
+    lineHeight: 23,
     color: Brand.text,
-    fontWeight: '800',
+    fontWeight: '900',
+    letterSpacing: -0.4,
   },
-  subtitle: {
-    ...Typography.body,
-    color: Brand.textSecondary,
-    marginTop: -6,
-  },
-  options: {
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    flexBasis: '48%',
+    flexGrow: 1,
     borderRadius: 22,
-    backgroundColor: Brand.card,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: Brand.border,
-    padding: 15,
+    borderColor: 'rgba(20,108,56,0.08)',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 6,
+    overflow: 'hidden',
+    ...Shadows.card,
   },
   optionCardFeatured: {
-    backgroundColor: Brand.surfaceSoft,
-    borderColor: '#CFE3D7',
+    borderWidth: 0,
+    ...Shadows.floating,
   },
   optionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 18,
-    backgroundColor: Brand.surfaceAlt,
+    width: 38,
+    height: 38,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  optionIconFeatured: {
-    backgroundColor: Brand.greenDark,
-  },
-  optionCopy: {
-    flex: 1,
-    gap: 3,
+    marginBottom: 2,
   },
   optionLabel: {
     ...Typography.body,
+    fontSize: 15,
     color: Brand.text,
-    fontWeight: '800',
+    fontWeight: '900',
+    letterSpacing: -0.2,
   },
-  optionDescription: {
-    ...Typography.helper,
+  optionLabelFeatured: {
+    color: '#FFFFFF',
+  },
+  optionCaption: {
+    ...Typography.caption,
+    fontSize: 11,
     color: Brand.textSecondary,
+    fontWeight: '600',
+    letterSpacing: 0.1,
+  },
+  optionCaptionFeatured: {
+    color: 'rgba(255,255,255,0.86)',
   },
   cancelButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
-    borderRadius: 20,
-    backgroundColor: Brand.card,
+    minHeight: 48,
+    borderRadius: Radii.pill,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: Brand.border,
   },
   cancelText: {
     ...Typography.body,
+    fontSize: 14,
     color: Brand.textSecondary,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   pressed: {
     opacity: 0.92,
-    transform: [{ scale: 0.99 }],
+    transform: [{ scale: 0.98 }],
   },
 });

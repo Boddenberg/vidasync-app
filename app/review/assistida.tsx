@@ -1,9 +1,10 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
-import { Brand } from '@/constants/theme';
+import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import { CalculatedDishActionsCard } from '@/features/nutrition/calculated-dish-actions-card';
 import { NutritionReviewEditor } from '@/features/review/nutrition-review-editor';
 import { PlanReviewEditor } from '@/features/review/plan-review-editor';
@@ -164,8 +165,11 @@ export default function AssistedReviewScreen() {
     return (
       <View style={s.root}>
         <View style={s.emptyWrap}>
-          <Text style={s.title}>Resultado da analise</Text>
-          <Text style={s.emptyText}>Nenhum dado disponivel para revisao.</Text>
+          <View style={s.emptyIcon}>
+            <Ionicons name="search" size={24} color={Brand.greenDeeper} />
+          </View>
+          <Text style={s.emptyTitle}>Sem revisão disponível</Text>
+          <Text style={s.emptyText}>Nenhum dado encontrado para esta sessão.</Text>
           <AppButton title="Voltar" onPress={closeReview} />
         </View>
       </View>
@@ -210,9 +214,28 @@ export default function AssistedReviewScreen() {
 
   return (
     <View style={s.root}>
-      <ScrollView contentContainerStyle={s.scroll}>
-        <Text style={s.title}>{copy.title}</Text>
-        <Text style={s.subtitle}>{copy.subtitle}</Text>
+      <View style={s.topBar}>
+        <Pressable
+          style={({ pressed }) => [s.backBtn, pressed && s.backBtnPressed]}
+          onPress={closeReview}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar">
+          <Ionicons name="chevron-back" size={20} color={Brand.text} />
+        </Pressable>
+        <Text style={s.topTitle}>Revisão</Text>
+        <View style={s.topSpacer} />
+      </View>
+
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <View style={s.heroBlock}>
+          <View style={s.heroEyebrow}>
+            <Ionicons name="sparkles" size={11} color={Brand.greenDeeper} />
+            <Text style={s.heroEyebrowText}>REVISÃO ASSISTIDA</Text>
+          </View>
+          <Text style={s.title}>{copy.title}</Text>
+          <Text style={s.subtitle}>{copy.subtitle}</Text>
+        </View>
 
         {draft.kind === 'nutrition' && nutritionContext ? (
           <NutritionReviewEditor
@@ -237,36 +260,54 @@ export default function AssistedReviewScreen() {
           />
         ) : null}
 
-        <View style={s.card}>
-          <Text style={s.sectionTitle}>Observacao opcional</Text>
-          <Text style={s.sectionHint}>
-            Conte, por exemplo, se havia um molho, bebida ou item ao fundo que nao apareceu na analise.
-          </Text>
+        <View style={s.observationCard}>
+          <View style={s.observationHeader}>
+            <View style={s.observationIconWrap}>
+              <Ionicons name="create" size={16} color={Brand.indigo} />
+            </View>
+            <View style={s.observationCopy}>
+              <Text style={s.observationTitle}>Observação opcional</Text>
+              <Text style={s.observationHint}>
+                Conte sobre um molho, bebida ou item ao fundo que não apareceu na análise.
+              </Text>
+            </View>
+          </View>
           <TextInput
             value={draft.observation}
             onChangeText={updateObservation}
-            placeholder="Conte aqui algum detalhe que faltou, como molho, bebida ou um item ao fundo."
-            placeholderTextColor={Brand.textSecondary}
+            placeholder="Algum detalhe que faltou..."
+            placeholderTextColor={Brand.textMuted}
             multiline
             style={s.multiInput}
           />
         </View>
 
         {resend.error ? (
-          <View style={s.errorCard}>
-            <Text style={s.errorText}>{resolveReviewFeedbackErrorMessage()}</Text>
-            <Pressable onPress={handleResend}>
-              <Text style={s.retryText}>Tentar novamente</Text>
-            </Pressable>
+          <View style={s.feedbackCard}>
+            <View style={[s.feedbackIcon, s.errorIcon]}>
+              <Ionicons name="alert-circle" size={16} color={Brand.danger} />
+            </View>
+            <View style={s.feedbackCopy}>
+              <Text style={[s.feedbackTitle, s.errorTitle]}>Não foi possível enviar</Text>
+              <Text style={s.feedbackText}>{resolveReviewFeedbackErrorMessage()}</Text>
+              <Pressable onPress={handleResend}>
+                <Text style={s.retryText}>Tentar novamente</Text>
+              </Pressable>
+            </View>
           </View>
         ) : null}
 
         {resend.data ? (
-          <View style={s.successCard}>
-            <Text style={s.successTitle}>Ajustes enviados</Text>
-            <Text style={s.successText}>
-              Recebemos sua revisao. Obrigado por ajudar a melhorar seus registros.
-            </Text>
+          <View style={s.feedbackCard}>
+            <View style={[s.feedbackIcon, s.successIcon]}>
+              <Ionicons name="checkmark-circle" size={16} color={Brand.greenDeeper} />
+            </View>
+            <View style={s.feedbackCopy}>
+              <Text style={[s.feedbackTitle, s.successTitleText]}>Ajustes enviados</Text>
+              <Text style={s.feedbackText}>
+                Recebemos sua revisão. Obrigado por ajudar a melhorar seus registros.
+              </Text>
+            </View>
           </View>
         ) : null}
 
@@ -282,8 +323,8 @@ export default function AssistedReviewScreen() {
             initialDishName={nutritionContext.title}
             initialDate={session.kind === 'nutrition' ? session.targetDate ?? undefined : undefined}
             imagePayload={nutritionPhotoPayload}
-            title="Quer guardar essa refeicao?"
-            subtitle="Depois da revisao, voce pode registrar essa refeicao em um periodo do dia ou salvar em Meus pratos."
+            title="Quer guardar essa refeição?"
+            subtitle="Depois da revisão, você pode registrar em um período do dia ou salvar em Meus pratos."
           />
         ) : null}
       </ScrollView>
@@ -291,10 +332,10 @@ export default function AssistedReviewScreen() {
       <View style={s.footer}>
         <View style={s.footerRow}>
           <View style={s.footerButton}>
-            <AppButton title="Enviar revisao" onPress={handleResend} loading={resend.loading} variant="secondary" />
+            <AppButton title="Enviar revisão" onPress={handleResend} loading={resend.loading} variant="secondary" />
           </View>
           <View style={s.footerButton}>
-            <AppButton title="Confirmar refeicao" onPress={closeReview} />
+            <AppButton title="Confirmar refeição" onPress={closeReview} />
           </View>
         </View>
       </View>
@@ -307,87 +348,195 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: Brand.bg,
   },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(20,108,56,0.08)',
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Brand.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backBtnPressed: {
+    backgroundColor: Brand.border,
+    opacity: 0.9,
+  },
+  topTitle: {
+    ...Typography.subtitle,
+    fontSize: 16,
+    fontWeight: '900',
+    color: Brand.text,
+    letterSpacing: -0.2,
+  },
+  topSpacer: {
+    width: 40,
+  },
   scroll: {
-    padding: 20,
-    gap: 12,
+    padding: 18,
+    gap: 14,
     paddingBottom: 120,
   },
+  heroBlock: {
+    gap: 6,
+    marginBottom: 4,
+  },
+  heroEyebrow: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: Radii.pill,
+    backgroundColor: Brand.surfaceSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  heroEyebrowText: {
+    ...Typography.caption,
+    fontSize: 10,
+    color: Brand.greenDeeper,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+  },
   title: {
+    ...Typography.title,
     fontSize: 24,
-    fontWeight: '700',
+    lineHeight: 28,
     color: Brand.text,
+    fontWeight: '900',
+    letterSpacing: -0.6,
+    marginTop: 2,
   },
   subtitle: {
-    fontSize: 13,
+    ...Typography.body,
+    fontSize: 14,
+    lineHeight: 20,
     color: Brand.textSecondary,
-    lineHeight: 19,
+    fontWeight: '500',
   },
-  card: {
-    backgroundColor: Brand.card,
-    borderRadius: 18,
+  observationCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radii.xl,
     borderWidth: 1,
-    borderColor: Brand.border,
+    borderColor: 'rgba(20,108,56,0.08)',
     padding: 16,
     gap: 12,
+    ...Shadows.card,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+  observationHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  observationIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#EEF0FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  observationCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  observationTitle: {
+    ...Typography.body,
+    fontSize: 15,
     color: Brand.text,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
-  sectionHint: {
-    fontSize: 13,
+  observationHint: {
+    ...Typography.caption,
+    fontSize: 12,
     color: Brand.textSecondary,
-    lineHeight: 19,
+    fontWeight: '500',
+    lineHeight: 17,
   },
   multiInput: {
-    minHeight: 130,
-    borderRadius: 16,
+    minHeight: 110,
+    borderRadius: Radii.lg,
     borderWidth: 1,
     borderColor: Brand.border,
-    backgroundColor: Brand.bg,
+    backgroundColor: Brand.surfaceAlt,
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 12,
     color: Brand.text,
+    fontSize: 14,
+    lineHeight: 20,
     textAlignVertical: 'top',
   },
-  errorCard: {
-    backgroundColor: '#FFF0F0',
-    borderRadius: 16,
-    padding: 16,
-    gap: 8,
+  feedbackCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radii.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(20,108,56,0.08)',
+    padding: 14,
+    ...Shadows.card,
   },
-  errorText: {
-    fontSize: 13,
+  feedbackIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorIcon: {
+    backgroundColor: '#FFF0F0',
+  },
+  successIcon: {
+    backgroundColor: Brand.surfaceSoft,
+  },
+  feedbackCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  feedbackTitle: {
+    ...Typography.body,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.1,
+  },
+  errorTitle: {
     color: Brand.danger,
-    lineHeight: 19,
+  },
+  successTitleText: {
+    color: Brand.greenDeeper,
+  },
+  feedbackText: {
+    ...Typography.caption,
+    fontSize: 12,
+    color: Brand.textSecondary,
+    lineHeight: 17,
+    fontWeight: '500',
   },
   retryText: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...Typography.caption,
+    fontSize: 12,
+    fontWeight: '800',
     color: Brand.danger,
-  },
-  successCard: {
-    backgroundColor: '#F0FFF4',
-    borderRadius: 16,
-    padding: 16,
-    gap: 8,
-  },
-  successTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Brand.greenDark,
-  },
-  successText: {
-    fontSize: 13,
-    color: Brand.greenDark,
-    lineHeight: 19,
+    letterSpacing: 0.3,
+    marginTop: 4,
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 18,
+    paddingBottom: 18,
     paddingTop: 10,
-    backgroundColor: Brand.bg,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(20,108,56,0.08)',
   },
   footerRow: {
     flexDirection: 'row',
@@ -398,13 +547,33 @@ const s = StyleSheet.create({
   },
   emptyWrap: {
     flex: 1,
-    padding: 20,
+    padding: 24,
     justifyContent: 'center',
-    gap: 12,
+    alignItems: 'center',
+    gap: 10,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Brand.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyTitle: {
+    ...Typography.subtitle,
+    fontSize: 18,
+    color: Brand.text,
+    fontWeight: '900',
+    letterSpacing: -0.2,
   },
   emptyText: {
-    fontSize: 14,
+    ...Typography.body,
+    fontSize: 13,
     color: Brand.textSecondary,
+    textAlign: 'center',
+    marginBottom: 12,
   },
 });
 
@@ -426,5 +595,5 @@ function buildNutritionItemId(index: number): string {
 }
 
 function resolveReviewFeedbackErrorMessage() {
-  return 'Nao conseguimos enviar sua revisao agora. Tente novamente em instantes.';
+  return 'Não conseguimos enviar sua revisão agora. Tente novamente em instantes.';
 }

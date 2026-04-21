@@ -106,14 +106,15 @@ export const API_UPLOAD_PATH = normalizeOptionalPath(
  * true: exige referencia remota (URL ou fileKey) e falha se nao conseguir upload.
  * false: usa referencia remota quando possivel e cai para base64 como fallback.
  *
- * Padrao em branco/ausente: true (evita enviar base64 por engano quando
- * o backend espera link).
+ * Padrao em branco/ausente: true se o upload esta configurado (API_UPLOAD_PATH),
+ * senao false (cai para base64 automaticamente em vez de quebrar o fluxo).
  */
 const requireRemoteFileUrlRaw = process.env.EXPO_PUBLIC_API_REQUIRE_REMOTE_FILE_URL;
 const requireRemoteFileUrlNormalized = `${requireRemoteFileUrlRaw ?? ''}`.trim().toLowerCase();
+const hasUploadConfigured = API_UPLOAD_PATH.length > 0;
 export const API_REQUIRE_REMOTE_FILE_URL =
   !requireRemoteFileUrlRaw || requireRemoteFileUrlNormalized.length === 0
-    ? true
+    ? hasUploadConfigured
     : requireRemoteFileUrlNormalized === 'true';
 
 /*
