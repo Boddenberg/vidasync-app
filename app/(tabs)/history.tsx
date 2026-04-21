@@ -1,21 +1,35 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalendarPickerModal } from '@/components/calendar-picker-modal';
 import { RegisterMealModal } from '@/components/register-meal-modal';
-import { Brand, Typography } from '@/constants/theme';
+import { Brand, Radii, Shadows, Typography } from '@/constants/theme';
 import { HistoryCalendarCard } from '@/features/history/history-calendar-card';
 import { HistoryDayHero } from '@/features/history/history-day-hero';
 import { HistoryMealsSection, HistoryWaterSection } from '@/features/history/history-record-sections';
 import { getCalendarRows } from '@/features/history/history-utils';
+import { ProgressScreen } from '@/features/progress/progress-screen';
 import { deleteMeal, getDaySummary, getMealsByRange, updateMeal } from '@/services/meals';
 import { getWaterHistory, getWaterStatus, type WaterStatus } from '@/services/water';
 import type { Meal, MealType, NutritionData } from '@/types/nutrition';
 import { extractNum, monthRange, todayStr } from '@/utils/helpers';
 
+type Mode = 'dashboard' | 'calendar';
+
 export default function HistoryScreen() {
+  const [mode, setMode] = useState<Mode>('dashboard');
+
+  if (mode === 'dashboard') {
+    return <ProgressScreen onOpenCalendar={() => setMode('calendar')} />;
+  }
+
+  return <CalendarView onBack={() => setMode('dashboard')} />;
+}
+
+function CalendarView({ onBack }: { onBack: () => void }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const today = todayStr();
@@ -208,7 +222,7 @@ export default function HistoryScreen() {
   });
 
   return (
-    <View style={[s.root, { paddingTop: insets.top }]}>
+    <View style={s.root}>
       <StatusBar barStyle="dark-content" backgroundColor={Brand.bg} />
 
       <ScrollView
@@ -216,11 +230,22 @@ export default function HistoryScreen() {
         alwaysBounceVertical={false}
         contentInsetAdjustmentBehavior="never"
         overScrollMode="never"
-        contentContainerStyle={s.scroll}
+        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 10 }]}
         showsVerticalScrollIndicator={false}>
-        <Text style={s.title}>Progresso</Text>
+        <View style={s.topRow}>
+          <Pressable style={s.backBtn} onPress={onBack}>
+            <Ionicons name="arrow-back" size={20} color={Brand.text} />
+            <Text style={s.backText}>Painel</Text>
+          </Pressable>
+          <View style={s.modeTag}>
+            <Ionicons name="calendar" size={12} color={Brand.greenDeeper} />
+            <Text style={s.modeTagText}>CALENDÁRIO</Text>
+          </View>
+        </View>
+
+        <Text style={s.title}>Seu histórico</Text>
         <Text style={s.subtitle}>
-          Consistência, refeições e hidratação organizadas em um painel diário.
+          Navegue pelos dias, ajuste refeições e revisite suas conquistas.
         </Text>
 
         <HistoryCalendarCard
@@ -304,18 +329,63 @@ const s = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: 18,
-    paddingTop: 14,
     paddingBottom: 160,
     gap: 16,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingLeft: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radii.pill,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    ...Shadows.soft,
+  },
+  backText: {
+    ...Typography.body,
+    fontSize: 13,
+    fontWeight: '800',
+    color: Brand.text,
+    letterSpacing: -0.1,
+  },
+  modeTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: Brand.mintSoft,
+    borderRadius: Radii.pill,
+  },
+  modeTagText: {
+    ...Typography.caption,
+    fontSize: 10,
+    fontWeight: '800',
+    color: Brand.greenDeeper,
+    letterSpacing: 0.8,
   },
   title: {
     ...Typography.title,
     color: Brand.text,
     fontWeight: '800',
+    fontSize: 26,
+    letterSpacing: -0.6,
+    lineHeight: 30,
+    marginTop: 4,
   },
   subtitle: {
     ...Typography.body,
     color: Brand.textSecondary,
+    fontSize: 13,
     marginTop: -8,
   },
 });

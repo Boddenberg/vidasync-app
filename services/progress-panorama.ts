@@ -2,14 +2,19 @@ import { getMealsByRange } from '@/services/meals';
 import { getWaterHistory } from '@/services/water';
 import { extractNum, toDateStr } from '@/utils/helpers';
 
-export type PanoramaPeriod = 7 | 15 | 30;
+export type PanoramaPeriod = 7 | 15 | 30 | 90;
 
 export type PanoramaMetric = 'water' | 'calories' | 'meals';
 
 export type PanoramaDay = {
   date: string;
   waterMl: number;
+  waterGoalMl: number;
+  waterGoalReached: boolean;
   calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
   mealsCount: number;
   hasAnyRecord: boolean;
 };
@@ -33,7 +38,7 @@ function buildDayRange(endDate: string, totalDays: number): string[] {
 }
 
 export async function getProgressPanorama(endDate: string, totalDays = 30): Promise<PanoramaDataset> {
-  const safeTotalDays = Math.max(1, Math.min(30, totalDays));
+  const safeTotalDays = Math.max(1, Math.min(90, totalDays));
   const startDate = shiftDateByDays(endDate, -(safeTotalDays - 1));
   const [meals, waterHistory] = await Promise.all([
     getMealsByRange(startDate, endDate),
@@ -45,7 +50,12 @@ export async function getProgressPanorama(endDate: string, totalDays = 30): Prom
     daysMap.set(date, {
       date,
       waterMl: 0,
+      waterGoalMl: 0,
+      waterGoalReached: false,
       calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
       mealsCount: 0,
       hasAnyRecord: false,
     });
@@ -57,6 +67,9 @@ export async function getProgressPanorama(endDate: string, totalDays = 30): Prom
 
     bucket.mealsCount += 1;
     bucket.calories += extractNum(meal.nutrition?.calories ?? '0');
+    bucket.protein += extractNum(meal.nutrition?.protein ?? '0');
+    bucket.carbs += extractNum(meal.nutrition?.carbs ?? '0');
+    bucket.fat += extractNum(meal.nutrition?.fat ?? '0');
     bucket.hasAnyRecord = true;
   });
 
@@ -68,6 +81,8 @@ export async function getProgressPanorama(endDate: string, totalDays = 30): Prom
     const hasWaterRecord = waterDay.events.length > 0 || waterDay.consumedMl > 0;
 
     bucket.waterMl = waterMl;
+    bucket.waterGoalMl = Math.max(0, Math.round(waterDay.goalMl));
+    bucket.waterGoalReached = Boolean(waterDay.goalReached);
     bucket.hasAnyRecord = bucket.hasAnyRecord || hasWaterRecord;
   });
 
